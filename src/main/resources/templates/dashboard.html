@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Dashboard', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Today</p>
+            <h2 class="page-title">Care operations</h2>
+            <p class="sub" th:text="${#temporals.format(today, 'EEEE, d MMMM yyyy')}">Wednesday</p>
+        </div>
+        <div class="actions">
+            <a class="btn secondary" th:href="@{/employees/new}">Add employee</a>
+            <a class="btn" th:href="@{/customers/new}">Add lead</a>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <span>Employees</span>
+            <strong th:text="${stats['employees']}">0</strong>
+        </div>
+        <div class="stat">
+            <span>Onboarded (salary)</span>
+            <strong th:text="${stats['onboarded']}">0</strong>
+        </div>
+        <div class="stat">
+            <span>Patient leads</span>
+            <strong th:text="${stats['customers']}">0</strong>
+        </div>
+        <div class="stat">
+            <span>Present today</span>
+            <strong th:text="${stats['presentToday']}">0</strong>
+        </div>
+    </div>
+
+    <!--<div class="hero-note">
+        <h3>From enquiry to bedside</h3>
+        <p style="margin:0;max-width:640px;line-height:1.5">Register care staff, complete training notes, share a brochure with the family, assign them to a patient location, then mark attendance once salary has started.</p>
+    </div>-->
+
+    <div class="grid-2">
+        <div class="panel">
+            <h3>Recent staff</h3>
+            <table th:if="${!recentEmployees.isEmpty()}">
+                <thead>
+                <tr><th>ID</th><th>Name</th><th>Training</th><th></th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="e : ${recentEmployees}">
+                    <td th:text="${e.empCode}">EMP-1001</td>
+                    <td th:text="${e.fullName}">Name</td>
+                    <td><span class="badge" th:text="${e.trainingStatus}">NOT_STARTED</span></td>
+                    <td><a th:href="@{/employees/{id}(id=${e.id})}">Open</a></td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="empty" th:if="${recentEmployees.isEmpty()}">No employees yet.</p>
+        </div>
+        <div class="panel">
+            <h3>Recent leads</h3>
+            <table th:if="${!recentCustomers.isEmpty()}">
+                <thead>
+                <tr><th>ID</th><th>Patient</th><th>Service</th><th></th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="c : ${recentCustomers}">
+                    <td th:text="${c.custCode}">CUS-1001</td>
+                    <td th:text="${c.patientName}">Patient</td>
+                    <td th:text="${c.serviceType == T(com.vns.healthcare.domain.ServiceType).HOURS_24} ? '24 hrs' : '12 hrs'">24 hrs</td>
+                    <td><a th:href="@{/customers/{id}(id=${c.id})}">Open</a></td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="empty" th:if="${recentCustomers.isEmpty()}">No leads yet.</p>
+        </div>
+    </div>
+</section>
+</html>

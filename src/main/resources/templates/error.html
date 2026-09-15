@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Something went wrong</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body style="padding:48px">
+<h2 class="page-title">Could not complete that request</h2>
+<p class="sub" th:text="${error != null} ? ${error} : 'Please go back and try again.'">Error</p>
+<p><a class="btn" href="/">Dashboard</a></p>
+</body>
+</html>

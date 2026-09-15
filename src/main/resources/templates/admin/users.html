@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Users', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Access control</p>
+            <h2 class="page-title">System users</h2>
+            <p class="sub">Admin can add users and assign roles for login access.</p>
+        </div>
+        <a class="btn" th:href="@{/admin/users/new}">Add user</a>
+    </div>
+
+    <div th:if="${success}" class="flash" th:text="${success}"></div>
+    <div th:if="${error}" class="flash error" th:text="${error}"></div>
+
+    <div class="panel">
+        <table th:if="${!users.isEmpty()}">
+            <thead>
+            <tr>
+                <th>Username</th>
+                <th>Roles</th>
+                <th>Status</th>
+                <th>Last updated</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="user : ${users}">
+                <td th:text="${user.username}">admin</td>
+                <td>
+                    <span class="badge" th:each="role : ${user.roles}" th:text="${role.name}">ADMIN</span>
+                </td>
+                <td>
+                    <span class="badge ok" th:if="${user.enabled}">Active</span>
+                    <span class="badge muted" th:unless="${user.enabled}">Disabled</span>
+                </td>
+                <td>
+                    <div class="row-actions compact">
+                        <a class="btn ghost small" th:href="@{/admin/users/{id}/edit(id=${user.id})}">Edit</a>
+                        <form th:if="${!#strings.equalsIgnoreCase(user.username, 'admin')}" th:action="@{/admin/users/{id}/delete(id=${user.id})}" method="post" onsubmit="return confirm('Delete this user?');">
+                            <button class="btn coral small" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${users.isEmpty()}">No users created yet.</p>
+    </div>
+</section>
+</html>

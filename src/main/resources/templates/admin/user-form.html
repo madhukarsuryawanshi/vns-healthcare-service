@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('New user', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Access control</p>
+            <h2 class="page-title">Create user</h2>
+            <p class="sub">Assign roles to grant login access to the application.</p>
+        </div>
+    </div>
+
+    <div class="panel">
+        <form th:action="${userId != null} ? @{/admin/users/{id}(id=${userId})} : @{/admin/users}" method="post" th:object="${userForm}" class="form-grid">
+            <div class="field full">
+                <label class="req" for="username">Username</label>
+                <input id="username" type="text" th:field="*{username}" required/>
+            </div>
+
+            <div class="field full">
+                <label for="password" th:text="${userId != null} ? 'Password (optional)' : 'Password'">Password</label>
+                <input id="password" type="password" th:field="*{password}" th:required="${userId == null}"/>
+            </div>
+
+            <div class="field full">
+                <label>Roles</label>
+                <div class="check-list" th:each="role : ${roles}">
+                    <label>
+                        <input type="checkbox" name="roleIds" th:value="${role.id}" th:checked="${userForm.roleIds != null and #lists.contains(userForm.roleIds, role.id)}"/>
+                        <span th:text="${role.name}">ADMIN</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="field full">
+                <label>Module access</label>
+                <div class="check-list" th:each="module : ${accessModules}">
+                    <div class="permission-row">
+                        <span th:text="${module}">employees</span>
+                        <label>
+                            <input type="checkbox" name="readPermissions" th:value="${module}" th:checked="${userForm.readPermissions != null and #lists.contains(userForm.readPermissions, module)}"/>
+                            Read
+                        </label>
+                        <label>
+                            <input type="checkbox" name="writePermissions" th:value="${module}" th:checked="${userForm.writePermissions != null and #lists.contains(userForm.writePermissions, module)}"/>
+                            Write
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field full">
+                <label>
+                    <input type="checkbox" th:field="*{enabled}"/>
+                    User active
+                </label>
+            </div>
+
+            <div class="field full actions">
+                <button class="btn" type="submit">Save user</button>
+                <a class="btn ghost" th:href="@{/admin/users}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+</html>

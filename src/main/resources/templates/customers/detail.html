@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout(${customer.patientName}, ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow" th:text="${customer.custCode}">CUS-1001</p>
+            <h2 class="page-title" th:text="${customer.patientName}">Patient</h2>
+            <p class="sub" th:text="'Family contact: ' + ${customer.fullName} + ' · ' + ${customer.mobileNo}">Contact</p>
+        </div>
+        <div class="actions">
+            <a class="btn ghost" th:if="${canWriteCustomers and !customer.closed}" th:href="@{/customers/{id}/edit(id=${customer.id})}">Edit</a>
+            <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/close(id=${customer.id})}" method="post"
+                  onsubmit="return confirm('Close this service? Charges will be calculated from the 1st of this month to today. Hold days are unpaid.');">
+                <button class="btn coral" type="submit">Close Service</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="flash" th:if="${customer.closed}">
+        Service closed on
+        <span th:text="${customer.serviceClosedDate != null} ? ${#temporals.format(customer.serviceClosedDate, 'dd MMM yyyy')} : '—'">date</span>
+        <span th:if="${billFrom != null and billTo != null}">
+            (billed
+            <span th:text="${#temporals.format(billFrom, 'dd MMM yyyy')}">01 Sep</span>
+            to
+            <span th:text="${#temporals.format(billTo, 'dd MMM yyyy')}">12 Sep</span>)
+        </span>.
+        Billed amount:
+        <strong th:text="${customer.billedAmount != null} ? ${#numbers.formatDecimal(customer.billedAmount, 1, 'COMMA', 2, 'POINT')} : '0.00'">0</strong>
+        <form th:action="@{/customers/{id}/recalculate(id=${customer.id})}" method="post" style="display:inline;margin-left:12px">
+            <button class="btn ghost" type="submit">Recalculate this month</button>
+        </form>
+    </div>
+
+    <div class="grid-2">
+        <div class="panel">
+            <h3>Case details</h3>
+            <dl class="dl">
+                <dt>Address</dt>
+                <dd th:text="${customer.address}">Address</dd>
+                <dt>Gender</dt>
+                <dd th:text="${customer.gender != null} ? ${customer.gender} : '—'">—</dd>
+                <dt>Age</dt>
+                <dd th:text="${customer.age}">70</dd>
+                <dt>Service</dt>
+                <dd th:text="${customer.serviceType == T(com.vns.healthcare.domain.ServiceType).HOURS_24} ? '24 hours' : '12 hours'">24 hours</dd>
+                <dt>Monthly charges</dt>
+                <dd th:text="${customer.charges != null} ? ${#numbers.formatDecimal(customer.charges, 1, 'COMMA', 2, 'POINT')} : '—'">25,000.00</dd>
+                <dt>Charges this month</dt>
+                <dd>
+                    <span th:text="${#numbers.formatDecimal(runningTotal, 1, 'COMMA', 2, 'POINT')}">0.00</span>
+                    <span class="sub" th:if="${billFrom != null and billTo != null}"
+                          th:text="' (' + ${#temporals.format(billFrom, 'dd MMM')} + ' – ' + ${#temporals.format(billTo, 'dd MMM')} + ')'"> (01 Sep – 12 Sep)</span>
+                </dd>
+                <dt>Start date</dt>
+                <dd th:text="${customer.serviceStartDate != null} ? ${#temporals.format(customer.serviceStartDate, 'dd MMM yyyy')} : '—' ">—</dd>
+                <dt>Status</dt>
+                <dd th:text="${customer.status}">NEW</dd>
+                <dt>Medical history</dt>
+                <dd th:text="${customer.medicalHistory != null} ? ${customer.medicalHistory} : '—'">—</dd>
+            </dl>
+        </div>
+        <div class="panel">
+            <h3>Assign to customer location</h3>
+            <p th:if="${customer.assignedEmployee != null}">
+                Current staff:
+                <a th:href="@{/employees/{id}(id=${customer.assignedEmployee.id})}"
+                   th:text="${customer.assignedEmployee.empCode} + ' · ' + ${customer.assignedEmployee.fullName}">EMP</a>
+            </p>
+            <p th:unless="${customer.assignedEmployee != null}" class="sub">No caregiver assigned yet.</p>
+            <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/assign(id=${customer.id})}" method="post" style="margin-top:12px">
+                <label>Employee</label>
+                <select name="employeeId">
+                    <option value="">Unassigned</option>
+                    <option th:each="e : ${staff}" th:value="${e.id}" th:text="${e.empCode} + ' · ' + ${e.fullName}"
+                            th:selected="${customer.assignedEmployee != null and customer.assignedEmployee.id == e.id}">EMP</option>
+                </select>
+                <div class="actions" style="margin-top:12px">
+                    <button class="btn" type="submit">Save assignment</button>
+                    <a class="btn secondary" th:if="${customer.assignedEmployee != null}"
+                       th:href="@{/employees/{id}/brochure(id=${customer.assignedEmployee.id})}" target="_blank">Share staff brochure</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>Duty roster (date range)</h3>
+        <p class="sub">Example: Day-01 to Day-04 Employee A, then Day-05 to Day-10 Employee B. Tick Hold for unpaid days.</p>
+        <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/duties(id=${customer.id})}" method="post" class="form-grid">
+            <div class="field">
+                <label class="req">From</label>
+                <input type="date" name="from" required="required"/>
+            </div>
+            <div class="field">
+                <label class="req">To</label>
+                <input type="date" name="to" required="required"/>
+            </div>
+            <div class="field">
+                <label>Employee</label>
+                <select name="employeeId">
+                    <option value="">Select</option>
+                    <option th:each="e : ${staff}" th:value="${e.id}" th:text="${e.empCode} + ' · ' + ${e.fullName}">EMP</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Hold (no charges)</label>
+                <label style="text-transform:none;letter-spacing:0;font-size:14px">
+                    <input type="checkbox" name="hold" value="true"/> Mark these days as Hold
+                </label>
+            </div>
+            <div class="field">
+                <button class="btn" type="submit">Save range</button>
+            </div>
+        </form>
+        <p class="sub" th:if="${customer.closed}">Duty dates cannot be changed after close.</p>
+    </div>
+
+    <div class="panel">
+        <div class="topbar" style="margin-bottom:12px">
+            <h3 style="margin:0" th:text="'Days in ' + ${month}">Days</h3>
+            <form method="get" th:action="@{/customers/{id}(id=${customer.id})}" class="search" style="margin:0">
+                <input type="month" name="month" th:value="${month}"/>
+                <button class="btn ghost" type="submit">Show month</button>
+            </form>
+        </div>
+        <table>
+            <thead>
+            <tr>
+                <th>Date</th>
+                <th>Staff / Hold</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${dayRows}">
+                <td th:text="${#temporals.format(row.date, 'dd MMM yyyy')}">01 Sep</td>
+                <td>
+                    <span class="badge warn" th:if="${row.hold}">Hold</span>
+                    <span th:if="${row.hasStaff()}" th:text="${row.staffName}">Name</span>
+                    <span class="badge muted" th:if="${row.empty}">—</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel">
+        <h3>Documents</h3>
+        <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents(id=${customer.id})}" method="post" enctype="multipart/form-data" class="search">
+            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+            <input type="file" name="document"/>
+            <button class="btn secondary" type="submit">Upload</button>
+        </form>
+        <table th:if="${!customer.documents.isEmpty()}">
+            <thead>
+            <tr><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="d : ${customer.documents}">
+                <td th:text="${d.originalFilename}">file.pdf</td>
+                <td th:text="${d.fileSize}">0</td>
+                <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
+                <td><a th:href="@{/customers/{id}/documents/{docId}(id=${customer.id}, docId=${d.id})}" target="_blank">View</a></td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${customer.documents.isEmpty()}">No documents uploaded.</p>
+    </div>
+</section>
+</html>

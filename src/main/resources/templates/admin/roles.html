@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Roles', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Access control</p>
+            <h2 class="page-title">Roles</h2>
+            <p class="sub">Create roles and grant permissions for each module.</p>
+        </div>
+        <a class="btn" th:href="@{/admin/roles/new}">Add role</a>
+    </div>
+
+    <div th:if="${success}" class="flash" th:text="${success}"></div>
+    <div th:if="${error}" class="flash error" th:text="${error}"></div>
+
+    <div class="panel">
+        <table th:if="${!roles.isEmpty()}">
+            <thead>
+            <tr>
+                <th>Role</th>
+                <th>Description</th>
+                <th>Permissions</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="role : ${roles}">
+                <td th:text="${role.name}">ADMIN</td>
+                <td th:text="${role.description} ?: '—'">Full access</td>
+                <td>
+                    <span class="badge" th:each="permission : ${role.permissions}" th:text="${permission}">dashboard</span>
+                </td>
+                <td><a th:href="@{/admin/roles/{id}/edit(id=${role.id})}">Edit</a></td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${roles.isEmpty()}">No roles defined yet.</p>
+    </div>
+</section>
+</html>

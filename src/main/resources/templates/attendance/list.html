@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Attendance', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Roster</p>
+            <h2 class="page-title">Attendance</h2>
+            <p class="sub">Active employees — mark present, absent, leave, or half day.</p>
+        </div>
+        <form method="get" th:action="@{/attendance}" class="search" style="margin:0">
+            <input type="date" name="date" th:value="${date}"/>
+            <button class="btn" type="submit">Show date</button>
+        </form>
+    </div>
+
+    <div class="panel">
+        <h3>Download report</h3>
+        <form method="get" th:action="@{/attendance/report}" class="search" style="margin-bottom:0">
+            <input type="date" name="from" th:value="${reportFrom}" required="required"/>
+            <input type="date" name="to" th:value="${reportTo}" required="required"/>
+            <button class="btn secondary" type="submit">Download Excel</button>
+        </form>
+        <p class="sub" style="margin:10px 0 0">One row per employee, Day-01 … columns (P / A / Half-day / L), and In-Hand Salary = (monthly salary ÷ days in month × present days) + half-day pay for Half-day. Absent and leave are unpaid.</p>
+    </div>
+
+    <div class="panel">
+        <table th:if="${!roster.isEmpty()}">
+            <thead>
+            <tr>
+                <th>Emp ID</th>
+                <th>Name</th>
+                <th>Salary</th>
+                <th>Mark</th>
+                <th>Check-in</th>
+                <th>Notes</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="entry : ${roster}">
+                <td th:text="${entry.key.empCode}">EMP</td>
+                <td>
+                    <a th:href="@{/employees/{id}(id=${entry.key.id})}" th:text="${entry.key.fullName}">Name</a>
+                </td>
+                <td>
+                    <span class="badge ok" th:if="${entry.key.onboarded}">Onboarded</span>
+                    <span class="badge muted" th:unless="${entry.key.onboarded}">Not onboarded</span>
+                </td>
+                <td colspan="4">
+                    <form th:action="@{/attendance}" method="post" class="search" style="margin:0">
+                        <input type="hidden" name="employeeId" th:value="${entry.key.id}"/>
+                        <input type="hidden" name="date" th:value="${date}"/>
+                        <select name="status" style="max-width:140px">
+                            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}"
+                                    th:selected="${entry.value != null and entry.value.status == s}">PRESENT</option>
+                        </select>
+                        <input type="time" name="checkInTime" style="max-width:120px"
+                               th:value="${entry.value != null and entry.value.checkInTime != null} ? ${entry.value.checkInTime} : ''"/>
+                        <input type="text" name="notes" placeholder="Notes" style="max-width:180px"
+                               th:value="${entry.value != null} ? ${entry.value.notes} : ''"/>
+                        <button class="btn secondary" type="submit">Save</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${roster.isEmpty()}">Add active employees first, then mark attendance here.</p>
+    </div>
+</section>
+</html>

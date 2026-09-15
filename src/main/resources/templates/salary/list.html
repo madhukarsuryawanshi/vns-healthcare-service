@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Salary', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Payroll</p>
+            <h2 class="page-title">Salary status</h2>
+            <p class="sub">Mark each month Paid, In progress, or Unpaid. Current month defaults to In progress until you change it.</p>
+        </div>
+        <div class="actions">
+            <a class="btn ghost" th:href="@{/salary(year=${prevYear})}" th:text="${prevYear}">2025</a>
+            <strong th:text="${year}">2026</strong>
+            <a class="btn ghost" th:href="@{/salary(year=${nextYear})}" th:text="${nextYear}">2027</a>
+        </div>
+    </div>
+
+    <div class="panel" style="overflow-x:auto">
+        <table th:if="${!rows.isEmpty()}">
+            <thead>
+            <tr>
+                <th>Emp ID</th>
+                <th>Name</th>
+                <th>Salary</th>
+                <th th:each="name : ${monthNames}" th:text="${name}">Jan</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="entry : ${rows}">
+                <td th:text="${entry.key.empCode}">EMP-1001</td>
+                <td><a th:href="@{/employees/{id}(id=${entry.key.id})}" th:text="${entry.key.fullName}">Name</a></td>
+                <td th:text="${entry.key.salary != null} ? ${#numbers.formatDecimal(entry.key.salary, 1, 'COMMA', 2, 'POINT')} : '—'">18,000</td>
+                <td th:each="m : ${entry.value}" style="white-space:nowrap">
+                    <span class="badge muted" th:if="${m.status == null}">—</span>
+                    <span class="badge ok" th:if="${m.paid}">Paid</span>
+                    <span class="badge warn" th:if="${m.inProgress}">In progress</span>
+                    <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
+                    <form th:if="${m.status != null}" th:action="@{/salary}" method="post" style="margin-top:6px">
+                        <input type="hidden" name="employeeId" th:value="${entry.key.id}"/>
+                        <input type="hidden" name="year" th:value="${year}"/>
+                        <input type="hidden" name="month" th:value="${m.monthValue}"/>
+                        <select name="status" style="max-width:110px" onchange="this.form.submit()">
+                            <option value="PAID" th:selected="${m.paid}">Paid</option>
+                            <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
+                            <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
+                        </select>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${rows.isEmpty()}">Add active employees first.</p>
+    </div>
+</section>
+</html>

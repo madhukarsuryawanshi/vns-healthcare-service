@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout (title, content)">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta th:if="${_csrf != null}" name="_csrf" th:content="${_csrf.token}"/>
+    <meta th:if="${_csrf != null}" name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title th:text="${title} + ' · VNS Healthcare'">VNS Healthcare</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="app">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="mark">V</div>
+            <div>
+                <h1>VNS Healthcare</h1>
+                <p>Home care desk</p>
+            </div>
+        </div>
+        <nav class="nav">
+            <a th:href="@{/}" th:classappend="${page == 'dashboard'} ? 'active'">Dashboard</a>
+            <a th:href="@{/employees}" th:classappend="${page == 'employees'} ? 'active'">Employees</a>
+            <a th:href="@{/customers}" th:classappend="${page == 'customers'} ? 'active'">Leads</a>
+            <a th:href="@{/attendance}" th:classappend="${page == 'attendance'} ? 'active'">Attendance</a>
+            <a th:href="@{/salary}" th:classappend="${page == 'salary'} ? 'active'">Salary</a>
+            <a th:href="@{/admin/users}" th:classappend="${page == 'admin'} ? 'active'">Admin</a>
+        </nav>
+        <button class="theme-toggle" type="button" aria-label="Toggle theme" data-theme-toggle>
+            <span>🌙</span>
+            <span>Dark</span>
+        </button>
+        <div class="user-chip" th:if="${currentUser != null}">
+            <span class="user-label">Logged in</span>
+            <strong th:text="${currentUser}">admin</strong>
+        </div>
+        <form th:action="@{/logout}" method="post" class="logout-form">
+            <button type="submit" class="logout-btn">Logout</button>
+        </form>
+        <div class="sidebar-foot">Staffing · Patient leads · Duty roster</div>
+    </aside>
+    <main class="main">
+        <div th:if="${success}" class="flash" th:text="${success}"></div>
+        <div th:if="${error}" class="flash error" th:text="${error}"></div>
+        <div th:replace="${content}"></div>
+    </main>
+</div>
+<script>
+    (function () {
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        const savedTheme = localStorage.getItem('vns-theme');
+        if (savedTheme) {
+            root.setAttribute('data-theme', savedTheme);
+        }
+        function syncTheme() {
+            if (!toggle) return;
+            const dark = root.getAttribute('data-theme') === 'dark';
+            toggle.setAttribute('aria-pressed', String(dark));
+            toggle.innerHTML = dark ? '<span>☀️</span><span>Light</span>' : '<span>🌙</span><span>Dark</span>';
+        }
+        syncTheme();
+        toggle && toggle.addEventListener('click', function () {
+            const nextTheme = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('vns-theme', nextTheme);
+            syncTheme();
+        });
+
+    const csrfMeta = document.querySelector('meta[name="_csrf"]');
+    const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
+    if (csrfMeta && csrfHeaderMeta) {
+        const csrfToken = csrfMeta.getAttribute('content');
+        const csrfHeader = csrfHeaderMeta.getAttribute('content');
+        document.querySelectorAll('form').forEach(function (form) {
+            if (form.querySelector('input[name="_csrf"]')) {
+                return;
+            }
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = '_csrf';
+            hidden.value = csrfToken;
+            form.appendChild(hidden);
+        });
+        document.addEventListener('submit', function (event) {
+            const form = event.target;
+            if (form && form.tagName === 'FORM' && !form.querySelector('input[name="_csrf"]')) {
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = '_csrf';
+                hidden.value = csrfToken;
+                form.appendChild(hidden);
+            }
+        }, true);
+    }
+})();
+</script>
+</body>
+</html>

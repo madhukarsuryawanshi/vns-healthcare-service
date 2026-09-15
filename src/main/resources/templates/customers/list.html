@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Leads', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Patients</p>
+            <h2 class="page-title">Leads &amp; customers</h2>
+            <p class="sub">Search by customer name, mobile, patient name, or customer ID.</p>
+        </div>
+        <a class="btn" th:if="${canWriteCustomers}" th:href="@{/customers/new}">Add customer</a>
+    </div>
+
+    <form class="search" method="get" th:action="@{/customers}">
+        <input type="text" name="q" th:value="${q}" placeholder="Name / Mobile / Patient / Cust ID / Employee" list="customerSuggestionsList" autocomplete="off"/>
+        <button class="btn" type="submit">Search</button>
+        <a class="btn ghost" th:href="@{/customers}">Clear</a>
+    </form>
+    <datalist id="customerSuggestionsList" th:if="${!customerSuggestions.isEmpty()}">
+        <option th:each="s : ${customerSuggestions}" th:value="${s}"></option>
+    </datalist>
+
+    <div class="panel">
+        <h3>Download report</h3>
+        <form method="get" th:action="@{/customers/report}" class="search" style="margin-bottom:0">
+            <input type="date" name="from" th:value="${reportFrom}" required="required"/>
+            <input type="date" name="to" th:value="${reportTo}" required="required"/>
+            <button class="btn secondary" type="submit">Download Excel</button>
+        </form>
+        <p class="sub" style="margin:10px 0 0">Day columns show the assigned employee. Hold days are shown as Hold and are not added to Total.</p>
+    </div>
+
+    <div class="panel">
+        <table th:if="${!customers.isEmpty()}">
+            <thead>
+            <tr>
+                <th>Cust ID</th>
+                <th>Customer</th>
+                <th>Patient</th>
+                <th>Service</th>
+                <th>Charges</th>
+                <th>Assigned staff</th>
+                <th>Status</th>
+                <th>Billed</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="c : ${customers}" th:classappend="${c.closed} ? 'closed'">
+                <td th:text="${c.custCode}">CUS-1001</td>
+                <td>
+                    <div th:text="${c.fullName}">Name</div>
+                    <div class="sub" th:text="${c.mobileNo}">999</div>
+                </td>
+                <td th:text="${c.patientName}">Patient</td>
+                <td th:text="${c.serviceType == T(com.vns.healthcare.domain.ServiceType).HOURS_24} ? '24 hrs' : '12 hrs'">24 hrs</td>
+                <td th:text="${c.charges != null} ? ${#numbers.formatDecimal(c.charges, 1, 'COMMA', 2, 'POINT')} : '—'">25,000.00</td>
+                <td>
+                    <span th:if="${c.assignedEmployee != null}" th:text="${c.assignedEmployee.empCode} + ' · ' + ${c.assignedEmployee.fullName}">EMP</span>
+                    <span class="badge muted" th:if="${c.assignedEmployee == null}">Unassigned</span>
+                </td>
+                <td><span class="badge" th:classappend="${c.closed} ? ' muted'" th:text="${c.status}">NEW</span></td>
+                <td th:text="${c.closed and c.billedAmount != null} ? ${#numbers.formatDecimal(c.billedAmount, 1, 'COMMA', 2, 'POINT')} : '—'">—</td>
+                <td>
+                    <div class="row-actions">
+                        <a class="btn secondary small" th:href="@{/customers/{id}(id=${c.id})}" th:text="${c.closed} ? 'View' : 'Open'">Open</a>
+                        <a class="btn ghost small" th:if="${canWriteCustomers}" th:href="@{/customers/{id}/edit(id=${c.id})}">Edit</a>
+                        <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/delete(id=${c.id})}" method="post" onsubmit="return confirm('Delete this lead?');">
+                            <button class="btn coral small" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${customers.isEmpty()}">No leads yet.</p>
+    </div>
+</section>
+</html>

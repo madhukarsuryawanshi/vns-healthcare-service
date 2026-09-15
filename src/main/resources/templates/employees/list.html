@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Employees', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Staff</p>
+            <h2 class="page-title">Employees</h2>
+            <p class="sub">Search by name, mobile, Aadhar, or employee ID.</p>
+        </div>
+        <a class="btn" th:if="${canWriteEmployees}" th:href="@{/employees/new}">Add employee</a>
+    </div>
+
+    <form class="search" method="get" th:action="@{/employees}">
+        <input type="text" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" list="employeeSuggestionsList" autocomplete="off"/>
+        <button class="btn" type="submit">Search</button>
+        <a class="btn ghost" th:href="@{/employees}">Clear</a>
+    </form>
+    <datalist id="employeeSuggestionsList" th:if="${!employeeSuggestions.isEmpty()}">
+        <option th:each="s : ${employeeSuggestions}" th:value="${s}"></option>
+    </datalist>
+
+    <div class="panel">
+        <table th:if="${!employees.isEmpty()}">
+            <thead>
+            <tr>
+                <th>Emp ID</th>
+                <th>Name</th>
+                <th>Mobile</th>
+                <th>Joined</th>
+                <th>Training</th>
+                <th>Salary</th>
+                <th>Onboarded</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="e : ${employees}">
+                <td th:text="${e.empCode}">EMP-1001</td>
+                <td th:text="${e.fullName}">Name</td>
+                <td th:text="${e.mobileNo}">9999999999</td>
+                <td th:text="${#temporals.format(e.joiningDate, 'dd MMM yyyy')}">01 Jan 2026</td>
+                <td><span class="badge" th:text="${e.trainingStatus}">NOT_STARTED</span></td>
+                <td th:text="${e.salary != null} ? ${#numbers.formatDecimal(e.salary, 1, 'COMMA', 2, 'POINT')} : '—'">18,000.00</td>
+                <td>
+                    <span class="badge ok" th:if="${e.onboarded}">Started</span>
+                    <span class="badge muted" th:unless="${e.onboarded}">Pending</span>
+                </td>
+                <td>
+                    <div class="row-actions">
+                        <a class="btn secondary small" th:href="@{/employees/{id}(id=${e.id})}">Profile</a>
+                        <a class="btn ghost small" th:if="${canWriteEmployees}" th:href="@{/employees/{id}/edit(id=${e.id})}">Edit</a>
+                        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/delete(id=${e.id})}" method="post" onsubmit="return confirm('Delete this employee?');">
+                            <button class="btn coral small" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${employees.isEmpty()}">No employees match this search.</p>
+    </div>
+</section>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="'Care profile · ' + ${employee.fullName}">Brochure</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;500&display=swap" rel="stylesheet"/>
+    <style>
+        body { margin: 0; background: #efe8d9; color: #1c2a26; font-family: "Source Sans 3", sans-serif; }
+        .sheet { max-width: 720px; margin: 32px auto; background: #fffcf7; border: 1px solid #d9cfb8; padding: 48px 52px; }
+        .top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #d9cfb8; padding-bottom: 20px; }
+        h1 { font-family: Fraunces, Georgia, serif; font-weight: 500; margin: 0; font-size: 34px; }
+        .org { letter-spacing: 0.18em; text-transform: uppercase; font-size: 12px; color: #b8944a; }
+        .code { font-size: 13px; color: #5c6b66; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 28px; margin-top: 28px; }
+        .label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5c6b66; }
+        .value { margin-top: 4px; font-size: 16px; }
+        .note { margin-top: 32px; font-size: 13px; color: #5c6b66; line-height: 1.5; }
+        .print { margin: 0 0 16px; }
+        @media print { .print { display: none; } body { background: #fff; } .sheet { margin: 0; border: 0; } }
+    </style>
+</head>
+<body>
+<div class="sheet">
+    <p class="print"><button onclick="window.print()">Print / save as PDF</button></p>
+    <div class="top">
+        <div>
+            <div class="org">VNS Healthcare · Home care</div>
+            <h1 th:text="${employee.fullName}">Name</h1>
+            <div class="code" th:text="${employee.empCode} + ' · Care staff profile'">EMP-1001</div>
+        </div>
+        <div class="code" th:text="${employee.gender} + ' · Joined ' + ${#temporals.format(employee.joiningDate, 'MMM yyyy')}">Female</div>
+    </div>
+    <div class="grid">
+        <div>
+            <div class="label">Mobile</div>
+            <div class="value" th:text="${employee.mobileNo}">9999999999</div>
+        </div>
+        <div>
+            <div class="label">Training</div>
+            <div class="value" th:text="${employee.trainingStatus}">COMPLETED</div>
+        </div>
+        <div>
+            <div class="label">Onboarded</div>
+            <div class="value" th:text="${employee.onboarded} ? 'Yes — salary started' : 'In process'">Yes</div>
+        </div>
+        <div>
+            <div class="label">Date of birth</div>
+            <div class="value" th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</div>
+        </div>
+        <div style="grid-column: 1 / -1">
+            <div class="label">Address</div>
+            <div class="value" th:text="${employee.fullAddress}">Address</div>
+        </div>
+    </div>
+    <p class="note">This profile is shared with the customer family so they can recognise the caregiver assigned to their home. Aadhar and other KYC papers stay in the office file and are not printed on this brochure.</p>
+</div>
+</body>
+</html>

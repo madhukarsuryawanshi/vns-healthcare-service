@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout(${employee.fullName}, ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow" th:text="${employee.empCode}">EMP-1001</p>
+            <h2 class="page-title" th:text="${employee.fullName}">Name</h2>
+            <p class="sub" th:text="${employee.mobileNo}">9999999999</p>
+        </div>
+        <div class="actions">
+            <a class="btn secondary" th:href="@{/employees/{id}/brochure(id=${employee.id})}" target="_blank">Share profile / brochure</a>
+            <a class="btn ghost" th:if="${canWriteEmployees}" th:href="@{/employees/{id}/edit(id=${employee.id})}">Edit</a>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="panel">
+            <h3>Personal details</h3>
+            <dl class="dl">
+                <dt>Gender</dt>
+                <dd th:text="${employee.gender}">MALE</dd>
+                <dt>Date of birth</dt>
+                <dd th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</dd>
+                <dt>Joining date</dt>
+                <dd th:text="${#temporals.format(employee.joiningDate, 'dd MMM yyyy')}">01 Jan 2026</dd>
+                <dt>Referred by</dt>
+                <dd th:text="${employee.referredBy != null} ? ${employee.referredBy} : '—'">—</dd>
+                <dt>Aadhar</dt>
+                <dd th:text="${employee.aadharNumber}">xxxxxxxxxxxx</dd>
+                <dt>Address</dt>
+                <dd th:text="${employee.fullAddress}">Address</dd>
+                <dt>Status</dt>
+                <dd th:text="${employee.status}">ACTIVE</dd>
+                <dt>Salary</dt>
+                <dd th:text="${employee.salary != null} ? ${#numbers.formatDecimal(employee.salary, 1, 'COMMA', 2, 'POINT')} : '—'">18,000.00</dd>
+            </dl>
+        </div>
+
+        <div class="panel">
+            <h3>Onboarding &amp; salary</h3>
+            <p th:if="${employee.onboarded}">
+                Salary started on
+                <strong th:text="${#temporals.format(employee.salaryStartDate, 'dd MMM yyyy')}">01 Jan 2026</strong>
+                <span th:if="${employee.salary != null}">
+                    · Amount
+                    <strong th:text="${#numbers.formatDecimal(employee.salary, 1, 'COMMA', 2, 'POINT')}">18000</strong>
+                </span>
+            </p>
+            <p th:unless="${employee.onboarded}" class="sub">Not onboarded yet. Record salary start when the employee is placed.</p>
+            <form th:if="${canWriteEmployees and !employee.onboarded}" th:action="@{/employees/{id}/onboard(id=${employee.id})}" method="post" class="form-grid" style="margin-top:12px">
+                <div class="field">
+                    <label>Salary start date</label>
+                    <input type="date" name="salaryStartDate" th:value="${today}"/>
+                </div>
+                <div class="field" style="align-self:end">
+                    <button class="btn coral" type="submit">Mark onboarded</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="topbar" style="margin-bottom:12px">
+            <h3 style="margin:0">Salary paid status</h3>
+            <form method="get" th:action="@{/employees/{id}(id=${employee.id})}" class="search" style="margin:0">
+                <input type="number" name="year" th:value="${salaryYear}" min="2020" max="2100" style="max-width:100px"/>
+                <button class="btn ghost" type="submit">Year</button>
+            </form>
+        </div>
+        <p class="sub">June / July / August can be Paid while the current month stays In progress until you mark it Paid.</p>
+        <table>
+            <thead>
+            <tr>
+                <th>Month</th>
+                <th>Status</th>
+                <th>Paid on</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="m : ${salaryMonths}">
+                <td>
+                    <span th:text="${m.label}">June</span>
+                    <span class="badge muted" th:if="${m.currentMonth}">This month</span>
+                </td>
+                <td>
+                    <span class="badge muted" th:if="${m.status == null}">—</span>
+                    <span class="badge ok" th:if="${m.paid}">Paid</span>
+                    <span class="badge warn" th:if="${m.inProgress}">In progress</span>
+                    <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
+                </td>
+                <td th:text="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'dd MMM yyyy')} : '—'">—</td>
+                <td>
+                    <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search" style="margin:0">
+                        <input type="hidden" name="year" th:value="${salaryYear}"/>
+                        <input type="hidden" name="month" th:value="${m.monthValue}"/>
+                        <select name="status" style="max-width:130px">
+                            <option value="PAID" th:selected="${m.paid}">Paid</option>
+                            <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
+                            <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
+                        </select>
+                        <button class="btn secondary" type="submit">Save</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel">
+        <h3>Training (manual)</h3>
+        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/training(id=${employee.id})}" method="post" class="form-grid">
+            <div class="field">
+                <label>Training status</label>
+                <select name="trainingStatus">
+                    <option th:each="s : ${trainingStatuses}" th:value="${s}" th:text="${s}" th:selected="${s == employee.trainingStatus}">NOT_STARTED</option>
+                </select>
+            </div>
+            <div class="field full">
+                <label>Notes</label>
+                <textarea name="trainingNotes" rows="3" th:text="${employee.trainingNotes}"></textarea>
+            </div>
+            <div class="field">
+                <button class="btn" type="submit">Save training</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="panel">
+        <h3>Documents</h3>
+        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search">
+            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+            <input type="file" name="document"/>
+            <button class="btn secondary" type="submit">Upload</button>
+        </form>
+        <table th:if="${!employee.documents.isEmpty()}">
+            <thead>
+            <tr><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="d : ${employee.documents}">
+                <td th:text="${d.originalFilename}">file.pdf</td>
+                <td th:text="${d.fileSize}">0</td>
+                <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
+                <td><a th:href="@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${d.id})}" target="_blank">View</a></td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${employee.documents.isEmpty()}">No documents uploaded.</p>
+    </div>
+</section>
+</html>

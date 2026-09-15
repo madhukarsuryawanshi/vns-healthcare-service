@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Role', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Access control</p>
+            <h2 class="page-title" th:text="${roleId != null} ? 'Edit role' : 'Create role'">Create role</h2>
+            <p class="sub">Select which modules this role can access.</p>
+        </div>
+    </div>
+
+    <div class="panel">
+        <form th:action="${roleId != null} ? @{/admin/roles/{id}/edit(id=${roleId})} : @{/admin/roles}" method="post" th:object="${roleForm}" class="form-grid">
+            <div class="field full">
+                <label class="req" for="name">Role name</label>
+                <input id="name" type="text" th:field="*{name}" placeholder="MANAGER" required/>
+            </div>
+
+            <div class="field full">
+                <label for="description">Description</label>
+                <textarea id="description" th:field="*{description}" rows="3" placeholder="Can approve attendance and manage customer workflow"></textarea>
+            </div>
+
+            <div class="field full">
+                <label>Permissions</label>
+                <div class="check-list" th:each="permission : ${permissions}">
+                    <label>
+                        <input type="checkbox" name="permissions" th:value="${permission}" th:checked="${roleForm.permissions != null and #lists.contains(roleForm.permissions, permission)}"/>
+                        <span th:text="${permission}">dashboard</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="field full actions">
+                <button class="btn" type="submit">Save role</button>
+                <a class="btn ghost" th:href="@{/admin/roles}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+</html>

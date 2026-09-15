@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout(${mode == 'create'} ? 'New lead' : 'Edit lead', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Patients</p>
+            <h2 class="page-title" th:text="${mode == 'create'} ? 'Add customer' : 'Edit customer'">Add customer</h2>
+            <p class="sub" th:if="${mode == 'edit'}" th:text="${custCode}">CUS-1001</p>
+        </div>
+        <a class="btn ghost" th:href="@{/customers}">Back to list</a>
+    </div>
+
+    <div class="panel">
+        <form th:action="${mode == 'create'} ? @{/customers} : @{/customers/{id}(id=${customerId})}"
+              th:object="${form}" method="post" enctype="multipart/form-data">
+            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const input = document.getElementById('customerDocument');
+                    const fileName = document.querySelector('.file-name');
+                    if (input && fileName) {
+                        input.addEventListener('change', function () {
+                            fileName.textContent = input.files && input.files.length ? input.files[0].name : 'No file chosen';
+                        });
+                    }
+                });
+            </script>
+            <div class="form-grid">
+                <div class="field">
+                    <label class="req">Customer full name</label>
+                    <input type="text" th:field="*{fullName}"/>
+                    <div class="error-text" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></div>
+                </div>
+                <div class="field">
+                    <label class="req">Mobile no.</label>
+                    <input type="text" th:field="*{mobileNo}" maxlength="10"/>
+                    <div class="error-text" th:if="${#fields.hasErrors('mobileNo')}" th:errors="*{mobileNo}"></div>
+                </div>
+                <div class="field full">
+                    <label class="req">Address</label>
+                    <textarea rows="2" th:field="*{address}"></textarea>
+                    <div class="error-text" th:if="${#fields.hasErrors('address')}" th:errors="*{address}"></div>
+                </div>
+                <div class="field">
+                    <label class="req">Patient name</label>
+                    <input type="text" th:field="*{patientName}"/>
+                    <div class="error-text" th:if="${#fields.hasErrors('patientName')}" th:errors="*{patientName}"></div>
+                </div>
+                <div class="field">
+                    <label>Gender</label>
+                    <select th:field="*{gender}">
+                        <option value="">Select</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="req">Age</label>
+                    <input type="number" th:field="*{age}" min="0" max="120"/>
+                    <div class="error-text" th:if="${#fields.hasErrors('age')}" th:errors="*{age}"></div>
+                </div>
+                <div class="field">
+                    <label class="req">Service</label>
+                    <select th:field="*{serviceType}">
+                        <option value="">Select</option>
+                        <option value="HOURS_12">12 hours</option>
+                        <option value="HOURS_24">24 hours</option>
+                    </select>
+                    <div class="error-text" th:if="${#fields.hasErrors('serviceType')}" th:errors="*{serviceType}"></div>
+                </div>
+                <div class="field">
+                    <label class="req">Charges</label>
+                    <input type="text" th:field="*{charges}" inputmode="decimal" placeholder="e.g. 25000"/>
+                    <div class="error-text" th:if="${#fields.hasErrors('charges')}" th:errors="*{charges}"></div>
+                </div>
+                <div class="field">
+                    <label>Service start date</label>
+                    <input type="date" th:field="*{serviceStartDate}"/>
+                </div>
+                <div class="field">
+                    <label>Assign employee</label>
+                    <select th:field="*{employeeId}">
+                        <option value="">Unassigned</option>
+                        <option th:each="e : ${staff}" th:value="${e.id}" th:text="${e.empCode} + ' · ' + ${e.fullName}">EMP</option>
+                    </select>
+                </div>
+                <div class="field" th:if="${mode == 'edit'}">
+                    <label>Status</label>
+                    <select th:field="*{status}">
+                        <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}">NEW</option>
+                    </select>
+                </div>
+                <div class="field full">
+                    <label>Medical history</label>
+                    <textarea rows="4" th:field="*{medicalHistory}"></textarea>
+                </div>
+                <div class="field full" th:if="${mode == 'create'}">
+                    <label>Upload customer document</label>
+                    <div class="file-upload">
+                        <input id="customerDocument" type="file" name="document" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.csv"/>
+                        <label for="customerDocument" class="btn secondary file-label">Browse</label>
+                        <span class="file-name">No file chosen</span>
+                    </div>
+                </div>
+            </div>
+            <div class="actions" style="margin-top:20px">
+                <button class="btn" type="submit" th:text="${mode == 'create'} ? 'Save lead' : 'Save changes'">Save</button>
+            </div>
+        </form>
+    </div>
+</section>
+</html>
