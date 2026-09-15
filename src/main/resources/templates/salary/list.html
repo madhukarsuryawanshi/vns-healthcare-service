@@ -7,10 +7,18 @@
             <h2 class="page-title">Salary status</h2>
             <p class="sub">Mark each month Paid, In progress, or Unpaid. Current month defaults to In progress until you change it.</p>
         </div>
+        <form method="get" th:action="@{/salary}" class="search" style="margin:0">
+            <input type="hidden" name="year" th:value="${year}"/>
+            <select name="status" style="max-width:180px">
+                <option value="">All status</option>
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${status == s.name()}">ACTIVE</option>
+            </select>
+            <button class="btn" type="submit">Filter</button>
+        </form>
         <div class="actions">
-            <a class="btn ghost" th:href="@{/salary(year=${prevYear})}" th:text="${prevYear}">2025</a>
+            <a class="btn ghost" th:href="@{/salary(year=${prevYear}, status=${status})}" th:text="${prevYear}">2025</a>
             <strong th:text="${year}">2026</strong>
-            <a class="btn ghost" th:href="@{/salary(year=${nextYear})}" th:text="${nextYear}">2027</a>
+            <a class="btn ghost" th:href="@{/salary(year=${nextYear}, status=${status})}" th:text="${nextYear}">2027</a>
         </div>
     </div>
 
@@ -18,9 +26,9 @@
         <table th:if="${!rows.isEmpty()}">
             <thead>
             <tr>
-                <th>Emp ID</th>
-                <th>Name</th>
-                <th>Salary</th>
+                <th><a th:href="@{/salary(year=${year}, status=${status}, sort='empCode', dir=${sort == 'empCode' and dir == 'asc' ? 'desc' : 'asc'})}">Emp ID <span th:if="${sort == 'empCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/salary(year=${year}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/salary(year=${year}, status=${status}, sort='salary', dir=${sort == 'salary' and dir == 'asc' ? 'desc' : 'asc'})}">Salary <span th:if="${sort == 'salary'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th th:each="name : ${monthNames}" th:text="${name}">Jan</th>
             </tr>
             </thead>
@@ -34,15 +42,17 @@
                     <span class="badge ok" th:if="${m.paid}">Paid</span>
                     <span class="badge warn" th:if="${m.inProgress}">In progress</span>
                     <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
-                    <form th:if="${m.status != null}" th:action="@{/salary}" method="post" style="margin-top:6px">
+                    <form th:if="${m.status != null}" th:action="@{/salary}" method="post" style="margin-top:6px; display:flex; flex-direction:column; gap:6px; min-width:150px">
                         <input type="hidden" name="employeeId" th:value="${entry.key.id}"/>
                         <input type="hidden" name="year" th:value="${year}"/>
                         <input type="hidden" name="month" th:value="${m.monthValue}"/>
-                        <select name="status" style="max-width:110px" onchange="this.form.submit()">
+                        <select name="status" style="max-width:110px">
                             <option value="PAID" th:selected="${m.paid}">Paid</option>
                             <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
                             <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
                         </select>
+                        <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; min-width:130px; max-width:180px" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
+                        <button class="btn secondary" type="submit" style="max-width:90px">Save</button>
                     </form>
                 </td>
             </tr>

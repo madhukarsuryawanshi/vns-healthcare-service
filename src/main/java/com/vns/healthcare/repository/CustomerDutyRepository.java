@@ -15,6 +15,11 @@ public interface CustomerDutyRepository extends JpaRepository<CustomerDuty, Long
 
     List<CustomerDuty> findByEmployeeId(Long employeeId);
 
+    @Query("SELECT d FROM CustomerDuty d LEFT JOIN FETCH d.customer LEFT JOIN FETCH d.employee WHERE d.employee.id = :employeeId AND d.dutyDate BETWEEN :fromDate AND :toDate ORDER BY d.dutyDate")
+    List<CustomerDuty> findByEmployeeIdAndDutyDateBetween(@Param("employeeId") Long employeeId,
+                                                         @Param("fromDate") LocalDate fromDate,
+                                                         @Param("toDate") LocalDate toDate);
+
     @Query("SELECT d FROM CustomerDuty d LEFT JOIN FETCH d.employee WHERE d.customer.id = :customerId AND d.dutyDate BETWEEN :fromDate AND :toDate ORDER BY d.dutyDate")
     List<CustomerDuty> findForCustomerInRange(@Param("customerId") Long customerId,
                                               @Param("fromDate") LocalDate fromDate,

@@ -143,9 +143,10 @@ public class CustomerService {
         LocalDate start = end.withDayOfMonth(1);
         customer.setBilledAmount(dutyService.calculateCharges(customer, start, end));
         customer.setServiceClosedDate(end);
+        customer.setAssignedEmployee(null);
         customer.setStatus(CustomerStatus.CLOSED);
         Customer saved = customerRepository.save(customer);
-        log.info("Service closed for customer id [{}] with billed amount [{}]", id, saved.getBilledAmount());
+        log.info("Service closed for customer id [{}] and employee assignment released with billed amount [{}]", id, saved.getBilledAmount());
         return saved;
     }
 
@@ -176,6 +177,9 @@ public class CustomerService {
         }
         List<Customer> assignedCustomers = customerRepository.findByAssignedEmployeeId(employeeId);
         for (Customer assignedCustomer : assignedCustomers) {
+            if (assignedCustomer == null || assignedCustomer.isClosed()) {
+                continue;
+            }
             if (!assignedCustomer.getId().equals(customer.getId())) {
                 log.warn("Duplicate assignment attempted: employee [{}] already assigned to customer [{}]", employeeId, assignedCustomer.getId());
                 throw new BusinessException("This employee is already assigned to " + assignedCustomer.getPatientName() + ". Please choose another caregiver.");

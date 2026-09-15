@@ -11,10 +11,12 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -48,10 +50,64 @@ public class AdminController {
     }
 
     @GetMapping({"", "/users"})
-    public String users(Model model) {
+    public String users(@RequestParam(value = "status", required = false) String status,
+                        @RequestParam(value = "sort", required = false, defaultValue = "username") String sort,
+                        @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
+                        Model model) {
+        List<AppUser> users = new ArrayList<AppUser>(userRepository.findAll());
+        if (status != null && !status.trim().isEmpty()) {
+            final String normalized = status.trim();
+            users.removeIf(user -> user.isEnabled() != Boolean.parseBoolean(normalized));
+        }
+        users.sort(sortUsers(sort, dir));
         model.addAttribute("page", "admin");
-        model.addAttribute("users", userRepository.findAll());
+        model.addAttribute("users", users);
+        model.addAttribute("status", status == null ? "" : status);
+        model.addAttribute("sort", sort);
+        model.addAttribute("dir", dir);
+        model.addAttribute("userStatuses", java.util.Arrays.asList("true", "false"));
         return "admin/users";
+    }
+
+    @GetMapping("/roles")
+    public String roles(@RequestParam(value = "sort", required = false, defaultValue = "name") String sort,
+                        @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
+                        Model model) {
+        List<Role> roles = new ArrayList<Role>(roleRepository.findAll());
+        roles.sort(sortRoles(sort, dir));
+        model.addAttribute("page", "admin");
+        model.addAttribute("roles", roles);
+        model.addAttribute("sort", sort);
+        model.addAttribute("dir", dir);
+        return "admin/roles";
+    }
+
+    private Comparator<AppUser> sortUsers(String sort, String dir) {
+        Comparator<AppUser> comparator;
+        if ("enabled".equalsIgnoreCase(sort)) {
+            comparator = Comparator.comparing(AppUser::isEnabled);
+        } else if ("updatedAt".equalsIgnoreCase(sort)) {
+            comparator = Comparator.comparing(AppUser::getUpdatedAt, Comparator.nullsLast(java.time.LocalDateTime::compareTo));
+        } else {
+            comparator = Comparator.comparing(AppUser::getUsername, Comparator.nullsLast(String::compareToIgnoreCase));
+        }
+        if ("desc".equalsIgnoreCase(dir)) {
+            comparator = comparator.reversed();
+        }
+        return comparator;
+    }
+
+    private Comparator<Role> sortRoles(String sort, String dir) {
+        Comparator<Role> comparator;
+        if ("description".equalsIgnoreCase(sort)) {
+            comparator = Comparator.comparing(Role::getDescription, Comparator.nullsLast(String::compareToIgnoreCase));
+        } else {
+            comparator = Comparator.comparing(Role::getName, Comparator.nullsLast(String::compareToIgnoreCase));
+        }
+        if ("desc".equalsIgnoreCase(dir)) {
+            comparator = comparator.reversed();
+        }
+        return comparator;
     }
 
     @GetMapping("/users/new")
@@ -165,13 +221,6 @@ public class AdminController {
         log.info("Deleted user [{}]", user.getUsername());
         redirectAttributes.addFlashAttribute("success", "User deleted successfully.");
         return "redirect:/admin/users";
-    }
-
-    @GetMapping("/roles")
-    public String roles(Model model) {
-        model.addAttribute("page", "admin");
-        model.addAttribute("roles", roleRepository.findAll());
-        return "admin/roles";
     }
 
     @GetMapping("/roles/new")

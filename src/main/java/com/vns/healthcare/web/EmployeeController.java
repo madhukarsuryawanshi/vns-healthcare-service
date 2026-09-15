@@ -29,6 +29,9 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.validation.Valid;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.time.LocalDate;
 import java.time.YearMonth;
 
@@ -51,11 +54,25 @@ public class EmployeeController {
     }
 
     @GetMapping
-    public String list(@RequestParam(value = "q", required = false) String query, Model model) {
-        log.info("Listing employees with query [{}]", query);
+    public String list(@RequestParam(value = "q", required = false) String query,
+                       @RequestParam(value = "status", required = false) String status,
+                       @RequestParam(value = "sort", required = false, defaultValue = "empCode") String sort,
+                       @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
+                       Model model) {
+        log.info("Listing employees with query [{}], status [{}], sort [{}], dir [{}]", query, status, sort, dir);
+        List<Employee> employees = new ArrayList<Employee>(employeeService.list(query));
+        if (status != null && !status.trim().isEmpty()) {
+            final String normalized = status.trim();
+            employees.removeIf(e -> e.getStatus() == null || !e.getStatus().name().equalsIgnoreCase(normalized));
+        }
+        employees = sortEmployees(employees, sort, dir);
         model.addAttribute("page", "employees");
-        model.addAttribute("employees", employeeService.list(query));
+        model.addAttribute("employees", employees);
         model.addAttribute("q", query == null ? "" : query);
+        model.addAttribute("status", status == null ? "" : status);
+        model.addAttribute("sort", sort);
+        model.addAttribute("dir", dir);
+        model.addAttribute("statuses", com.vns.healthcare.domain.EmployeeStatus.values());
         model.addAttribute("employeeSuggestions", employeeService.list(null).stream()
                 .flatMap(e -> java.util.stream.Stream.of(
                         e.getFullName(),
@@ -67,6 +84,40 @@ public class EmployeeController {
                 .sorted()
                 .collect(java.util.stream.Collectors.toList()));
         return "employees/list";
+    }
+
+    private List<Employee> sortEmployees(List<Employee> employees, String sort, String dir) {
+        Comparator<Employee> comparator = comparatorForEmployee(sort);
+        if ("desc".equalsIgnoreCase(dir)) {
+            comparator = comparator.reversed();
+        }
+        employees.sort(comparator);
+        return employees;
+    }
+
+    private Comparator<Employee> comparatorForEmployee(String sort) {
+        if (sort == null || sort.trim().isEmpty()) {
+            sort = "empCode";
+        }
+        switch (sort) {
+            case "fullName":
+                return Comparator.comparing(Employee::getFullName, Comparator.nullsLast(String::compareToIgnoreCase));
+            case "mobileNo":
+                return Comparator.comparing(Employee::getMobileNo, Comparator.nullsLast(String::compareToIgnoreCase));
+            case "joiningDate":
+                return Comparator.comparing(Employee::getJoiningDate, Comparator.nullsLast(LocalDate::compareTo));
+            case "trainingStatus":
+                return Comparator.comparing(e -> e.getTrainingStatus() == null ? "" : e.getTrainingStatus().name(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "salary":
+                return Comparator.comparing(Employee::getSalary, Comparator.nullsLast(java.math.BigDecimal::compareTo));
+            case "status":
+                return Comparator.comparing(e -> e.getStatus() == null ? "" : e.getStatus().name(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "onboarded":
+                return Comparator.comparing(Employee::isOnboarded);
+            case "empCode":
+            default:
+                return Comparator.comparing(Employee::getEmpCode, Comparator.nullsLast(String::compareToIgnoreCase));
+        }
     }
 
     @PreAuthorize("hasAuthority('employees:write') or hasRole('ADMIN')")
@@ -192,15 +243,24 @@ public class EmployeeController {
     }
 
     @PreAuthorize("hasAuthority('employees:write') or hasRole('ADMIN')")
+    @PostMapping("/{id}/resign")
+    public String resign(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        employeeService.resign(id);
+        redirectAttributes.addFlashAttribute("success", "Employee resigned and assignments released.");
+        return "redirect:/employees/" + id;
+    }
+
+    @PreAuthorize("hasAuthority('employees:write') or hasRole('ADMIN')")
     @PostMapping("/{id}/salary")
     public String markSalary(@PathVariable Long id,
                              @RequestParam int year,
                              @RequestParam int month,
                              @RequestParam SalaryPayStatus status,
                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidOn,
+                             @RequestParam(required = false) String notes,
                              RedirectAttributes redirectAttributes) {
         try {
-            salaryPaymentService.mark(id, year, month, status, paidOn, null);
+            salaryPaymentService.mark(id, year, month, status, paidOn, notes);
             redirectAttributes.addFlashAttribute("success", "Salary status saved.");
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());

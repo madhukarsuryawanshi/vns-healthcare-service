@@ -12,6 +12,10 @@
 
     <form class="search" method="get" th:action="@{/customers}">
         <input type="text" name="q" th:value="${q}" placeholder="Name / Mobile / Patient / Cust ID / Employee" list="customerSuggestionsList" autocomplete="off"/>
+        <select name="status" style="max-width:180px">
+            <option value="">All status</option>
+            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${status == s.name()}">NEW</option>
+        </select>
         <button class="btn" type="submit">Search</button>
         <a class="btn ghost" th:href="@{/customers}">Clear</a>
     </form>
@@ -33,14 +37,14 @@
         <table th:if="${!customers.isEmpty()}">
             <thead>
             <tr>
-                <th>Cust ID</th>
-                <th>Customer</th>
-                <th>Patient</th>
-                <th>Service</th>
-                <th>Charges</th>
-                <th>Assigned staff</th>
-                <th>Status</th>
-                <th>Billed</th>
+                <th><a th:href="@{/customers(q=${q}, sort='custCode', dir=${sort == 'custCode' and dir == 'asc' ? 'desc' : 'asc'})}">Cust ID <span th:if="${sort == 'custCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Customer <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, sort='patientName', dir=${sort == 'patientName' and dir == 'asc' ? 'desc' : 'asc'})}">Patient <span th:if="${sort == 'patientName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, sort='serviceType', dir=${sort == 'serviceType' and dir == 'asc' ? 'desc' : 'asc'})}">Service <span th:if="${sort == 'serviceType'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, sort='charges', dir=${sort == 'charges' and dir == 'asc' ? 'desc' : 'asc'})}">Charges <span th:if="${sort == 'charges'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, sort='assignedEmployee', dir=${sort == 'assignedEmployee' and dir == 'asc' ? 'desc' : 'asc'})}">Assigned staff <span th:if="${sort == 'assignedEmployee'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, sort='status', dir=${sort == 'status' and dir == 'asc' ? 'desc' : 'asc'})}">Status <span th:if="${sort == 'status'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, sort='billedAmount', dir=${sort == 'billedAmount' and dir == 'asc' ? 'desc' : 'asc'})}">Billed <span th:if="${sort == 'billedAmount'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th></th>
             </tr>
             </thead>

@@ -13,14 +13,24 @@
     <div th:if="${success}" class="flash" th:text="${success}"></div>
     <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
+    <form class="search" method="get" th:action="@{/admin/users}">
+        <select name="status" style="max-width:180px">
+            <option value="">All status</option>
+            <option value="true" th:selected="${status == 'true'}">Active</option>
+            <option value="false" th:selected="${status == 'false'}">Disabled</option>
+        </select>
+        <button class="btn" type="submit">Filter</button>
+        <a class="btn ghost" th:href="@{/admin/users}">Clear</a>
+    </form>
+
     <div class="panel">
         <table th:if="${!users.isEmpty()}">
             <thead>
             <tr>
-                <th>Username</th>
+                <th><a th:href="@{/admin/users(status=${status}, sort='username', dir=${sort == 'username' and dir == 'asc' ? 'desc' : 'asc'})}">Username <span th:if="${sort == 'username'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th>Roles</th>
-                <th>Status</th>
-                <th>Last updated</th>
+                <th><a th:href="@{/admin/users(status=${status}, sort='enabled', dir=${sort == 'enabled' and dir == 'asc' ? 'desc' : 'asc'})}">Status <span th:if="${sort == 'enabled'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/admin/users(status=${status}, sort='updatedAt', dir=${sort == 'updatedAt' and dir == 'asc' ? 'desc' : 'asc'})}">Last updated <span th:if="${sort == 'updatedAt'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
             </tr>
             </thead>
             <tbody>

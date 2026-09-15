@@ -171,6 +171,37 @@ public class EmployeeService {
     }
 
     @Transactional
+    public void resign(Long id) {
+        Employee employee = get(id);
+        log.info("Resigning employee id [{}] [{}]", id, employee.getFullName());
+
+        List<CustomerDuty> duties = customerDutyRepository.findByEmployeeId(id);
+        if (!duties.isEmpty()) {
+            for (CustomerDuty duty : duties) {
+                duty.setEmployee(null);
+            }
+            customerDutyRepository.saveAll(duties);
+            log.info("Cleared {} duty assignments for resigned employee [{}]", duties.size(), id);
+        }
+
+        List<Customer> assignedCustomers = customerRepository.findByAssignedEmployeeId(id);
+        if (!assignedCustomers.isEmpty()) {
+            for (Customer customer : assignedCustomers) {
+                customer.setAssignedEmployee(null);
+                if (customer.getStatus() == CustomerStatus.ASSIGNED) {
+                    customer.setStatus(CustomerStatus.NEW);
+                }
+            }
+            customerRepository.saveAll(assignedCustomers);
+            log.info("Released employee [{}] from {} customer assignments", id, assignedCustomers.size());
+        }
+
+        employee.setStatus(EmployeeStatus.RESIGNED);
+        employeeRepository.save(employee);
+        log.info("Employee id [{}] marked as resigned", id);
+    }
+
+    @Transactional
     public void addDocument(Long id, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             log.warn("Employee document upload rejected for id [{}]: file empty", id);

@@ -2,5 +2,6 @@ package com.vns.healthcare.domain;
 
 public enum EmployeeStatus {
     ACTIVE,
-    INACTIVE
+    INACTIVE,
+    RESIGNED
 }

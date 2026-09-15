@@ -5,6 +5,7 @@ import com.vns.healthcare.entity.CustomerDuty;
 import com.vns.healthcare.entity.Employee;
 import com.vns.healthcare.exception.BusinessException;
 import com.vns.healthcare.repository.CustomerDutyRepository;
+import com.vns.healthcare.repository.CustomerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,13 +21,16 @@ import java.util.Map;
 public class CustomerDutyService {
 
     private final CustomerDutyRepository dutyRepository;
+    private final CustomerRepository customerRepository;
     private final CustomerService customerService;
     private final EmployeeService employeeService;
 
     public CustomerDutyService(CustomerDutyRepository dutyRepository,
-                               CustomerService customerService,
-                               EmployeeService employeeService) {
+                              CustomerRepository customerRepository,
+                              CustomerService customerService,
+                              EmployeeService employeeService) {
         this.dutyRepository = dutyRepository;
+        this.customerRepository = customerRepository;
         this.customerService = customerService;
         this.employeeService = employeeService;
     }
@@ -54,6 +58,8 @@ public class CustomerDutyService {
         }
 
         Employee employee = hold ? null : employeeService.get(employeeId);
+        validateEmployeeAvailability(customer, employee, from, to);
+
         LocalDate day = from;
         while (!day.isAfter(to)) {
             CustomerDuty duty = dutyRepository.findByCustomerIdAndDutyDate(customerId, day)
@@ -67,6 +73,35 @@ public class CustomerDutyService {
         }
         if (employee != null) {
             customer.setAssignedEmployee(employee);
+        }
+    }
+
+    private void validateEmployeeAvailability(Customer customer, Employee employee, LocalDate from, LocalDate to) {
+        if (employee == null) {
+            return;
+        }
+
+        List<Customer> assignedCustomers = customerRepository.findByAssignedEmployeeId(employee.getId());
+        for (Customer assignedCustomer : assignedCustomers) {
+            if (assignedCustomer == null || assignedCustomer.isClosed()) {
+                continue;
+            }
+            if (!assignedCustomer.getId().equals(customer.getId())) {
+                throw new BusinessException("This employee is already assigned to "
+                        + assignedCustomer.getPatientName() + ". Please choose another caregiver.");
+            }
+        }
+
+        List<CustomerDuty> overlappingDuties = dutyRepository.findByEmployeeIdAndDutyDateBetween(employee.getId(), from, to);
+        for (CustomerDuty duty : overlappingDuties) {
+            if (duty.getCustomer() == null || duty.getCustomer().isClosed()) {
+                continue;
+            }
+            if (!duty.getCustomer().getId().equals(customer.getId())) {
+                String ownerName = duty.getCustomer() == null ? "another customer" : duty.getCustomer().getPatientName();
+                throw new BusinessException("This employee is already assigned to "
+                        + ownerName + " on " + duty.getDutyDate() + ". Please choose another caregiver.");
+            }
         }
     }
 

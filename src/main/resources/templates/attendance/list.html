@@ -9,6 +9,10 @@
         </div>
         <form method="get" th:action="@{/attendance}" class="search" style="margin:0">
             <input type="date" name="date" th:value="${date}"/>
+            <select name="status" style="max-width:180px">
+                <option value="">All status</option>
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${status == s.name()}">PRESENT</option>
+            </select>
             <button class="btn" type="submit">Show date</button>
         </form>
     </div>
@@ -27,8 +31,8 @@
         <table th:if="${!roster.isEmpty()}">
             <thead>
             <tr>
-                <th>Emp ID</th>
-                <th>Name</th>
+                <th><a th:href="@{/attendance(date=${date}, status=${status}, sort='empCode', dir=${sort == 'empCode' and dir == 'asc' ? 'desc' : 'asc'})}">Emp ID <span th:if="${sort == 'empCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/attendance(date=${date}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th>Salary</th>
                 <th>Mark</th>
                 <th>Check-in</th>

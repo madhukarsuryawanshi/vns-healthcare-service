@@ -62,11 +62,17 @@
         </div>
         <div class="panel">
             <h3>Assign to customer location</h3>
-            <p th:if="${customer.assignedEmployee != null}">
-                Current staff:
-                <a th:href="@{/employees/{id}(id=${customer.assignedEmployee.id})}"
-                   th:text="${customer.assignedEmployee.empCode} + ' · ' + ${customer.assignedEmployee.fullName}">EMP</a>
-            </p>
+            <div th:if="${customer.assignedEmployee != null}" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+                <p style="margin:0;">
+                    Current staff:
+                    <a th:href="@{/employees/{id}(id=${customer.assignedEmployee.id})}"
+                       th:text="${customer.assignedEmployee.empCode} + ' · ' + ${customer.assignedEmployee.fullName}">EMP</a>
+                </p>
+                <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/assign(id=${customer.id})}" method="post" style="margin:0;">
+                    <input type="hidden" name="employeeId" value=""/>
+                    <button class="btn ghost" type="submit">Release employee</button>
+                </form>
+            </div>
             <p th:unless="${customer.assignedEmployee != null}" class="sub">No caregiver assigned yet.</p>
             <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/assign(id=${customer.id})}" method="post" style="margin-top:12px">
                 <label>Employee</label>

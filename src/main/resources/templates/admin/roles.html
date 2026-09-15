@@ -17,8 +17,8 @@
         <table th:if="${!roles.isEmpty()}">
             <thead>
             <tr>
-                <th>Role</th>
-                <th>Description</th>
+                <th><a th:href="@{/admin/roles(sort='name', dir=${sort == 'name' and dir == 'asc' ? 'desc' : 'asc'})}">Role <span th:if="${sort == 'name'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/admin/roles(sort='description', dir=${sort == 'description' and dir == 'asc' ? 'desc' : 'asc'})}">Description <span th:if="${sort == 'description'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th>Permissions</th>
                 <th></th>
             </tr>

@@ -10,6 +10,9 @@
         <div class="actions">
             <a class="btn secondary" th:href="@{/employees/{id}/brochure(id=${employee.id})}" target="_blank">Share profile / brochure</a>
             <a class="btn ghost" th:if="${canWriteEmployees}" th:href="@{/employees/{id}/edit(id=${employee.id})}">Edit</a>
+            <form th:if="${canWriteEmployees and employee.status != T(com.vns.healthcare.domain.EmployeeStatus).RESIGNED}" th:action="@{/employees/{id}/resign(id=${employee.id})}" method="post" style="margin:0;">
+                <button class="btn coral" type="submit" onclick="return confirm('Resign this employee? This will remove their assignments and mark them as resigned.');">Resign</button>
+            </form>
         </div>
     </div>
 
@@ -91,7 +94,7 @@
                 </td>
                 <td th:text="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'dd MMM yyyy')} : '—'">—</td>
                 <td>
-                    <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search" style="margin:0">
+                    <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search" style="margin:0; display:flex; flex-direction:column; gap:6px; align-items:flex-start; width:170px">
                         <input type="hidden" name="year" th:value="${salaryYear}"/>
                         <input type="hidden" name="month" th:value="${m.monthValue}"/>
                         <select name="status" style="max-width:130px">
@@ -99,6 +102,7 @@
                             <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
                             <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
                         </select>
+                        <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; width:100%" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
                         <button class="btn secondary" type="submit">Save</button>
                     </form>
                 </td>

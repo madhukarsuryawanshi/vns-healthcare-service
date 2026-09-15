@@ -31,9 +31,11 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.validation.Valid;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,12 +65,26 @@ public class CustomerController {
     }
 
     @GetMapping
-    public String list(@RequestParam(value = "q", required = false) String query, Model model) {
-        log.info("Listing customers with query [{}]", query);
+    public String list(@RequestParam(value = "q", required = false) String query,
+                       @RequestParam(value = "status", required = false) String status,
+                       @RequestParam(value = "sort", required = false, defaultValue = "custCode") String sort,
+                       @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
+                       Model model) {
+        log.info("Listing customers with query [{}], status [{}], sort [{}], dir [{}]", query, status, sort, dir);
         LocalDate today = LocalDate.now();
+        List<Customer> customers = new ArrayList<Customer>(customerService.list(query));
+        if (status != null && !status.trim().isEmpty()) {
+            final String normalized = status.trim();
+            customers.removeIf(c -> c.getStatus() == null || !c.getStatus().name().equalsIgnoreCase(normalized));
+        }
+        customers = sortCustomers(customers, sort, dir);
         model.addAttribute("page", "customers");
-        model.addAttribute("customers", customerService.list(query));
+        model.addAttribute("customers", customers);
         model.addAttribute("q", query == null ? "" : query);
+        model.addAttribute("status", status == null ? "" : status);
+        model.addAttribute("sort", sort);
+        model.addAttribute("dir", dir);
+        model.addAttribute("statuses", CustomerStatus.values());
         model.addAttribute("reportFrom", today.withDayOfMonth(1));
         model.addAttribute("reportTo", today);
         model.addAttribute("customerSuggestions", customerService.list(null).stream()
@@ -84,6 +100,40 @@ public class CustomerController {
                 .sorted()
                 .collect(java.util.stream.Collectors.toList()));
         return "customers/list";
+    }
+
+    private List<Customer> sortCustomers(List<Customer> customers, String sort, String dir) {
+        Comparator<Customer> comparator = comparatorForCustomer(sort);
+        if ("desc".equalsIgnoreCase(dir)) {
+            comparator = comparator.reversed();
+        }
+        customers.sort(comparator);
+        return customers;
+    }
+
+    private Comparator<Customer> comparatorForCustomer(String sort) {
+        if (sort == null || sort.trim().isEmpty()) {
+            sort = "custCode";
+        }
+        switch (sort) {
+            case "fullName":
+                return Comparator.comparing(c -> c.getFullName() == null ? "" : c.getFullName(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "patientName":
+                return Comparator.comparing(c -> c.getPatientName() == null ? "" : c.getPatientName(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "serviceType":
+                return Comparator.comparing(c -> c.getServiceType() == null ? "" : c.getServiceType().name(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "charges":
+                return Comparator.comparing(Customer::getCharges, Comparator.nullsLast(BigDecimal::compareTo));
+            case "status":
+                return Comparator.comparing(c -> c.getStatus() == null ? "" : c.getStatus().name(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "billedAmount":
+                return Comparator.comparing(Customer::getBilledAmount, Comparator.nullsLast(BigDecimal::compareTo));
+            case "assignedEmployee":
+                return Comparator.comparing(c -> c.getAssignedEmployee() == null ? "" : c.getAssignedEmployee().getFullName(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "custCode":
+            default:
+                return Comparator.comparing(Customer::getCustCode, Comparator.nullsLast(String::compareToIgnoreCase));
+        }
     }
 
     @GetMapping("/report")
