@@ -9,8 +9,10 @@ USE vns_healthcare;
 
 -- Auto-generated business codes: EMP-1001, CUS-1001
 CREATE TABLE IF NOT EXISTS app_sequence (
-    seq_name   VARCHAR(40) NOT NULL PRIMARY KEY,
-    next_value BIGINT      NOT NULL
+    seq_name    VARCHAR(40) NOT NULL PRIMARY KEY,
+    next_value  BIGINT      NOT NULL,
+    created_by  VARCHAR(100) NULL,
+    updated_by  VARCHAR(100) NULL
 );
 
 -- Care staff (nurses / attendants)
@@ -31,6 +33,8 @@ CREATE TABLE IF NOT EXISTS employees (
     salary             DECIMAL(12,2) NULL,
     salary_start_date  DATE         NULL,
     status             VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE',
+    created_by         VARCHAR(100) NULL,
+    updated_by         VARCHAR(100) NULL,
     created_at         DATETIME     NOT NULL,
     updated_at         DATETIME     NOT NULL,
     INDEX idx_emp_name (full_name),
@@ -45,7 +49,9 @@ CREATE TABLE IF NOT EXISTS employee_documents (
     stored_filename    VARCHAR(255) NOT NULL,
     content_type       VARCHAR(120) NULL,
     file_size          BIGINT       NOT NULL,
-    uploaded_at       DATETIME     NOT NULL,
+    created_by         VARCHAR(100) NULL,
+    updated_by         VARCHAR(100) NULL,
+    uploaded_at        DATETIME     NOT NULL,
     CONSTRAINT fk_doc_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
 );
 
@@ -67,6 +73,8 @@ CREATE TABLE IF NOT EXISTS customers (
     status               VARCHAR(20)  NOT NULL DEFAULT 'NEW',
     billed_amount        DECIMAL(12,2) NULL,
     service_closed_date  DATE         NULL,
+    created_by           VARCHAR(100) NULL,
+    updated_by           VARCHAR(100) NULL,
     created_at           DATETIME     NOT NULL,
     updated_at           DATETIME     NOT NULL,
     CONSTRAINT fk_cust_employee FOREIGN KEY (assigned_employee_id) REFERENCES employees (id) ON DELETE SET NULL,
@@ -82,18 +90,22 @@ CREATE TABLE IF NOT EXISTS customer_documents (
     stored_filename    VARCHAR(255) NOT NULL,
     content_type       VARCHAR(120) NULL,
     file_size          BIGINT       NOT NULL,
+    created_by         VARCHAR(100) NULL,
+    updated_by         VARCHAR(100) NULL,
     uploaded_at        DATETIME     NOT NULL,
     CONSTRAINT fk_customer_doc_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
 );
 
 -- Daily caregiver / Hold on a customer location
 CREATE TABLE IF NOT EXISTS customer_duties (
-    id           BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    customer_id  BIGINT      NOT NULL,
-    duty_date    DATE        NOT NULL,
-    employee_id  BIGINT      NULL,
-    hold         BIT(1)      NOT NULL DEFAULT 0,
-    created_at   DATETIME    NOT NULL,
+    id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    customer_id  BIGINT       NOT NULL,
+    duty_date    DATE         NOT NULL,
+    employee_id  BIGINT       NULL,
+    hold         BIT(1)       NOT NULL DEFAULT 0,
+    created_by   VARCHAR(100) NULL,
+    updated_by   VARCHAR(100) NULL,
+    created_at   DATETIME     NOT NULL,
     UNIQUE KEY uk_cust_day (customer_id, duty_date),
     CONSTRAINT fk_duty_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE,
     CONSTRAINT fk_duty_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE SET NULL
@@ -101,14 +113,16 @@ CREATE TABLE IF NOT EXISTS customer_duties (
 
 -- Daily attendance for onboarded / active staff
 CREATE TABLE IF NOT EXISTS attendance (
-    id               BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    employee_id      BIGINT      NOT NULL,
-    attendance_date  DATE        NOT NULL,
-    status           VARCHAR(20) NOT NULL,
-    check_in_time    TIME        NULL,
-    check_out_time   TIME        NULL,
+    id               BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    employee_id      BIGINT       NOT NULL,
+    attendance_date  DATE         NOT NULL,
+    status           VARCHAR(20)  NOT NULL,
+    check_in_time    TIME         NULL,
+    check_out_time   TIME         NULL,
     notes            VARCHAR(500) NULL,
-    created_at      DATETIME    NOT NULL,
+    created_by       VARCHAR(100) NULL,
+    updated_by       VARCHAR(100) NULL,
+    created_at       DATETIME     NOT NULL,
     UNIQUE KEY uk_emp_day (employee_id, attendance_date),
     CONSTRAINT fk_att_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
 );
@@ -123,6 +137,8 @@ CREATE TABLE IF NOT EXISTS salary_payments (
     amount       DECIMAL(12,2) NULL,
     paid_on      DATE          NULL,
     notes        VARCHAR(500)  NULL,
+    created_by   VARCHAR(100)  NULL,
+    updated_by   VARCHAR(100)  NULL,
     created_at   DATETIME      NOT NULL,
     UNIQUE KEY uk_emp_salary_month (employee_id, pay_year, pay_month),
     CONSTRAINT fk_sal_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE

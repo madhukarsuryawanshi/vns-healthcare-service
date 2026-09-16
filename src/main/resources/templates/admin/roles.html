@@ -10,8 +10,6 @@
         <a class="btn" th:href="@{/admin/roles/new}">Add role</a>
     </div>
 
-    <div th:if="${success}" class="flash" th:text="${success}"></div>
-    <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
     <div class="panel">
         <table th:if="${!roles.isEmpty()}">

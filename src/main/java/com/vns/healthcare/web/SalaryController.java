@@ -85,6 +85,7 @@ public class SalaryController {
                        @RequestParam SalaryPayStatus status,
                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidOn,
                        @RequestParam(required = false) String notes,
+                       @RequestParam(required = false) String anchor,
                        RedirectAttributes redirectAttributes) {
         try {
             salaryPaymentService.mark(employeeId, year, month, status, paidOn, notes);
@@ -92,6 +93,10 @@ public class SalaryController {
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
         }
-        return "redirect:/salary?year=" + year;
+        String redirect = "redirect:/salary?year=" + year;
+        if (anchor != null && !anchor.trim().isEmpty()) {
+            redirect += "#" + anchor.trim();
+        }
+        return redirect;
     }
 }

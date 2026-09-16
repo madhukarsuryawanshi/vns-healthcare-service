@@ -5,16 +5,16 @@
         <div>
             <p class="eyebrow">Roster</p>
             <h2 class="page-title">Attendance</h2>
-            <p class="sub">Active employees — mark present, absent, leave, or half day.</p>
+            <p class="sub">Mark attendance for the whole month using daily status dropdowns.</p>
         </div>
-        <form method="get" th:action="@{/attendance}" class="search" style="margin:0">
-            <input type="date" name="date" th:value="${date}"/>
-            <select name="status" style="max-width:180px">
-                <option value="">All status</option>
-                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${status == s.name()}">PRESENT</option>
-            </select>
-            <button class="btn" type="submit">Show date</button>
-        </form>
+        <div class="search" style="margin:0; gap:10px; align-items:center">
+            <a class="btn secondary" th:href="@{/attendance(date=${previousMonth})}">← Prev</a>
+            <form method="get" th:action="@{/attendance}" style="display:flex; gap:10px; align-items:center; margin:0">
+                <input type="date" name="date" th:value="${date}"/>
+                <button class="btn" type="submit">Show month</button>
+            </form>
+            <a class="btn secondary" th:href="@{/attendance(date=${nextMonth})}">Next →</a>
+        </div>
     </div>
 
     <div class="panel">
@@ -24,51 +24,53 @@
             <input type="date" name="to" th:value="${reportTo}" required="required"/>
             <button class="btn secondary" type="submit">Download Excel</button>
         </form>
-        <p class="sub" style="margin:10px 0 0">One row per employee, Day-01 … columns (P / A / Half-day / L), and In-Hand Salary = (monthly salary ÷ days in month × present days) + half-day pay for Half-day. Absent and leave are unpaid.</p>
     </div>
 
     <div class="panel">
-        <table th:if="${!roster.isEmpty()}">
+        <table th:if="${!employees.isEmpty()}" style="overflow-x:auto; display:block; white-space:nowrap; max-width:100%">
             <thead>
             <tr>
-                <th><a th:href="@{/attendance(date=${date}, status=${status}, sort='empCode', dir=${sort == 'empCode' and dir == 'asc' ? 'desc' : 'asc'})}">Emp ID <span th:if="${sort == 'empCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/attendance(date=${date}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th>Salary</th>
-                <th>Mark</th>
-                <th>Check-in</th>
+                <th>Emp ID</th>
+                <th>Name</th>
+                <th:block th:each="day : ${monthDays}">
+                    <th th:text="${#temporals.format(day, 'dd')}" style="min-width:60px; text-align:center">01</th>
+                </th:block>
                 <th>Notes</th>
-                <th></th>
+                <th>Action</th>
             </tr>
             </thead>
             <tbody>
-            <tr th:each="entry : ${roster}">
-                <td th:text="${entry.key.empCode}">EMP</td>
-                <td>
-                    <a th:href="@{/employees/{id}(id=${entry.key.id})}" th:text="${entry.key.fullName}">Name</a>
-                </td>
-                <td>
-                    <span class="badge ok" th:if="${entry.key.onboarded}">Onboarded</span>
-                    <span class="badge muted" th:unless="${entry.key.onboarded}">Not onboarded</span>
-                </td>
-                <td colspan="4">
-                    <form th:action="@{/attendance}" method="post" class="search" style="margin:0">
-                        <input type="hidden" name="employeeId" th:value="${entry.key.id}"/>
-                        <input type="hidden" name="date" th:value="${date}"/>
-                        <select name="status" style="max-width:140px">
-                            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}"
-                                    th:selected="${entry.value != null and entry.value.status == s}">PRESENT</option>
-                        </select>
-                        <input type="time" name="checkInTime" style="max-width:120px"
-                               th:value="${entry.value != null and entry.value.checkInTime != null} ? ${entry.value.checkInTime} : ''"/>
-                        <input type="text" name="notes" placeholder="Notes" style="max-width:180px"
-                               th:value="${entry.value != null} ? ${entry.value.notes} : ''"/>
+            <tr th:each="employee : ${employees}">
+                <form th:action="@{/attendance/bulk}" method="post" style="display:contents">
+                    <input type="hidden" name="employeeId" th:value="${employee.id}"/>
+                    <input type="hidden" name="month" th:value="${date}"/>
+                    <td th:text="${employee.empCode}">EMP</td>
+                    <td>
+                        <a th:href="@{/employees/{id}(id=${employee.id})}" th:text="${employee.fullName}">Name</a>
+                    </td>
+                    <th:block th:each="day : ${monthDays}">
+                        <td style="padding:4px; text-align:center">
+                            <select th:name="|status_${#temporals.format(day, 'yyyy-MM-dd')}|" style="min-width:90px">
+                                <option value="">--</option>
+                                <option th:each="s : ${statuses}"
+                                        th:value="${s}"
+                                        th:text="${s.name() == 'HALF_DAY' ? 'HALF-DAY' : s.name()}"
+                                        th:selected="${attendanceByEmployee.get(employee.id) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')).status == s}">PRESENT</option>
+                            </select>
+                        </td>
+                    </th:block>
+                    <td style="min-width:170px">
+                        <input type="text" name="notes" placeholder="Notes" style="width:150px"
+                               th:value="${attendanceByEmployee.get(employee.id) != null and !attendanceByEmployee.get(employee.id).isEmpty() ? attendanceByEmployee.get(employee.id).values().iterator().next().notes : ''}"/>
+                    </td>
+                    <td style="text-align:center">
                         <button class="btn secondary" type="submit">Save</button>
-                    </form>
-                </td>
+                    </td>
+                </form>
             </tr>
             </tbody>
         </table>
-        <p class="empty" th:if="${roster.isEmpty()}">Add active employees first, then mark attendance here.</p>
+        <p class="empty" th:if="${employees.isEmpty()}">Add active employees first, then mark attendance here.</p>
     </div>
 </section>
 </html>

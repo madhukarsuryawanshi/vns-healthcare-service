@@ -2,6 +2,7 @@ package com.vns.healthcare.entity;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -15,10 +16,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
+@EntityListeners(AuditEntityListener.class)
 @Table(name = "customer_duties", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"customer_id", "duty_date"})
 })
-public class CustomerDuty {
+public class CustomerDuty extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

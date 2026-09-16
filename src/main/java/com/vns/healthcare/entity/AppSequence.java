@@ -2,12 +2,14 @@ package com.vns.healthcare.entity;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
 @Entity
+@EntityListeners(AuditEntityListener.class)
 @Table(name = "app_sequence")
-public class AppSequence {
+public class AppSequence extends AuditableEntity {
 
     @Id
     @Column(name = "seq_name", length = 40)

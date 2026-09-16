@@ -173,7 +173,7 @@ public class CustomerController {
     @PostMapping
     public String create(@Valid @ModelAttribute("form") CustomerForm form,
                          BindingResult bindingResult,
-                         @RequestParam(value = "document", required = false) MultipartFile document,
+                         @RequestParam(value = "documents", required = false) MultipartFile[] documents,
                          Model model,
                          RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
@@ -185,7 +185,7 @@ public class CustomerController {
             return "customers/form";
         }
         try {
-            Customer saved = customerService.create(form, document);
+            Customer saved = customerService.create(form, documents);
             log.info("Created customer [{}] with code [{}]", form.getPatientName(), saved.getCustCode());
             redirectAttributes.addFlashAttribute("success", "Lead " + saved.getCustCode() + " created.");
             return "redirect:/customers/" + saved.getId();
@@ -349,12 +349,12 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
     @PostMapping("/{id:\\d+}/documents")
     public String upload(@PathVariable Long id,
-                         @RequestParam("document") MultipartFile document,
+                         @RequestParam("documents") MultipartFile[] documents,
                          RedirectAttributes redirectAttributes) {
-        log.info("Uploading customer document for id [{}], filename [{}]", id, document != null ? document.getOriginalFilename() : null);
+        log.info("Uploading customer documents for id [{}], count [{}]", id, documents == null ? 0 : documents.length);
         try {
-            customerService.addDocument(id, document);
-            redirectAttributes.addFlashAttribute("success", "Document uploaded.");
+            customerService.addDocuments(id, documents);
+            redirectAttributes.addFlashAttribute("success", "Documents uploaded.");
         } catch (BusinessException ex) {
             log.error("Customer document upload failed for id [{}]", id, ex);
             redirectAttributes.addFlashAttribute("error", ex.getMessage());

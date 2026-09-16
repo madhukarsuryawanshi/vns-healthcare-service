@@ -61,6 +61,10 @@ public class SalaryPaymentService {
         SalaryPayment payment = paymentRepository
                 .findByEmployeeIdAndPayYearAndPayMonth(employeeId, year, month)
                 .orElse(new SalaryPayment());
+        // Prevent modifications once a salary is marked PAID
+        if (payment.getId() != null && payment.getStatus() == SalaryPayStatus.PAID) {
+            throw new BusinessException("Salary for the selected month is already PAID and cannot be modified.");
+        }
         payment.setEmployee(employee);
         payment.setPayYear(year);
         payment.setPayMonth(month);

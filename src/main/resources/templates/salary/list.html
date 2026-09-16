@@ -46,13 +46,14 @@
                         <input type="hidden" name="employeeId" th:value="${entry.key.id}"/>
                         <input type="hidden" name="year" th:value="${year}"/>
                         <input type="hidden" name="month" th:value="${m.monthValue}"/>
-                        <select name="status" style="max-width:110px">
+                        <input type="hidden" name="anchor" value="salary"/>
+                        <select name="status" style="max-width:110px" th:disabled="${m.paid}">
                             <option value="PAID" th:selected="${m.paid}">Paid</option>
                             <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
                             <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
                         </select>
-                        <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; min-width:130px; max-width:180px" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
-                        <button class="btn secondary" type="submit" style="max-width:90px">Save</button>
+                        <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; min-width:130px; max-width:180px" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
+                        <button class="btn secondary" type="submit" style="max-width:90px" th:disabled="${m.paid}">Save</button>
                     </form>
                 </td>
             </tr>

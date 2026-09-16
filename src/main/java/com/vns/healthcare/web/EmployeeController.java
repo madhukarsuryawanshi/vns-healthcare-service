@@ -134,7 +134,7 @@ public class EmployeeController {
     @PostMapping
     public String create(@Valid @ModelAttribute("form") EmployeeForm form,
                          BindingResult bindingResult,
-                         @RequestParam(value = "document", required = false) MultipartFile document,
+                         @RequestParam(value = "documents", required = false) MultipartFile[] documents,
                          Model model,
                          RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
@@ -144,7 +144,7 @@ public class EmployeeController {
             return "employees/form";
         }
         try {
-            Employee saved = employeeService.create(form, document);
+            Employee saved = employeeService.create(form, documents);
             log.info("Created employee [{}] with employee code [{}]", form.getFullName(), saved.getEmpCode());
             redirectAttributes.addFlashAttribute("success", "Employee " + saved.getEmpCode() + " added.");
             return "redirect:/employees/" + saved.getId();
@@ -166,6 +166,7 @@ public class EmployeeController {
         int y = year == null ? YearMonth.now().getYear() : year;
         model.addAttribute("page", "employees");
         model.addAttribute("employee", employee);
+        model.addAttribute("passportPhoto", employeeService.getPassportPhoto(employee));
         model.addAttribute("trainingStatuses", TrainingStatus.values());
         model.addAttribute("salaryYear", y);
         model.addAttribute("salaryMonths", salaryPaymentService.monthsForEmployee(employee, y));
@@ -258,6 +259,7 @@ public class EmployeeController {
                              @RequestParam SalaryPayStatus status,
                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidOn,
                              @RequestParam(required = false) String notes,
+                             @RequestParam(required = false) String anchor,
                              RedirectAttributes redirectAttributes) {
         try {
             salaryPaymentService.mark(id, year, month, status, paidOn, notes);
@@ -265,20 +267,38 @@ public class EmployeeController {
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
         }
-        return "redirect:/employees/" + id + "?year=" + year;
+        String redirect = "redirect:/employees/" + id + "?year=" + year;
+        if (anchor != null && !anchor.trim().isEmpty()) {
+            redirect += "#" + anchor.trim();
+        }
+        return redirect;
     }
 
     @PreAuthorize("hasAuthority('employees:write') or hasRole('ADMIN')")
     @PostMapping("/{id}/documents")
     public String upload(@PathVariable Long id,
-                         @RequestParam("document") MultipartFile document,
+                         @RequestParam("documents") MultipartFile[] documents,
                          RedirectAttributes redirectAttributes) {
-        log.info("Uploading employee document for id [{}], filename [{}]", id, document != null ? document.getOriginalFilename() : null);
+        log.info("Uploading employee documents for id [{}], count [{}]", id, documents == null ? 0 : documents.length);
         try {
-            employeeService.addDocument(id, document);
-            redirectAttributes.addFlashAttribute("success", "Document uploaded.");
+            employeeService.addDocuments(id, documents);
+            redirectAttributes.addFlashAttribute("success", "Documents uploaded.");
         } catch (BusinessException ex) {
             log.error("Employee document upload failed for id [{}]", id, ex);
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        }
+        return "redirect:/employees/" + id;
+    }
+
+    @PreAuthorize("hasAuthority('employees:write') or hasRole('ADMIN')")
+    @PostMapping("/{id}/photo")
+    public String uploadPhoto(@PathVariable Long id,
+                            @RequestParam("photo") MultipartFile photo,
+                            RedirectAttributes redirectAttributes) {
+        try {
+            employeeService.addPassportPhoto(id, photo);
+            redirectAttributes.addFlashAttribute("success", "Passport photo uploaded.");
+        } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
         }
         return "redirect:/employees/" + id;
@@ -297,8 +317,31 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}/brochure")
-    public String brochure(@PathVariable Long id, Model model) {
-        model.addAttribute("employee", employeeService.get(id));
+    public String brochure(@PathVariable Long id,
+                          @RequestParam(value = "option", required = false) List<String> options,
+                          @RequestParam(value = "catheterisationCare", required = false) String catheterisationCare,
+                          Model model) {
+        Employee employee = employeeService.get(id);
+        List<String> brochureOptions = new java.util.ArrayList<>();
+        if (options != null) {
+            brochureOptions.addAll(options.stream()
+                    .filter(value -> value != null && !value.trim().isEmpty())
+                    .collect(java.util.stream.Collectors.toList()));
+        }
+
+        if (brochureOptions.contains("catheterisation-care") && catheterisationCare != null && !catheterisationCare.trim().isEmpty()) {
+            brochureOptions.remove("catheterisation-care");
+            String normalized = catheterisationCare.trim().toUpperCase();
+            if ("ONLY_CARE".equals(normalized)) {
+                brochureOptions.add("catheterisation-care-only-care");
+            } else if ("EXPERT".equals(normalized)) {
+                brochureOptions.add("catheterisation-care-expert");
+            }
+        }
+
+        model.addAttribute("employee", employee);
+        model.addAttribute("passportPhoto", employeeService.getPassportPhoto(employee));
+        model.addAttribute("brochureOptions", brochureOptions);
         return "employees/brochure";
     }
 
@@ -312,6 +355,7 @@ public class EmployeeController {
         form.setReferredBy(employee.getReferredBy());
         form.setFullAddress(employee.getFullAddress());
         form.setAadharNumber(employee.getAadharNumber());
+        form.setNoOfExperience(employee.getNoOfExperience());
         form.setSalary(employee.getSalary());
         return form;
     }

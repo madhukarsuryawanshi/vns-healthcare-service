@@ -1,9 +1,13 @@
 package com.vns.healthcare.security;
+ 
+import com.vns.healthcare.entity.AuditableEntity;
+import com.vns.healthcare.entity.AuditEntityListener;
 
 import javax.persistence.CollectionTable;
 import javax.persistence.Column;
 import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -15,10 +19,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
+@EntityListeners(AuditEntityListener.class)
 @Table(name = "roles", uniqueConstraints = {
         @UniqueConstraint(columnNames = "name")
 })
-public class Role {
+public class Role extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,6 +69,6 @@ public class Role {
     }
 
     public void setPermissions(Set<String> permissions) {
-        this.permissions = permissions == null ? new HashSet<String>() : permissions;
+        this.permissions = permissions == null ? new HashSet<String>() : new HashSet<String>(permissions);
     }
 }

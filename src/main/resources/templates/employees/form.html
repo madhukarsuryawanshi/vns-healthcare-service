@@ -54,6 +54,11 @@
                     <div class="error-text" th:if="${#fields.hasErrors('aadharNumber')}" th:errors="*{aadharNumber}"></div>
                 </div>
                 <div class="field">
+                    <label class="req">No. of experience</label>
+                    <input type="number" th:field="*{noOfExperience}" min="0" step="0.1" placeholder="e.g. 2.5"/>
+                    <div class="error-text" th:if="${#fields.hasErrors('noOfExperience')}" th:errors="*{noOfExperience}"></div>
+                </div>
+                <div class="field">
                     <label class="req">Salary</label>
                     <input type="text" th:field="*{salary}" inputmode="decimal" placeholder="e.g. 18000"/>
                     <div class="error-text" th:if="${#fields.hasErrors('salary')}" th:errors="*{salary}"></div>

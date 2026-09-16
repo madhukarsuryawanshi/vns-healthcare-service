@@ -4,6 +4,7 @@ import com.vns.healthcare.domain.SalaryPayStatus;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
@@ -20,10 +21,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
+@EntityListeners(AuditEntityListener.class)
 @Table(name = "salary_payments", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"employee_id", "pay_year", "pay_month"})
 })
-public class SalaryPayment {
+public class SalaryPayment extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

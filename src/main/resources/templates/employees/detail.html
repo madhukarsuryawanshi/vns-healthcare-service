@@ -8,7 +8,7 @@
             <p class="sub" th:text="${employee.mobileNo}">9999999999</p>
         </div>
         <div class="actions">
-            <a class="btn secondary" th:href="@{/employees/{id}/brochure(id=${employee.id})}" target="_blank">Share profile / brochure</a>
+            <button type="button" class="btn secondary" th:attr="data-brochure-url=@{/employees/{id}/brochure(id=${employee.id})}">Share profile / brochure</button>
             <a class="btn ghost" th:if="${canWriteEmployees}" th:href="@{/employees/{id}/edit(id=${employee.id})}">Edit</a>
             <form th:if="${canWriteEmployees and employee.status != T(com.vns.healthcare.domain.EmployeeStatus).RESIGNED}" th:action="@{/employees/{id}/resign(id=${employee.id})}" method="post" style="margin:0;">
                 <button class="btn coral" type="submit" onclick="return confirm('Resign this employee? This will remove their assignments and mark them as resigned.');">Resign</button>
@@ -34,6 +34,8 @@
                 <dd th:text="${employee.fullAddress}">Address</dd>
                 <dt>Status</dt>
                 <dd th:text="${employee.status}">ACTIVE</dd>
+                <dt>No. of experience</dt>
+                <dd th:text="${employee.noOfExperience != null} ? ${employee.noOfExperience} + ' yrs' : '—'">—</dd>
                 <dt>Salary</dt>
                 <dd th:text="${employee.salary != null} ? ${#numbers.formatDecimal(employee.salary, 1, 'COMMA', 2, 'POINT')} : '—'">18,000.00</dd>
             </dl>
@@ -62,7 +64,7 @@
         </div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="salary">
         <div class="topbar" style="margin-bottom:12px">
             <h3 style="margin:0">Salary paid status</h3>
             <form method="get" th:action="@{/employees/{id}(id=${employee.id})}" class="search" style="margin:0">
@@ -97,13 +99,14 @@
                     <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search" style="margin:0; display:flex; flex-direction:column; gap:6px; align-items:flex-start; width:170px">
                         <input type="hidden" name="year" th:value="${salaryYear}"/>
                         <input type="hidden" name="month" th:value="${m.monthValue}"/>
-                        <select name="status" style="max-width:130px">
+                        <input type="hidden" name="anchor" value="salary"/>
+                        <select name="status" style="max-width:130px" th:disabled="${m.paid}">
                             <option value="PAID" th:selected="${m.paid}">Paid</option>
                             <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
                             <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
                         </select>
-                        <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; width:100%" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
-                        <button class="btn secondary" type="submit">Save</button>
+                        <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; width:100%" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
+                        <button class="btn secondary" type="submit" th:disabled="${m.paid}">Save</button>
                     </form>
                 </td>
             </tr>
@@ -132,10 +135,23 @@
 
     <div class="panel">
         <h3>Documents</h3>
-        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search">
+        <div class="form-grid" style="margin-bottom:12px">
+            <div class="field full">
+                <label>Passport size photo (PNG / JPG)</label>
+                <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/photo(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:0;">
+                    <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                    <input type="file" name="photo" accept="image/png,image/jpeg" style="margin:0;"/>
+                    <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload passport photo</button>
+                </form>
+                <div th:if="${passportPhoto != null}" style="margin-top:10px">
+                    <img th:src="@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${passportPhoto.id})}" alt="Passport photo" style="width:120px; height:150px; object-fit:cover; border:1px solid var(--line); border-radius:10px; background:#f7f7f7;"/>
+                </div>
+            </div>
+        </div>
+        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
             <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-            <input type="file" name="document"/>
-            <button class="btn secondary" type="submit">Upload</button>
+            <input type="file" name="documents" multiple style="margin:0;"/>
+            <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload</button>
         </form>
         <table th:if="${!employee.documents.isEmpty()}">
             <thead>
@@ -146,7 +162,13 @@
                 <td th:text="${d.originalFilename}">file.pdf</td>
                 <td th:text="${d.fileSize}">0</td>
                 <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
-                <td><a th:href="@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${d.id})}" target="_blank">View</a></td>
+                <td style="display:flex; gap:8px; align-items:center">
+                    <a href="#" th:attr="data-preview-url=@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${d.id})}" class="btn ghost small">View</a>
+                    <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${d.id})}" method="post" style="margin:0">
+                        <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                        <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
+                    </form>
+                </td>
             </tr>
             </tbody>
         </table>

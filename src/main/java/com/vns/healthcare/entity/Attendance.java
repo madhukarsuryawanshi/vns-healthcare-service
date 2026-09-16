@@ -4,6 +4,7 @@ import com.vns.healthcare.domain.AttendanceStatus;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
@@ -13,6 +14,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.PrePersist;
+import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import java.time.LocalDate;
@@ -20,10 +22,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Entity
+@EntityListeners(AuditEntityListener.class)
 @Table(name = "attendance", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"employee_id", "attendance_date"})
 })
-public class Attendance {
+public class Attendance extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,6 +58,11 @@ public class Attendance {
     @PrePersist
     public void onCreate() {
         createdAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void onUpdate() {
+        // managed by AuditEntityListener
     }
 
     public Long getId() {

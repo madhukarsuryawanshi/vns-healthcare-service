@@ -50,13 +50,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         }
 
         log.info("Loaded user [{}] with {} authorities", appUser.getUsername(), authorities.size());
-        return new User(
+        return new AuthenticatedUser(
+                appUser.getId(),
                 appUser.getUsername(),
                 appUser.getPassword(),
                 appUser.isEnabled(),
-                true,
-                true,
-                true,
                 authorities);
     }
 }

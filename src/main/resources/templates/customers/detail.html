@@ -16,14 +16,14 @@
         </div>
     </div>
 
-    <div class="flash" th:if="${customer.closed}">
+    <div class="info-banner" th:if="${customer.closed}">
         Service closed on
         <span th:text="${customer.serviceClosedDate != null} ? ${#temporals.format(customer.serviceClosedDate, 'dd MMM yyyy')} : '—'">date</span>
         <span th:if="${billFrom != null and billTo != null}">
             (billed
-            <span th:text="${#temporals.format(billFrom, 'dd MMM yyyy')}">01 Sep</span>
+            <span th:text="${#temporals.format(billFrom, 'dd MMM')}">01 Sep</span>
             to
-            <span th:text="${#temporals.format(billTo, 'dd MMM yyyy')}">12 Sep</span>)
+            <span th:text="${#temporals.format(billTo, 'dd MMM')}">12 Sep</span>)
         </span>.
         Billed amount:
         <strong th:text="${customer.billedAmount != null} ? ${#numbers.formatDecimal(customer.billedAmount, 1, 'COMMA', 2, 'POINT')} : '0.00'">0</strong>
@@ -83,8 +83,8 @@
                 </select>
                 <div class="actions" style="margin-top:12px">
                     <button class="btn" type="submit">Save assignment</button>
-                    <a class="btn secondary" th:if="${customer.assignedEmployee != null}"
-                       th:href="@{/employees/{id}/brochure(id=${customer.assignedEmployee.id})}" target="_blank">Share staff brochure</a>
+                    <button type="button" class="btn secondary" th:if="${customer.assignedEmployee != null}"
+                            th:attr="data-brochure-url=@{/employees/{id}/brochure(id=${customer.assignedEmployee.id})}">Share staff brochure</button>
                 </div>
             </form>
         </div>
@@ -154,7 +154,7 @@
         <h3>Documents</h3>
         <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents(id=${customer.id})}" method="post" enctype="multipart/form-data" class="search">
             <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-            <input type="file" name="document"/>
+            <input type="file" name="documents" multiple/>
             <button class="btn secondary" type="submit">Upload</button>
         </form>
         <table th:if="${!customer.documents.isEmpty()}">
@@ -166,7 +166,13 @@
                 <td th:text="${d.originalFilename}">file.pdf</td>
                 <td th:text="${d.fileSize}">0</td>
                 <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
-                <td><a th:href="@{/customers/{id}/documents/{docId}(id=${customer.id}, docId=${d.id})}" target="_blank">View</a></td>
+                <td style="display:flex; gap:8px; align-items:center">
+                    <a href="#" th:attr="data-preview-url=@{/customers/{id}/documents/{docId}(id=${customer.id}, docId=${d.id})}" class="btn ghost small">View</a>
+                    <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents/{docId}/delete(id=${customer.id}, docId=${d.id})}" method="post" style="margin:0">
+                        <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                        <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
+                    </form>
+                </td>
             </tr>
             </tbody>
         </table>

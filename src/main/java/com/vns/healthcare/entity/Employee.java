@@ -9,6 +9,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
@@ -27,11 +28,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@EntityListeners(AuditEntityListener.class)
 @Table(name = "employees", uniqueConstraints = {
         @UniqueConstraint(columnNames = "emp_code"),
         @UniqueConstraint(columnNames = "aadhar_number")
 })
-public class Employee {
+public class Employee extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -76,6 +78,9 @@ public class Employee {
 
     @Column(nullable = false)
     private boolean onboarded;
+
+    @Column(name = "no_of_experience", precision = 4, scale = 1)
+    private java.math.BigDecimal noOfExperience;
 
     @Column(precision = 12, scale = 2)
     private java.math.BigDecimal salary;
@@ -217,6 +222,14 @@ public class Employee {
 
     public void setOnboarded(boolean onboarded) {
         this.onboarded = onboarded;
+    }
+
+    public java.math.BigDecimal getNoOfExperience() {
+        return noOfExperience;
+    }
+
+    public void setNoOfExperience(java.math.BigDecimal noOfExperience) {
+        this.noOfExperience = noOfExperience;
     }
 
     public java.math.BigDecimal getSalary() {

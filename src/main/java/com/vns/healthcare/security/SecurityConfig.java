@@ -59,6 +59,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         http.addFilterAfter(noCacheFilter, UsernamePasswordAuthenticationFilter.class);
 
         http
+                .headers()
+                    .frameOptions().sameOrigin()
+                    .and()
                 .authorizeRequests()
                     .antMatchers("/login", "/css/**", "/js/**").permitAll()
                     .antMatchers("/admin/**").hasRole("ADMIN")

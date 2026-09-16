@@ -6,43 +6,128 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;500&display=swap" rel="stylesheet"/>
     <style>
         body { margin: 0; background: #efe8d9; color: #1c2a26; font-family: "Source Sans 3", sans-serif; }
-        .sheet { max-width: 720px; margin: 32px auto; background: #fffcf7; border: 1px solid #d9cfb8; padding: 48px 52px; }
-        .top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #d9cfb8; padding-bottom: 20px; }
-        h1 { font-family: Fraunces, Georgia, serif; font-weight: 500; margin: 0; font-size: 34px; }
-        .org { letter-spacing: 0.18em; text-transform: uppercase; font-size: 12px; color: #b8944a; }
-        .code { font-size: 13px; color: #5c6b66; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 28px; margin-top: 28px; }
-        .label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5c6b66; }
-        .value { margin-top: 4px; font-size: 16px; }
-        .note { margin-top: 32px; font-size: 13px; color: #5c6b66; line-height: 1.5; }
-        .print { margin: 0 0 16px; }
-        @media print { .print { display: none; } body { background: #fff; } .sheet { margin: 0; border: 0; } }
+        .sheet { max-width: 720px; margin: 32px auto; background: #fffcf7; border: 1px solid #d9cfb8; padding: 42px 52px 38px; }
+            .letterhead { display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1px solid #d9cfb8; padding-bottom: 16px; margin-bottom: 20px; }
+            .brand { letter-spacing: 0.18em; text-transform: uppercase; font-size: 11px; color: #b8944a; }
+            .meta { font-size: 12px; color: #5c6b66; text-align:right; line-height:1.6; }
+            .profile-head { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
+            .photo-wrap { width: 125px; height: 150px; border: 1px solid #d9cfb8; border-radius: 10px; background: #f8f2e6; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+            .photo-wrap img { width:100%; height:100%; object-fit:cover; }
+            h1 { font-family: Fraunces, Georgia, serif; font-weight: 500; margin: 0; font-size: 34px; }
+            .code { font-size: 13px; color: #5c6b66; margin-top: 6px; }
+            .subject { margin: 18px 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #6b655d; }
+            .address-block { margin: 18px 0; padding: 12px 14px; border: 1px solid #e8dcc0; background: rgba(245,236,217,0.45); font-size: 13px; line-height:1.6; color: #374742; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 28px; margin-top: 18px; }
+            .label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5c6b66; }
+            .value { margin-top: 4px; font-size: 16px; }
+            .skill-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin-top: 18px; padding: 16px 18px; border: 1px solid #e8dcc0; background: rgba(245,236,217,0.45); }
+            .skill-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #354842; }
+            .skill-check { width: 16px; height: 16px; border: 1px solid #8c7d66; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; background: rgba(255,255,255,0.7); color: #5a5046; font-weight: 700; }
+            .skill-check.cross { border-color: #a6a6a6; background: rgba(214,214,214,0.35); color: #6a6a6a; }
+            .note { margin-top: 32px; font-size: 13px; color: #5c6b66; line-height: 1.5; }
+            .signature { margin-top: 30px; padding-top: 16px; border-top: 1px solid #d9cfb8; display:flex; justify-content:space-between; align-items:flex-end; font-size: 12px; color: #5c6b66; }
+            .signature-line { width: 200px; border-top: 1px solid #4d5d57; margin-top: 36px; padding-top: 6px; }
+            .print { margin: 0 0 16px; }
+            @media print { .print { display: none; } body { background: #fff; } .sheet { margin: 0; border: 0; } }
     </style>
 </head>
 <body>
-<div class="sheet">
-    <p class="print"><button onclick="window.print()">Print / save as PDF</button></p>
-    <div class="top">
+<div class="sheet" id="brochure-sheet">
+<p class="print"><button type="button" onclick="printBrochure()">Print / save as PDF</button></p>
+    <br/><br/><br/><br/>
+    <div style="text-align: center;">
+        <b><h3><u>EMPLOYEE PROFILE</u></h3></b>
+    </div>
+    <div class="profile-head">
         <div>
-            <div class="org">VNS Healthcare · Home care</div>
-            <h1 th:text="${employee.fullName}">Name</h1>
-            <div class="code" th:text="${employee.empCode} + ' · Care staff profile'">EMP-1001</div>
+            <h4 th:text="${employee.fullName}">Name</h4>
+            <div class="code" th:text="${employee.gender} + ' · Joined ' + ${#temporals.format(employee.joiningDate, 'MMM yyyy')}">Female · Joined Aug 2026</div>
+            <!--<div class="meta">-->
+                <div class="code">Care staff profile</div>
+                <div class="code" th:text="${employee.empCode}">EMP-1001</div>
+            <!--</div>-->
         </div>
-        <div class="code" th:text="${employee.gender} + ' · Joined ' + ${#temporals.format(employee.joiningDate, 'MMM yyyy')}">Female</div>
+        <div class="photo-wrap" th:if="${passportPhoto != null}">
+            <img th:src="@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${passportPhoto.id})}" alt="Passport photo"/>
+        </div>
+    </div>
+
+    <br/>
+    <div class="label"><b>Basic Skills</b></div>
+    <div class="skill-list" th:with="checks=${brochureOptions}">
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'interpersonal-relationship')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'interpersonal-relationship')} ? '✓' : '✕'">✓</span>
+            Interpersonal Relationship: <strong th:text="${#lists.contains(checks, 'interpersonal-relationship')} ? 'Excellent' : 'Not selected'">Excellent</strong>
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'sponge-bath')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'sponge-bath')} ? '✓' : '✕'">✓</span>
+            Sponge Bath
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'bed-pan-diaper')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'bed-pan-diaper')} ? '✓' : '✕'">✓</span>
+            Bed Pan / Diaper
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'mouth-feeding')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'mouth-feeding')} ? '✓' : '✕'">✓</span>
+            Mouth Feeding
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'ryles-tube-feeding')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'ryles-tube-feeding')} ? '✓' : '✕'">✓</span>
+            Ryle's Tube Feeding
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'blood-pressure')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'blood-pressure')} ? '✓' : '✕'">✓</span>
+            Vitals: Blood Pressure
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'suction-mouth')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'suction-mouth')} ? '✓' : '✕'">✓</span>
+            Suction: Mouth
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'trachea')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'trachea')} ? '✓' : '✕'">✓</span>
+            Trachea
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'tracheostomy-care')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'tracheostomy-care')} ? '✓' : '✕'">✓</span>
+            Tracheostomy Care
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'blood-sugar-test')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'blood-sugar-test')} ? '✓' : '✕'">✓</span>
+            Blood Sugar Test (BSL)
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'medications-oral')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'medications-oral')} ? '✓' : '✕'">✓</span>
+            Medications: Oral
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'medications-intravenous')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'medications-intravenous')} ? '✓' : '✕'">✓</span>
+            Medications: Intravenous
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'medications-intramuscular')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'medications-intramuscular')} ? '✓' : '✕'">✓</span>
+            Medications: Intramuscular
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'medications-subcutaneous')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'medications-subcutaneous')} ? '✓' : '✕'">✓</span>
+            Medications: Subcutaneous
+        </div>
+        <div class="skill-item">
+            <span class="skill-check" th:classappend="${#lists.contains(checks, 'catheterisation-care-only-care') or #lists.contains(checks, 'catheterisation-care-expert')} ? '' : ' cross'" th:text="${#lists.contains(checks, 'catheterisation-care-only-care') or #lists.contains(checks, 'catheterisation-care-expert')} ? '✓' : '✕'">✓</span>
+            Catheterisation &amp; Care:
+            <strong th:text="${#lists.contains(checks, 'catheterisation-care-only-care')} ? 'Yes (Only Care)' : (${#lists.contains(checks, 'catheterisation-care-expert')} ? 'Yes (Expert)' : 'Not selected')">Yes (Only Care)</strong>
+        </div>
     </div>
     <div class="grid">
         <div>
             <div class="label">Mobile</div>
             <div class="value" th:text="${employee.mobileNo}">9999999999</div>
         </div>
+
         <div>
-            <div class="label">Training</div>
-            <div class="value" th:text="${employee.trainingStatus}">COMPLETED</div>
+            <div class="label">Experience</div>
+            <div class="value" th:text="${employee.noOfExperience != null} ? ${employee.noOfExperience} + ' yrs' : '—'">—</div>
         </div>
-        <div>
-            <div class="label">Onboarded</div>
-            <div class="value" th:text="${employee.onboarded} ? 'Yes — salary started' : 'In process'">Yes</div>
-        </div>
+
         <div>
             <div class="label">Date of birth</div>
             <div class="value" th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</div>
@@ -52,7 +137,69 @@
             <div class="value" th:text="${employee.fullAddress}">Address</div>
         </div>
     </div>
-    <p class="note">This profile is shared with the customer family so they can recognise the caregiver assigned to their home. Aadhar and other KYC papers stay in the office file and are not printed on this brochure.</p>
+    <p class="note">This information and knowledge of employee has taken after interview, training and documents are provided
+        from the employee to the company. This letter does not require any other documents.</p>
+
+    <div class="signature">
+        <div>
+            <div>Prepared for</div>
+            <div><strong>VNS Healthcare</strong></div>
+        </div>
+        <div style="text-align:right;">
+            <div class="signature-line">Authorized Signatory</div>
+        </div>
+    </div>
 </div>
+<script>
+    function printBrochure() {
+        const source = document.getElementById('brochure-sheet');
+        if (!source) {
+            window.print();
+            return;
+        }
+        const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+        if (!printWindow) {
+            window.print();
+            return;
+        }
+        const printSource = source.cloneNode(true);
+        const printButton = printSource.querySelector('.print');
+        if (printButton) {
+            printButton.remove();
+        }
+        const sheetHtml = printSource.innerHTML;
+        printWindow.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Care profile</title><style>' +
+            'html, body { margin: 0; padding: 0; background: #fff; color: #1c2a26; font-family: "Source Sans 3", sans-serif; }' +
+            'body { padding: 0; }' +
+            '.sheet { max-width: 720px; margin: 18mm auto 0 auto; background: #fffcf7; border: 1px solid #d9cfb8; padding: 24px 36px 22px; box-sizing: border-box; }' +
+            '.letterhead { display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1px solid #d9cfb8; padding-bottom: 12px; margin-bottom: 14px; }' +
+            '.brand { letter-spacing: 0.18em; text-transform: uppercase; font-size: 11px; color: #b8944a; }' +
+            '.meta { font-size: 12px; color: #5c6b66; text-align:right; line-height:1.6; }' +
+            '.profile-head { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; margin-top: 8px; }' +
+            '.photo-wrap { width: 125px; height: 150px; border: 1px solid #d9cfb8; border-radius: 10px; background: #f8f2e6; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
+            '.photo-wrap img { width:100%; height:100%; object-fit:cover; }' +
+            'h1 { font-family: Fraunces, Georgia, serif; font-weight: 500; margin: 0; font-size: 34px; }' +
+            '.code { font-size: 13px; color: #5c6b66; margin-top: 6px; }' +
+            '.subject { margin: 14px 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #6b655d; }' +
+            '.address-block { margin: 12px 0; padding: 10px 12px; border: 1px solid #e8dcc0; background: rgba(245,236,217,0.45); font-size: 13px; line-height:1.6; color: #374742; }' +
+            '.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 22px; margin-top: 12px; }' +
+            '.label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5c6b66; }' +
+            '.value { margin-top: 4px; font-size: 16px; }' +
+            '.skill-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 12px; padding: 12px 14px; border: 1px solid #e8dcc0; background: rgba(245,236,217,0.45); }' +
+            '.skill-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #354842; }' +
+            '.skill-check { width: 16px; height: 16px; border: 1px solid #8c7d66; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; background: rgba(255,255,255,0.7); }' +
+            '.note { margin-top: 22px; font-size: 13px; color: #5c6b66; line-height: 1.5; }' +
+            '.signature { margin-top: 18px; padding-top: 14px; border-top: 1px solid #d9cfb8; display:flex; justify-content:space-between; align-items:flex-end; font-size: 12px; color: #5c6b66; }' +
+            '.signature-line { width: 200px; border-top: 1px solid #4d5d57; margin-top: 32px; padding-top: 6px; }' +
+            '@page { margin: 14mm 12mm 12mm 12mm; }' +
+            '@media print { body { background: #fff; margin: 0; } .sheet { margin: 18mm auto 0 auto; border: 0; } }' +
+            '</style></head><body>' + sheetHtml + '</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(function () {
+            printWindow.print();
+        }, 300);
+    }
+</script>
 </body>
 </html>

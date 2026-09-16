@@ -74,8 +74,9 @@
                     <div class="error-text" th:if="${#fields.hasErrors('charges')}" th:errors="*{charges}"></div>
                 </div>
                 <div class="field">
-                    <label>Service start date</label>
-                    <input type="date" th:field="*{serviceStartDate}"/>
+                    <label class="req">Service start date</label>
+                    <input type="date" th:field="*{serviceStartDate}" required/>
+                    <div class="error-text" th:if="${#fields.hasErrors('serviceStartDate')}" th:errors="*{serviceStartDate}"></div>
                 </div>
                 <div class="field">
                     <label>Assign employee</label>
@@ -97,7 +98,7 @@
                 <div class="field full" th:if="${mode == 'create'}">
                     <label>Upload customer document</label>
                     <div class="file-upload">
-                        <input id="customerDocument" type="file" name="document" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.csv"/>
+                        <input id="customerDocument" type="file" name="documents" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.csv" multiple/>
                         <label for="customerDocument" class="btn secondary file-label">Browse</label>
                         <span class="file-name">No file chosen</span>
                     </div>

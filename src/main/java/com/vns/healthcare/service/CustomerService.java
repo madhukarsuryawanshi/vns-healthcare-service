@@ -63,13 +63,13 @@ public class CustomerService {
     }
 
     @Transactional
-    public Customer create(CustomerForm form, MultipartFile document) {
+    public Customer create(CustomerForm form, MultipartFile[] documents) {
         log.info("Creating customer with patient name [{}] and phone [{}]", form.getPatientName(), form.getMobileNo());
         Customer customer = new Customer();
         customer.setCustCode(codeGeneratorService.nextCustomerCode());
         applyForm(customer, form);
         customer = customerRepository.save(customer);
-        storeDocumentIfPresent(customer, document);
+        storeDocumentsIfPresent(customer, documents);
         log.info("Customer created successfully with id [{}] and code [{}]", customer.getId(), customer.getCustCode());
         return customer;
     }
@@ -94,12 +94,12 @@ public class CustomerService {
     }
 
     @Transactional
-    public void addDocument(Long id, MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            log.warn("Customer document upload rejected for id [{}]: file empty", id);
-            throw new BusinessException("Choose a document to upload");
+    public void addDocuments(Long id, MultipartFile[] files) {
+        if (files == null || files.length == 0) {
+            log.warn("Customer document upload rejected for id [{}]: no files", id);
+            throw new BusinessException("Choose one or more documents to upload");
         }
-        storeDocumentIfPresent(get(id), file);
+        storeDocumentsIfPresent(get(id), files);
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +110,22 @@ public class CustomerService {
             throw new BusinessException("Document does not belong to this customer");
         }
         return document;
+    }
+
+    @Transactional
+    public void deleteDocument(Long customerId, Long documentId) {
+        CustomerDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new BusinessException("Document not found"));
+        if (!document.getCustomer().getId().equals(customerId)) {
+            throw new BusinessException("Document does not belong to this customer");
+        }
+        try {
+            fileStorageService.delete(document);
+        } catch (Exception e) {
+            log.warn("Failed to delete file from storage for customer document id [{}]: {}", documentId, e.getMessage());
+        }
+        documentRepository.delete(document);
+        log.info("Deleted customer document id [{}] for customer [{}]", documentId, customerId);
     }
 
     @Transactional
@@ -217,22 +233,29 @@ public class CustomerService {
     }
 
     private void storeDocumentIfPresent(Customer customer, MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            return;
-        }
-        try {
-            String stored = fileStorageService.storeCustomer(customer.getId(), file);
-            CustomerDocument document = new CustomerDocument();
-            document.setCustomer(customer);
-            document.setOriginalFilename(file.getOriginalFilename());
-            document.setStoredFilename(stored);
-            document.setContentType(file.getContentType());
-            document.setFileSize(file.getSize());
-            documentRepository.save(document);
-            log.info("Stored customer document [{}] for customer id [{}]", file.getOriginalFilename(), customer.getId());
-        } catch (IOException ex) {
-            log.error("Failed to store customer document for customer id [{}]", customer.getId(), ex);
-            throw new BusinessException("Could not store the uploaded document");
+        // backwards compatibility
+        if (file == null || file.isEmpty()) return;
+        storeDocumentsIfPresent(customer, new MultipartFile[]{file});
+    }
+
+    private void storeDocumentsIfPresent(Customer customer, MultipartFile[] files) {
+        if (files == null || files.length == 0) return;
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) continue;
+            try {
+                String stored = fileStorageService.storeCustomer(customer.getId(), file);
+                CustomerDocument document = new CustomerDocument();
+                document.setCustomer(customer);
+                document.setOriginalFilename(file.getOriginalFilename());
+                document.setStoredFilename(stored);
+                document.setContentType(file.getContentType());
+                document.setFileSize(file.getSize());
+                documentRepository.save(document);
+                log.info("Stored customer document [{}] for customer id [{}]", file.getOriginalFilename(), customer.getId());
+            } catch (IOException ex) {
+                log.error("Failed to store customer document for customer id [{}]", customer.getId(), ex);
+                throw new BusinessException("Could not store one of the uploaded documents");
+            }
         }
     }
 

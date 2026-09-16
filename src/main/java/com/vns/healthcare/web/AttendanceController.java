@@ -5,6 +5,7 @@ import com.vns.healthcare.entity.Attendance;
 import com.vns.healthcare.entity.Employee;
 import com.vns.healthcare.service.AttendanceReportService;
 import com.vns.healthcare.service.AttendanceService;
+import com.vns.healthcare.service.EmployeeService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,11 +32,14 @@ public class AttendanceController {
 
     private final AttendanceService attendanceService;
     private final AttendanceReportService attendanceReportService;
+    private final EmployeeService employeeService;
 
     public AttendanceController(AttendanceService attendanceService,
-                                AttendanceReportService attendanceReportService) {
+                                AttendanceReportService attendanceReportService,
+                                EmployeeService employeeService) {
         this.attendanceService = attendanceService;
         this.attendanceReportService = attendanceReportService;
+        this.employeeService = employeeService;
     }
 
     @GetMapping
@@ -47,33 +52,40 @@ public class AttendanceController {
         if (date == null) {
             date = LocalDate.now();
         }
-        Map<Employee, Attendance> roster = attendanceService.rosterFor(date);
-        List<Map.Entry<Employee, Attendance>> rosterEntries = new ArrayList<Map.Entry<Employee, Attendance>>(roster.entrySet());
-        if (status != null && !status.trim().isEmpty()) {
-            final String normalized = status.trim();
-            rosterEntries.removeIf(entry -> entry.getValue() == null || entry.getValue().getStatus() == null || !entry.getValue().getStatus().name().equalsIgnoreCase(normalized));
+        LocalDate monthStart = date.withDayOfMonth(1);
+        List<Employee> employees = employeeService.activeStaff();
+        employees.sort(sortEmployees(sort, dir));
+        Map<Long, Map<String, Attendance>> attendanceByEmployee = attendanceService.monthlyRoster(monthStart);
+
+        List<LocalDate> monthDays = new ArrayList<LocalDate>();
+        LocalDate current = monthStart;
+        while (!current.isAfter(monthStart.withDayOfMonth(monthStart.lengthOfMonth()))) {
+            monthDays.add(current);
+            current = current.plusDays(1);
         }
-        rosterEntries.sort(sortAttendanceEntries(sort, dir));
+
         model.addAttribute("page", "attendance");
-        model.addAttribute("date", date);
+        model.addAttribute("date", monthStart);
         model.addAttribute("status", status == null ? "" : status);
         model.addAttribute("sort", sort);
         model.addAttribute("dir", dir);
-        model.addAttribute("reportFrom", date.withDayOfMonth(1));
-        model.addAttribute("reportTo", date);
-        model.addAttribute("roster", rosterEntries);
+        model.addAttribute("reportFrom", monthStart);
+        model.addAttribute("reportTo", monthStart.withDayOfMonth(monthStart.lengthOfMonth()));
+        model.addAttribute("employees", employees);
+        model.addAttribute("monthDays", monthDays);
+        model.addAttribute("attendanceByEmployee", attendanceByEmployee);
         model.addAttribute("statuses", AttendanceStatus.values());
+        model.addAttribute("previousMonth", monthStart.minusMonths(1));
+        model.addAttribute("nextMonth", monthStart.plusMonths(1));
         return "attendance/list";
     }
 
-    private Comparator<Map.Entry<Employee, Attendance>> sortAttendanceEntries(String sort, String dir) {
-        Comparator<Map.Entry<Employee, Attendance>> comparator;
+    private Comparator<Employee> sortEmployees(String sort, String dir) {
+        Comparator<Employee> comparator;
         if ("fullName".equalsIgnoreCase(sort)) {
-            comparator = Comparator.comparing(e -> e.getKey().getFullName() == null ? "" : e.getKey().getFullName(), Comparator.nullsLast(String::compareToIgnoreCase));
-        } else if ("onboarded".equalsIgnoreCase(sort)) {
-            comparator = Comparator.comparing(e -> e.getKey().isOnboarded());
+            comparator = Comparator.comparing(e -> e.getFullName() == null ? "" : e.getFullName(), Comparator.nullsLast(String::compareToIgnoreCase));
         } else {
-            comparator = Comparator.comparing(e -> e.getKey().getEmpCode() == null ? "" : e.getKey().getEmpCode(), Comparator.nullsLast(String::compareToIgnoreCase));
+            comparator = Comparator.comparing(e -> e.getEmpCode() == null ? "" : e.getEmpCode(), Comparator.nullsLast(String::compareToIgnoreCase));
         }
         if ("desc".equalsIgnoreCase(dir)) {
             comparator = comparator.reversed();
@@ -98,8 +110,39 @@ public class AttendanceController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.parseMediaType(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(excel);
+    }
+
+    @PostMapping("/bulk")
+    public String saveMonthlyRow(@RequestParam Long employeeId,
+                               @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate month,
+                               @RequestParam(required = false) String notes,
+                               @RequestParam Map<String, String> params,
+                               RedirectAttributes redirectAttributes) {
+        Map<LocalDate, AttendanceStatus> statuses = new LinkedHashMap<LocalDate, AttendanceStatus>();
+        LocalDate monthStart = month.withDayOfMonth(1);
+        for (LocalDate day : getDaysInMonth(monthStart)) {
+            String key = "status_" + day.toString();
+            String value = params.get(key);
+            if (value != null && !value.trim().isEmpty()) {
+                statuses.put(day, AttendanceStatus.valueOf(value));
+            }
+        }
+        attendanceService.saveMonthlyRow(employeeId, monthStart, statuses, notes);
+        redirectAttributes.addFlashAttribute("success", "Attendance saved for the month.");
+        return "redirect:/attendance?date=" + monthStart;
+    }
+
+    private List<LocalDate> getDaysInMonth(LocalDate monthStart) {
+        List<LocalDate> days = new ArrayList<LocalDate>();
+        LocalDate current = monthStart;
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+        while (!current.isAfter(monthEnd)) {
+            days.add(current);
+            current = current.plusDays(1);
+        }
+        return days;
     }
 
     @PostMapping

@@ -46,6 +46,10 @@ public class EmployeeForm {
     @DecimalMin(value = "0.0", inclusive = true, message = "Salary cannot be negative")
     private BigDecimal salary;
 
+    @NotNull(message = "No. of experience is required")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Experience cannot be negative")
+    private BigDecimal noOfExperience;
+
     public String getFullName() {
         return fullName;
     }
@@ -116,5 +120,13 @@ public class EmployeeForm {
 
     public void setSalary(BigDecimal salary) {
         this.salary = salary;
+    }
+
+    public BigDecimal getNoOfExperience() {
+        return noOfExperience;
+    }
+
+    public void setNoOfExperience(BigDecimal noOfExperience) {
+        this.noOfExperience = noOfExperience;
     }
 }

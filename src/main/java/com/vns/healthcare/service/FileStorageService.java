@@ -38,7 +38,10 @@ public class FileStorageService {
         String safe = original.replaceAll("[^a-zA-Z0-9._-]", "_");
         String stored = UUID.randomUUID().toString() + "_" + safe;
         File dest = new File(folder, stored);
-        file.transferTo(dest);
+        // Use stream copy to avoid transferTo issues across filesystems
+        java.nio.file.Files.copy(file.getInputStream(), dest.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        // Ensure file is writable
+        try { dest.setWritable(true, false); } catch (Exception ignored) {}
         log.info("Stored employee document [{}] in [{}]", original, dest.getAbsolutePath());
         return stored;
     }
@@ -52,7 +55,9 @@ public class FileStorageService {
         String safe = original.replaceAll("[^a-zA-Z0-9._-]", "_");
         String stored = UUID.randomUUID().toString() + "_" + safe;
         File dest = new File(folder, stored);
-        file.transferTo(dest);
+        // Use stream copy to avoid transferTo issues across filesystems
+        java.nio.file.Files.copy(file.getInputStream(), dest.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        try { dest.setWritable(true, false); } catch (Exception ignored) {}
         log.info("Stored customer document [{}] in [{}]", original, dest.getAbsolutePath());
         return stored;
     }

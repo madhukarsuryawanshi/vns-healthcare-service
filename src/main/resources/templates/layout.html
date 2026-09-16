@@ -9,6 +9,140 @@
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/app.css}"/>
+    <style>
+        /* Flash / notification styles */
+        .flash {
+            position: fixed;
+            right: 16px;
+            top: 16px;
+            z-index: 2000;
+            padding: 12px 18px;
+            border-radius: 8px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            max-width: 360px;
+            width: auto;
+            text-align: center;
+            transition: opacity 180ms ease-in-out;
+        }
+        .flash.flash-hidden { opacity: 0; pointer-events: none; }
+        .flash.error { background: #fff0f0; color: #a00; border: 1px solid #f5c2c7; }
+        .flash:not(.error) { background: #f4fff6; color: #0a6; border: 1px solid #bfe9c8; }
+        .info-banner { background:#fff8e6; border:1px solid #ffe2a8; padding:10px 14px; border-radius:6px; margin-bottom:12px; }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2500;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(2px);
+            animation: fadeIn 0.18s ease;
+        }
+        .modal-overlay.visible { display: flex; }
+        .modal-backdrop {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            cursor: pointer;
+        }
+        .modal-content {
+            position: relative;
+            z-index: 1;
+            width: min(92vw, 980px);
+            height: min(84vh, 760px);
+            background: var(--panel-bg);
+            color: var(--ink);
+            border-radius: 14px;
+            box-shadow: 0 22px 60px rgba(15, 23, 42, 0.28);
+            overflow: hidden;
+            border: 1px solid var(--line);
+        }
+        .modal-content.small {
+            width: min(92vw, 420px);
+            height: auto;
+            padding: 18px 18px 12px;
+            background: var(--panel-bg);
+            color: var(--ink);
+        }
+        .modal-close {
+            position: absolute;
+            right: 10px;
+            top: 8px;
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(15,23,42,0.06);
+            color: var(--ink);
+            font-size: 26px;
+            cursor: pointer;
+            z-index: 2;
+        }
+        .modal-close:hover { background: rgba(15,23,42,0.10); }
+        .brochure-modal {
+            width: min(92vw, 560px);
+            height: auto;
+            max-height: min(82vh, 760px);
+            overflow: auto;
+            padding: 20px 20px 14px;
+        }
+        .brochure-header {
+            margin: 0 0 12px;
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        .brochure-list {
+            display: grid;
+            gap: 8px;
+            margin: 12px 0 18px;
+        }
+        .brochure-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(148, 163, 184, 0.04);
+        }
+        .brochure-option input {
+            margin: 0;
+        }
+        .brochure-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        :root[data-theme="dark"] .modal-content,
+        :root[data-theme="dark"] .modal-content.small {
+            background: #12211f;
+            color: #ecf5f1;
+            border-color: #23443d;
+        }
+        :root[data-theme="dark"] .brochure-option {
+            background: rgba(255,255,255,0.02);
+            border-color: #23443d;
+        }
+        :root[data-theme="dark"] .modal-close {
+            background: rgba(255,255,255,0.08);
+            color: #ecf5f1;
+        }
+        :root[data-theme="dark"] .modal-close:hover { background: rgba(255,255,255,0.14); }
+        :root[data-theme="dark"] #confirm-text {
+            color: #ecf5f1;
+        }
+        #file-preview-iframe {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border: 0;
+            background: var(--panel-bg);
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @media (max-width: 600px) { .flash { right: 8px; top: 8px; max-width: 92%; } .modal-content { height: 72vh; } }
+    </style>
 </head>
 <body>
 <div class="app">
@@ -47,6 +181,76 @@
         <div th:replace="${content}"></div>
     </main>
 </div>
+
+<!-- File preview modal -->
+<div id="file-preview-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-content">
+        <button type="button" class="modal-close" data-modal-close aria-label="Close preview">&times;</button>
+        <iframe id="file-preview-iframe" src="" title="Document preview"></iframe>
+    </div>
+</div>
+
+<!-- Brochure options modal -->
+<div id="brochure-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-backdrop" data-brochure-close></div>
+    <div class="modal-content brochure-modal">
+        <button type="button" class="modal-close" data-brochure-close aria-label="Close brochure dialog">&times;</button>
+        <h3 class="brochure-header">Prepare brochure</h3>
+        <form id="brochure-form" method="get">
+            <div class="brochure-list">
+                <label class="brochure-option"><input type="checkbox" name="option" value="interpersonal-relationship" checked/>Interpersonal Relationship: Excellent</label>
+
+                <div style="margin-top:8px;">
+                    <div style="font-weight:700; margin-bottom:8px;">Basic Skill</div>
+                    <div class="brochure-list">
+                        <label class="brochure-option"><input type="checkbox" name="option" value="sponge-bath" checked/>Sponge Bath</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="bed-pan-diaper" checked/>Bed Pan / Diaper</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="mouth-feeding" checked/>Mouth Feeding</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="ryles-tube-feeding" checked/>Ryle's Tube Feeding</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="blood-pressure" checked/>Vitals: Blood Pressure</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="suction-mouth"/>Suction: Mouth</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="trachea"/>Trachea</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="tracheostomy-care"/>Tracheostomy Care</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="blood-sugar-test" checked/>Blood Sugar Test (BSL)</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="medications-oral" checked/>Medications: Oral</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="medications-intravenous"/>Medications: Intravenous</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="medications-intramuscular"/>Medications: Intramuscular</label>
+                        <label class="brochure-option"><input type="checkbox" name="option" value="medications-subcutaneous" checked/>Medications: Subcutaneous</label>
+
+                        <div class="brochure-option" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:10px; margin:0;">
+                                <input type="checkbox" name="option" value="catheterisation-care" checked/>Catheterisation &amp; Care
+                            </label>
+                            <select name="catheterisationCare" aria-label="Catheterisation care level" style="min-width:120px;">
+                                <option value="EXPERT">Expert</option>
+                                <option value="ONLY_CARE" selected>Only Care</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="brochure-actions">
+                <button type="button" class="btn ghost" data-brochure-close>No</button>
+                <button type="submit" class="btn secondary">Prepare brochure</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div id="confirm-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-backdrop" data-confirm-close></div>
+    <div class="modal-content small">
+        <button type="button" class="modal-close" data-confirm-close aria-label="Close dialog">&times;</button>
+        <p id="confirm-text" style="margin: 26px 0 0; text-align:center; font-size:16px;">Are you sure?</p>
+        <div style="display:flex; gap:8px; justify-content:center; margin-top:18px;">
+            <button type="button" class="btn coral" id="confirm-yes">Yes</button>
+            <button type="button" class="btn" id="confirm-no">No</button>
+        </div>
+    </div>
+</div>
+
 <script>
     (function () {
         const root = document.documentElement;
@@ -95,6 +299,245 @@
             }
         }, true);
     }
+
+    // Preserve scroll and show flash messages near the last clicked element.
+    try {
+        const STORAGE_KEY = 'vns:lastClick';
+        function saveClick(event) {
+            try {
+                const target = event.target || event.srcElement;
+                const clickable = target.closest && target.closest('button, input[type=submit], a, select, textarea, form') || target;
+                let selector = null;
+                if (clickable && clickable.id) {
+                    selector = '#' + clickable.id;
+                } else if (clickable && clickable.name) {
+                    selector = clickable.tagName.toLowerCase() + '[name="' + clickable.name + '"]';
+                } else if (clickable && clickable.closest) {
+                    const form = clickable.closest('form');
+                    if (form && form.id) selector = 'form#' + form.id;
+                }
+                // determine pointer coordinates (clientX/clientY) if available
+                let x = null, y = null;
+                try {
+                    if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+                        x = event.clientX;
+                        y = event.clientY;
+                    } else if (event && event.touches && event.touches[0]) {
+                        x = event.touches[0].clientX;
+                        y = event.touches[0].clientY;
+                    } else {
+                        // fallback: use focused element center
+                        const active = document.activeElement;
+                        if (active && active.getBoundingClientRect) {
+                            const r = active.getBoundingClientRect();
+                            x = Math.round(r.left + r.width / 2);
+                            y = Math.round(r.top + r.height / 2);
+                        }
+                    }
+                } catch (e) {
+                    // ignore coordinate errors
+                }
+                const payload = {selector: selector, scrollY: window.scrollY, x: x, y: y, ts: Date.now()};
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                // ignore
+            }
+        }
+        document.addEventListener('click', saveClick, true);
+        document.addEventListener('keydown', function (e) {
+            // capture enter key on forms
+            if (e.key === 'Enter') saveClick(e);
+        }, true);
+
+        function restoreFlashAndScroll() {
+            try {
+                const raw = sessionStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                // expire after 5 minutes
+                if (!data || !data.ts || (Date.now() - data.ts) > (5 * 60 * 1000)) {
+                    sessionStorage.removeItem(STORAGE_KEY);
+                    return;
+                }
+                const flash = document.querySelector('.flash') || document.querySelector('.flash.error');
+                if (flash) {
+                    // restore previous scroll position so page doesn't jump to top
+                    if (typeof data.scrollY === 'number') {
+                        try { window.scrollTo(0, data.scrollY); } catch (e) { /* ignore */ }
+                    }
+
+                    // position flash at top-right corner (no scrolling)
+                    flash.style.position = 'fixed';
+                    flash.style.zIndex = '2000';
+                    flash.style.right = '16px';
+                    flash.style.left = '';
+                    flash.style.top = '16px';
+                    flash.style.transform = 'none';
+                    flash.classList.add('flash-centered');
+
+                    // auto-dismiss after 2s and dismiss on any click
+                    (function setupFlashDismiss(node) {
+                        if (!node) return;
+                        function removeFlash() {
+                            try {
+                                node.classList.add('flash-hidden');
+                                setTimeout(function () { node.parentNode && node.parentNode.removeChild(node); }, 180);
+                            } catch (e) {
+                                // ignore
+                            }
+                            document.removeEventListener('click', clickHandler, true);
+                            document.removeEventListener('keydown', keyHandler, true);
+                        }
+                        var clickHandler = function () { removeFlash(); };
+                        var keyHandler = function (e) { if (e.key === 'Escape') removeFlash(); };
+                        document.addEventListener('click', clickHandler, true);
+                        document.addEventListener('keydown', keyHandler, true);
+                        // delay 2 seconds (2000ms)
+                        setTimeout(removeFlash, 2000);
+                    })(flash);
+                    // remove stored position data
+                    sessionStorage.removeItem(STORAGE_KEY);
+                } else if (typeof data.scrollY === 'number') {
+                    window.scrollTo(0, data.scrollY);
+                    sessionStorage.removeItem(STORAGE_KEY);
+                }
+            } catch (e) {
+                sessionStorage.removeItem(STORAGE_KEY);
+            }
+        }
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(restoreFlashAndScroll, 40);
+        } else {
+            document.addEventListener('DOMContentLoaded', function () { setTimeout(restoreFlashAndScroll, 40); });
+        }
+    } catch (e) {
+        // ignore any errors
+    }
+
+// preview / confirm modal scripts
+        // file preview handler
+        function toggleModal(modalId, show) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            modal.classList.toggle('visible', !!show);
+            modal.setAttribute('aria-hidden', String(!show));
+            document.body.style.overflow = show ? 'hidden' : '';
+            if (!show) {
+                const iframe = document.getElementById('file-preview-iframe');
+                if (iframe && modalId === 'file-preview-modal') {
+                    iframe.src = '';
+                }
+            }
+        }
+
+        function openPreview(url) {
+            try {
+                const iframe = document.getElementById('file-preview-iframe');
+                if (iframe) iframe.src = url;
+                toggleModal('file-preview-modal', true);
+            } catch (e) { console.error(e); }
+        }
+
+        function closePreview() {
+            toggleModal('file-preview-modal', false);
+        }
+
+        document.querySelectorAll('[data-preview-url]').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                openPreview(link.getAttribute('data-preview-url'));
+            });
+        });
+
+        document.querySelectorAll('[data-modal-close]').forEach(function (node) {
+            node.addEventListener('click', function (e) {
+                e.stopPropagation();
+                closePreview();
+            });
+        });
+
+        document.querySelectorAll('[data-brochure-url]').forEach(function (button) {
+            button.addEventListener('click', function (e) {
+                e.preventDefault();
+                const form = document.getElementById('brochure-form');
+                if (!form) return;
+                form.setAttribute('action', button.getAttribute('data-brochure-url'));
+                toggleModal('brochure-modal', true);
+            });
+        });
+
+        document.querySelectorAll('[data-brochure-close]').forEach(function (node) {
+            node.addEventListener('click', function (e) {
+                e.stopPropagation();
+                toggleModal('brochure-modal', false);
+            });
+        });
+
+        const brochureForm = document.getElementById('brochure-form');
+        if (brochureForm) {
+            brochureForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const action = brochureForm.getAttribute('action') || window.location.href;
+                const params = new URLSearchParams(new FormData(brochureForm));
+                const url = new URL(action, window.location.origin);
+                const existing = new URLSearchParams(url.search);
+                params.forEach(function (value, key) {
+                    existing.append(key, value);
+                });
+                url.search = existing.toString();
+                window.open(url.toString(), '_blank', 'noopener');
+                toggleModal('brochure-modal', false);
+            });
+        }
+
+        var confirmResolve = null;
+        function showConfirm(text) {
+            return new Promise(function (resolve) {
+                try {
+                    const modal = document.getElementById('confirm-modal');
+                    const textNode = document.getElementById('confirm-text');
+                    if (textNode) textNode.textContent = text || 'Are you sure?';
+                    toggleModal('confirm-modal', true);
+                    confirmResolve = function (ok) {
+                        toggleModal('confirm-modal', false);
+                        resolve(ok);
+                    };
+                } catch (e) { resolve(false); }
+            });
+        }
+
+        document.getElementById('confirm-yes') && document.getElementById('confirm-yes').addEventListener('click', function () {
+            if (confirmResolve) confirmResolve(true);
+        });
+        document.getElementById('confirm-no') && document.getElementById('confirm-no').addEventListener('click', function () {
+            if (confirmResolve) confirmResolve(false);
+        });
+        document.querySelectorAll('[data-confirm-close]').forEach(function (node) {
+            node.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (confirmResolve) confirmResolve(false);
+            });
+        });
+        document.querySelectorAll('[data-confirm-delete]').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                var form = btn.closest('form');
+                showConfirm(btn.getAttribute('data-confirm-text') || 'Delete this document?').then(function (ok) {
+                    if (ok && form) form.submit();
+                });
+            });
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                const previewVisible = document.getElementById('file-preview-modal') && document.getElementById('file-preview-modal').classList.contains('visible');
+                const brochureVisible = document.getElementById('brochure-modal') && document.getElementById('brochure-modal').classList.contains('visible');
+                const confirmVisible = document.getElementById('confirm-modal') && document.getElementById('confirm-modal').classList.contains('visible');
+                if (previewVisible) closePreview();
+                if (brochureVisible) toggleModal('brochure-modal', false);
+                if (confirmVisible && confirmResolve) confirmResolve(false);
+            }
+        }, true);
 })();
 </script>
 </body>

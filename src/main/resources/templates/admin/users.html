@@ -10,8 +10,6 @@
         <a class="btn" th:href="@{/admin/users/new}">Add user</a>
     </div>
 
-    <div th:if="${success}" class="flash" th:text="${success}"></div>
-    <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
     <form class="search" method="get" th:action="@{/admin/users}">
         <select name="status" style="max-width:180px">

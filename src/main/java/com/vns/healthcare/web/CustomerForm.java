@@ -38,6 +38,7 @@ public class CustomerForm {
     @Size(max = 2000)
     private String medicalHistory;
 
+    @NotNull(message = "Service start date is required")
     private LocalDate serviceStartDate;
 
     @NotBlank(message = "Select service hours")

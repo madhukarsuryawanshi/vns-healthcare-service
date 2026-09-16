@@ -43,4 +43,4 @@ mvn spring-boot:run
 
 4. Open [http://localhost:8080](http://localhost:8080)
 
-Hibernate creates/updates tables on startup (`ddl-auto=update`). Uploaded files go to the `uploads/` folder.
+Hibernate creates/updates tables on startup (`ddl-auto=update`) and the SQL schema files in `src/main/resources/db` are initialized on startup. If your database already exists without the audit columns, run `src/main/resources/db/add-audit-columns.sql` once against MySQL. Uploaded files go to the `uploads/` folder.
