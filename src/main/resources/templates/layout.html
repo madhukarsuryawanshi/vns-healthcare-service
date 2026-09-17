@@ -141,7 +141,53 @@
             background: var(--panel-bg);
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @media (max-width: 600px) { .flash { right: 8px; top: 8px; max-width: 92%; } .modal-content { height: 72vh; } }
+        .data-table-shell {
+            overflow: hidden;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: var(--panel-bg);
+        }
+        .data-table-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .data-table-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            border: 1px solid var(--line);
+            background: transparent;
+            color: var(--ink);
+            border-radius: 8px;
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            cursor: pointer;
+            font: inherit;
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+        .page-btn:hover:not(:disabled), .page-btn.active {
+            background: rgba(27, 92, 84, 0.08);
+            border-color: rgba(27, 92, 84, 0.28);
+        }
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .page-btn.active {
+            color: var(--teal);
+            font-weight: 700;
+        }
+        @media (max-width: 600px) { .flash { right: 8px; top: 8px; max-width: 92%; } .modal-content { height: 72vh; } .data-table-controls { flex-direction: column; align-items: flex-start; } .data-table-pagination { width: 100%; justify-content: flex-start; } }
     </style>
 </head>
 <body>
@@ -162,24 +208,41 @@
             <a th:href="@{/salary}" th:classappend="${page == 'salary'} ? 'active'">Salary</a>
             <a th:href="@{/admin/users}" th:classappend="${page == 'admin'} ? 'active'">Admin</a>
         </nav>
-        <button class="theme-toggle" type="button" aria-label="Toggle theme" data-theme-toggle>
-            <span>🌙</span>
-            <span>Dark</span>
-        </button>
-        <div class="user-chip" th:if="${currentUser != null}">
-            <span class="user-label">Logged in</span>
-            <strong th:text="${currentUser}">admin</strong>
-        </div>
-        <form th:action="@{/logout}" method="post" class="logout-form">
-            <button type="submit" class="logout-btn">Logout</button>
-        </form>
         <div class="sidebar-foot">Staffing · Patient leads · Duty roster</div>
     </aside>
-    <main class="main">
+    <div class="content-shell">
+        <header class="top-header">
+            <div class="profile-menu-wrap">
+                <button class="profile-trigger" type="button" aria-expanded="false" data-profile-toggle>
+                    <span class="profile-avatar" th:text="${currentUser != null and !#strings.isEmpty(currentUser)} ? ${#strings.substring(currentUser, 0, 1).toUpperCase()} : 'U'">U</span>
+                    <span class="profile-name" th:if="${currentUser != null}" th:text="${currentUser}">admin</span>
+                    <span class="caret">▾</span>
+                </button>
+                <div class="profile-dropdown" id="profile-dropdown">
+                    <div class="profile-menu-header">Account</div>
+                    <a class="profile-menu-item" th:href="@{/profile/password}">
+                        <span class="menu-icon">🔒</span>
+                        <span>Change password</span>
+                    </a>
+                    <button type="button" class="profile-menu-item" aria-label="Toggle theme" data-theme-toggle>
+                        <span class="menu-icon">🌙</span>
+                        <span>Dark mode</span>
+                    </button>
+                    <form th:action="@{/logout}" method="post" class="logout-form-inline">
+                        <button type="submit" class="profile-menu-item danger">
+                            <span class="menu-icon">↩</span>
+                            <span>Logout</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </header>
+        <main class="main">
         <div th:if="${success}" class="flash" th:text="${success}"></div>
         <div th:if="${error}" class="flash error" th:text="${error}"></div>
         <div th:replace="${content}"></div>
-    </main>
+        </main>
+    </div>
 </div>
 
 <!-- File preview modal -->
@@ -255,6 +318,8 @@
     (function () {
         const root = document.documentElement;
         const toggle = document.querySelector('[data-theme-toggle]');
+        const profileToggle = document.querySelector('[data-profile-toggle]');
+        const profileDropdown = document.getElementById('profile-dropdown');
         const savedTheme = localStorage.getItem('vns-theme');
         if (savedTheme) {
             root.setAttribute('data-theme', savedTheme);
@@ -262,8 +327,16 @@
         function syncTheme() {
             if (!toggle) return;
             const dark = root.getAttribute('data-theme') === 'dark';
+            toggle.innerHTML = dark ? '<span>☀️</span><span>Light mode</span>' : '<span>🌙</span><span>Dark mode</span>';
             toggle.setAttribute('aria-pressed', String(dark));
-            toggle.innerHTML = dark ? '<span>☀️</span><span>Light</span>' : '<span>🌙</span><span>Dark</span>';
+        }
+        function closeProfileMenu() {
+            if (profileDropdown) {
+                profileDropdown.classList.remove('visible');
+            }
+            if (profileToggle) {
+                profileToggle.setAttribute('aria-expanded', 'false');
+            }
         }
         syncTheme();
         toggle && toggle.addEventListener('click', function () {
@@ -271,6 +344,22 @@
             root.setAttribute('data-theme', nextTheme);
             localStorage.setItem('vns-theme', nextTheme);
             syncTheme();
+            closeProfileMenu();
+        });
+        profileToggle && profileToggle.addEventListener('click', function (event) {
+            event.stopPropagation();
+            if (!profileDropdown) return;
+            const isVisible = profileDropdown.classList.contains('visible');
+            profileDropdown.classList.toggle('visible', !isVisible);
+            profileToggle.setAttribute('aria-expanded', String(!isVisible));
+        });
+        document.addEventListener('click', function (event) {
+            const target = event.target;
+            if (!target) return;
+            if (profileToggle && profileToggle.contains(target)) return;
+            if (profileDropdown && !profileDropdown.contains(target)) {
+                closeProfileMenu();
+            }
         });
 
     const csrfMeta = document.querySelector('meta[name="_csrf"]');
@@ -472,6 +561,78 @@
                 toggleModal('brochure-modal', false);
             });
         });
+
+        function addTablePagination() {
+            document.querySelectorAll('table').forEach(function (table) {
+                if (table.dataset.paginationBound === 'true' || table.closest('.data-table-shell')) {
+                    return;
+                }
+                if (!table.tBodies || !table.tBodies[0] || !table.tBodies[0].rows.length) {
+                    return;
+                }
+
+                const rows = Array.from(table.tBodies[0].rows);
+                const pageSize = 10;
+                let currentPage = 1;
+                const shell = document.createElement('div');
+                shell.className = 'data-table-shell';
+                table.parentNode.insertBefore(shell, table);
+                shell.appendChild(table);
+
+                const controls = document.createElement('div');
+                controls.className = 'data-table-controls';
+                const summary = document.createElement('div');
+                const pagination = document.createElement('div');
+                pagination.className = 'data-table-pagination';
+                controls.appendChild(summary);
+                controls.appendChild(pagination);
+                shell.appendChild(controls);
+
+                function renderPage() {
+                    const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+                    currentPage = Math.min(currentPage, totalPages);
+                    rows.forEach(function (row, index) {
+                        row.style.display = (index >= (currentPage - 1) * pageSize && index < currentPage * pageSize) ? '' : 'none';
+                    });
+
+                    const start = rows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+                    const end = Math.min(currentPage * pageSize, rows.length);
+                    summary.textContent = 'Showing ' + start + '-' + end + ' of ' + rows.length;
+
+                    pagination.innerHTML = '';
+                    const prev = document.createElement('button');
+                    prev.type = 'button';
+                    prev.className = 'page-btn';
+                    prev.textContent = 'Prev';
+                    prev.disabled = currentPage === 1;
+                    prev.addEventListener('click', function () { if (currentPage > 1) { currentPage--; renderPage(); } });
+                    pagination.appendChild(prev);
+
+                    for (let page = 1; page <= totalPages; page++) {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'page-btn' + (page === currentPage ? ' active' : '');
+                        btn.textContent = String(page);
+                        btn.disabled = totalPages <= 1;
+                        btn.addEventListener('click', function () { currentPage = page; renderPage(); });
+                        pagination.appendChild(btn);
+                    }
+
+                    const next = document.createElement('button');
+                    next.type = 'button';
+                    next.className = 'page-btn';
+                    next.textContent = 'Next';
+                    next.disabled = currentPage === totalPages;
+                    next.addEventListener('click', function () { if (currentPage < totalPages) { currentPage++; renderPage(); } });
+                    pagination.appendChild(next);
+                }
+
+                renderPage();
+                table.dataset.paginationBound = 'true';
+            });
+        }
+
+        addTablePagination();
 
         const brochureForm = document.getElementById('brochure-form');
         if (brochureForm) {
