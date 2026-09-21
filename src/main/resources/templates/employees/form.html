@@ -94,6 +94,26 @@
                     <div class="error-text" th:if="${#fields.hasErrors('salary')}" th:errors="*{salary}"></div>
                 </div>
                 <div class="field full">
+                    <label>Known languages</label>
+                    <div class="permission-row" style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+                        <label style="display:inline-flex; align-items:center; gap:8px; margin:0;">
+                            <input type="checkbox" name="knownLanguages" value="MARATHI"
+                                   th:checked="${form.knownLanguages != null and #lists.contains(form.knownLanguages, 'MARATHI')}"/>
+                            Marathi
+                        </label>
+                        <label style="display:inline-flex; align-items:center; gap:8px; margin:0;">
+                            <input type="checkbox" name="knownLanguages" value="HINDI"
+                                   th:checked="${form.knownLanguages != null and #lists.contains(form.knownLanguages, 'HINDI')}"/>
+                            Hindi
+                        </label>
+                        <label style="display:inline-flex; align-items:center; gap:8px; margin:0;">
+                            <input type="checkbox" name="knownLanguages" value="ENGLISH"
+                                   th:checked="${form.knownLanguages != null and #lists.contains(form.knownLanguages, 'ENGLISH')}"/>
+                            English
+                        </label>
+                    </div>
+                </div>
+                <div class="field full">
                     <label class="req">Full address</label>
                     <textarea rows="3" th:field="*{fullAddress}"></textarea>
                     <div class="error-text" th:if="${#fields.hasErrors('fullAddress')}" th:errors="*{fullAddress}"></div>

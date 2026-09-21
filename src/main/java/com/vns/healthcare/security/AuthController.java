@@ -183,7 +183,9 @@ public class AuthController {
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
+        log.info("Generated new password hash for user [{}]", user.getUsername());
         userRepository.save(user);
+        log.info("Password reset successfully for user [{}]", user.getUsername());
         clearResetSession(session);
         redirectAttributes.addFlashAttribute("successMessage", "Password reset successfully. Please sign in with your new password.");
         return "redirect:/login";

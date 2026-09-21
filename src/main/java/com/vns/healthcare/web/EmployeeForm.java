@@ -9,6 +9,8 @@ import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class EmployeeForm {
 
@@ -147,6 +149,8 @@ public class EmployeeForm {
 
     private String maritalStatus;
 
+    private List<String> knownLanguages = new ArrayList<String>();
+
     public String getEmail() {
         return email;
     }
@@ -161,6 +165,14 @@ public class EmployeeForm {
 
     public void setMaritalStatus(String maritalStatus) {
         this.maritalStatus = maritalStatus;
+    }
+
+    public List<String> getKnownLanguages() {
+        return knownLanguages;
+    }
+
+    public void setKnownLanguages(List<String> knownLanguages) {
+        this.knownLanguages = knownLanguages == null ? new ArrayList<String>() : knownLanguages;
     }
 }
 

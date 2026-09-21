@@ -27,6 +27,8 @@
                 <dd th:text="${employee.gender}">MALE</dd>
                 <dt>Marital status</dt>
                                 <dd th:text="${(employee.maritalStatus != null and employee.maritalStatus != '') ? #strings.capitalize(employee.maritalStatus.toLowerCase()) : '—'}">—</dd>
+                <dt>Languages</dt>
+                <dd th:text="${employee.knownLanguages != null and !employee.knownLanguages.isEmpty()} ? ${#strings.arrayJoin(employee.knownLanguages.toArray(), ', ')} : '—'">—</dd>
                 <dt>Designation</dt>
                 <dd th:text="${employee.designation != null ? #strings.capitalize(#strings.toLowerCase(#strings.replace(employee.designation.name(), '_', ' '))) : '—'}">Care Giver</dd>
                 <dt>Date of birth</dt>

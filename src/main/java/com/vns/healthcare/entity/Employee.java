@@ -7,7 +7,9 @@ import com.vns.healthcare.domain.TrainingStatus;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
 import javax.persistence.Column;
+import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.EntityListeners;
 import javax.persistence.EnumType;
@@ -16,6 +18,7 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.OrderBy;
 import javax.persistence.PrePersist;
@@ -25,7 +28,9 @@ import java.time.LocalDate;
 import javax.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @EntityListeners(AuditEntityListener.class)
@@ -101,6 +106,11 @@ public class Employee extends AuditableEntity {
 
     @Column(name = "marital_status", length = 20)
     private String maritalStatus;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "employee_languages", joinColumns = @JoinColumn(name = "employee_id"))
+    @Column(name = "language", nullable = false, length = 30)
+    private Set<String> knownLanguages = new HashSet<String>();
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -288,6 +298,14 @@ public class Employee extends AuditableEntity {
 
     public void setMaritalStatus(String maritalStatus) {
         this.maritalStatus = maritalStatus;
+    }
+
+    public Set<String> getKnownLanguages() {
+        return knownLanguages;
+    }
+
+    public void setKnownLanguages(Set<String> knownLanguages) {
+        this.knownLanguages = knownLanguages == null ? new HashSet<String>() : knownLanguages;
     }
 
     public LocalDateTime getCreatedAt() {

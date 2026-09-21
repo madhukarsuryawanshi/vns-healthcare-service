@@ -430,6 +430,15 @@ public class EmployeeController {
         form.setDesignation(employee.getDesignation() == null ? "" : employee.getDesignation().name());
         form.setEmail(employee.getEmail());
         form.setMaritalStatus(employee.getMaritalStatus() == null ? "" : employee.getMaritalStatus());
+        java.util.List<String> knownLanguages = new java.util.ArrayList<String>();
+        if (employee.getKnownLanguages() != null) {
+            for (String language : employee.getKnownLanguages()) {
+                if (language != null && !language.trim().isEmpty()) {
+                    knownLanguages.add(language.trim().toUpperCase());
+                }
+            }
+        }
+        form.setKnownLanguages(knownLanguages);
         return form;
     }
 }

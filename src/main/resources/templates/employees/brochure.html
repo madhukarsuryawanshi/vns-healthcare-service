@@ -95,6 +95,10 @@
             </div>
             <div class="code">Care staff profile</div>
             <div class="code" th:text="${employee.empCode}">EMP-1001</div>
+            <div class="code" th:if="${employee.knownLanguages != null and !employee.knownLanguages.isEmpty()}">
+                <strong>Languages:</strong>
+                <span th:text="${#strings.arrayJoin(employee.knownLanguages.toArray(), ', ')}">MARATHI, HINDI</span>
+            </div>
             <!--<div style="margin-top:8px;">
                 <label class="label" for="brochure-age-input" style="display:inline-block; margin-right:8px;">Age</label>
                 <input id="brochure-age-input" class="age-input" type="text" placeholder="e.g. 45" oninput="syncAge(this.value)" />
@@ -102,6 +106,21 @@
         </div>
         <div class="photo-wrap" th:if="${passportPhoto != null}">
             <img th:src="@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${passportPhoto.id})}" alt="Passport photo"/>
+        </div>
+    </div>
+
+    <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 28px;margin-top:18px;">
+        <div>
+            <div class="label">Experience</div>
+            <div class="value" th:text="${employee.noOfExperience != null} ? ${employee.noOfExperience} + ' yrs' : '—'">—</div>
+        </div>
+        <!--<div>
+            <div class="label">Date of birth</div>
+            <div class="value" th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</div>
+        </div>-->
+        <div style="grid-column: 1 / -1">
+            <div class="label">Address</div>
+            <div class="value" th:text="${employee.fullAddress}">Address</div>
         </div>
     </div>
 
@@ -171,20 +190,20 @@
         </div>
     </div>
 
-    <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 28px;margin-top:18px;">
-    <div>
-        <div class="label">Experience</div>
-        <div class="value" th:text="${employee.noOfExperience != null} ? ${employee.noOfExperience} + ' yrs' : '—'">—</div>
-    </div>
-    <!--<div>
-        <div class="label">Date of birth</div>
-        <div class="value" th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</div>
+    <!--<div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 28px;margin-top:18px;">
+        <div>
+            <div class="label">Experience</div>
+            <div class="value" th:text="${employee.noOfExperience != null} ? ${employee.noOfExperience} + ' yrs' : '—'">—</div>
+        </div>
+        &lt;!&ndash;<div>
+            <div class="label">Date of birth</div>
+            <div class="value" th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</div>
+        </div>&ndash;&gt;
+        <div style="grid-column: 1 / -1">
+            <div class="label">Address</div>
+            <div class="value" th:text="${employee.fullAddress}">Address</div>
+        </div>
     </div>-->
-    <div style="grid-column: 1 / -1">
-        <div class="label">Address</div>
-        <div class="value" th:text="${employee.fullAddress}">Address</div>
-    </div>
-    </div>
 
     <p class="note">This information and knowledge of employee has taken after interview, training and documents are provided from the employee to the company. This letter does not require any other documents.</p>
 
@@ -219,16 +238,21 @@
         var age = ageInput && ageInput.value ? ageInput.value.trim() : '';
         var exp = /*[[${employee.noOfExperience}]]*/ '';
         var address = /*[[${employee.fullAddress}]]*/ '';
-        // Build message
+        var brochureUrl = window.location.href;
+
+        // WhatsApp web does not allow direct PDF attachment from browser JS.
+        // Share the brochure link and profile summary instead so the recipient can open it and print/save as PDF.
         var parts = [];
         parts.push('Employee Profile: ' + name + ' (' + code + ')');
         if (age) parts.push('Age: ' + age);
         if (exp) parts.push('Experience: ' + exp + ' yrs');
         if (address) parts.push('Address: ' + address);
+        parts.push('View brochure: ' + brochureUrl);
         parts.push('Shared from VNS Healthcare');
+
         var text = encodeURIComponent(parts.join('\n'));
         var url = 'https://wa.me/?text=' + text;
-        window.open(url, '_blank');
+        window.open(url, '_blank', 'noopener');
     }
 </script>
 </body>

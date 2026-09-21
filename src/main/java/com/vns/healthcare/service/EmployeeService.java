@@ -299,6 +299,17 @@ public class EmployeeService {
         }
         employee.setEmail(blankToNull(form.getEmail()));
         employee.setMaritalStatus(blankToNull(form.getMaritalStatus()));
+        java.util.Set<String> languages = new java.util.HashSet<String>();
+        if (form.getKnownLanguages() != null) {
+            for (String language : form.getKnownLanguages()) {
+                if (language == null) continue;
+                String normalized = language.trim();
+                if (!normalized.isEmpty()) {
+                    languages.add(normalized.toUpperCase());
+                }
+            }
+        }
+        employee.setKnownLanguages(languages);
     }
 
     @Transactional(readOnly = true)
