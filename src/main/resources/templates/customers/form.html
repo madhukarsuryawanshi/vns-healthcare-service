@@ -36,6 +36,11 @@
                     <input type="text" th:field="*{mobileNo}" maxlength="10"/>
                     <div class="error-text" th:if="${#fields.hasErrors('mobileNo')}" th:errors="*{mobileNo}"></div>
                 </div>
+                <div class="field">
+                    <label>Email</label>
+                    <input type="email" th:field="*{email}" placeholder="name@example.com"/>
+                    <div class="error-text" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+                </div>
                 <div class="field full">
                     <label class="req">Address</label>
                     <textarea rows="2" th:field="*{address}"></textarea>

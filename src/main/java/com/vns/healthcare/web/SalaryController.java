@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,13 +37,38 @@ public class SalaryController {
                            @RequestParam(value = "status", required = false) String status,
                            @RequestParam(value = "sort", required = false, defaultValue = "empCode") String sort,
                            @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
-                           Model model) {
+                           @RequestParam Map<String, String> requestParams,
+                           Model model,
+                           org.springframework.security.core.Authentication authentication,
+                           org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        // If the user does not have salary read access, redirect out with a flash message
+        boolean hasSalaryRead = false;
+        boolean hasSalaryWrite = false;
+        boolean isAdmin = false;
+        if (authentication != null && authentication.isAuthenticated()) {
+            for (org.springframework.security.core.GrantedAuthority a : authentication.getAuthorities()) {
+                String auth = a.getAuthority();
+                if ("salary:read".equalsIgnoreCase(auth)) hasSalaryRead = true;
+                if ("salary:write".equalsIgnoreCase(auth)) hasSalaryWrite = true;
+                if (("ROLE_ADMIN").equalsIgnoreCase(auth)) isAdmin = true;
+            }
+        }
+        if (!(hasSalaryRead || hasSalaryWrite || isAdmin)) {
+            redirectAttributes.addFlashAttribute("error", "You do not have permission, Please contact your Admin");
+            return "redirect:/";
+        }
         int y = year == null ? YearMonth.now().getYear() : year;
+        Map<Integer, String> monthStatusFilters = new LinkedHashMap<Integer, String>();
+        for (int month = 1; month <= 12; month++) {
+            String value = requestParams.get("monthStatus_" + month);
+            if (value != null && !value.trim().isEmpty()) {
+                monthStatusFilters.put(month, value.trim());
+            }
+        }
         Map<Employee, List<SalaryMonthView>> rows = salaryPaymentService.register(y);
         List<Map.Entry<Employee, List<SalaryMonthView>>> rowEntries = new ArrayList<Map.Entry<Employee, List<SalaryMonthView>>>(rows.entrySet());
-        if (status != null && !status.trim().isEmpty()) {
-            final String normalized = status.trim();
-            rowEntries.removeIf(entry -> entry.getKey() == null || entry.getKey().getStatus() == null || !entry.getKey().getStatus().name().equalsIgnoreCase(normalized));
+        if (!monthStatusFilters.isEmpty()) {
+            rowEntries.removeIf(entry -> entry.getKey() == null || !matchesMonthFilters(entry.getValue(), monthStatusFilters));
         }
         rowEntries.sort(sortSalaryRows(sort, dir));
         List<String> monthNames = new ArrayList<String>();
@@ -59,8 +85,33 @@ public class SalaryController {
         model.addAttribute("monthNames", monthNames);
         model.addAttribute("rows", rowEntries);
         model.addAttribute("today", LocalDate.now());
-        model.addAttribute("statuses", com.vns.healthcare.domain.EmployeeStatus.values());
+        model.addAttribute("statuses", com.vns.healthcare.domain.SalaryPayStatus.values());
+        model.addAttribute("selectedMonthFilters", monthStatusFilters);
         return "salary/list";
+    }
+
+    private boolean matchesMonthFilters(List<SalaryMonthView> months, Map<Integer, String> monthFilters) {
+        if (months == null || months.isEmpty()) {
+            return false;
+        }
+        for (Map.Entry<Integer, String> filter : monthFilters.entrySet()) {
+            int monthNumber = filter.getKey();
+            String expectedStatus = filter.getValue();
+            SalaryMonthView monthView = null;
+            for (SalaryMonthView candidate : months) {
+                if (candidate != null && candidate.getMonthValue() == monthNumber) {
+                    monthView = candidate;
+                    break;
+                }
+            }
+            if (monthView == null || monthView.getStatus() == null) {
+                return false;
+            }
+            if (!monthView.getStatus().name().equalsIgnoreCase(expectedStatus)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private Comparator<Map.Entry<Employee, List<SalaryMonthView>>> sortSalaryRows(String sort, String dir) {
@@ -79,6 +130,7 @@ public class SalaryController {
     }
 
     @PostMapping
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('salary:write') or hasRole('ADMIN')")
     public String mark(@RequestParam Long employeeId,
                        @RequestParam int year,
                        @RequestParam int month,

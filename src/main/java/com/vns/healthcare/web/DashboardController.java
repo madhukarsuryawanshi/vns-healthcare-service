@@ -25,6 +25,7 @@ public class DashboardController {
     }
 
     @GetMapping("/")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('dashboard:read') or hasRole('ADMIN')")
     public String home(Model model) {
         model.addAttribute("page", "dashboard");
         model.addAttribute("stats", dashboardService.stats());

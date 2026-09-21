@@ -12,10 +12,6 @@
 
     <form class="search" method="get" th:action="@{/employees}">
         <input type="text" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" list="employeeSuggestionsList" autocomplete="off"/>
-        <select name="status" style="max-width:180px">
-            <option value="">All status</option>
-            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${status == s.name()}">ACTIVE</option>
-        </select>
         <button class="btn" type="submit">Search</button>
         <a class="btn ghost" th:href="@{/employees}">Clear</a>
     </form>
@@ -27,14 +23,71 @@
         <table th:if="${!employees.isEmpty()}">
             <thead>
             <tr>
-                <th><a th:href="@{/employees(q=${q}, status=${status}, sort='empCode', dir=${sort == 'empCode' and dir == 'asc' ? 'desc' : 'asc'})}">Emp ID <span th:if="${sort == 'empCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/employees(q=${q}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/employees(q=${q}, status=${status}, sort='mobileNo', dir=${sort == 'mobileNo' and dir == 'asc' ? 'desc' : 'asc'})}">Mobile <span th:if="${sort == 'mobileNo'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/employees(q=${q}, status=${status}, sort='joiningDate', dir=${sort == 'joiningDate' and dir == 'asc' ? 'desc' : 'asc'})}">Joined <span th:if="${sort == 'joiningDate'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/employees(q=${q}, status=${status}, sort='trainingStatus', dir=${sort == 'trainingStatus' and dir == 'asc' ? 'desc' : 'asc'})}">Training <span th:if="${sort == 'trainingStatus'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/employees(q=${q}, status=${status}, sort='salary', dir=${sort == 'salary' and dir == 'asc' ? 'desc' : 'asc'})}">Salary <span th:if="${sort == 'salary'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/employees(q=${q}, status=${status}, sort='status', dir=${sort == 'status' and dir == 'asc' ? 'desc' : 'asc'})}">Status <span th:if="${sort == 'status'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/employees(q=${q}, status=${status}, sort='onboarded', dir=${sort == 'onboarded' and dir == 'asc' ? 'desc' : 'asc'})}">Onboarded <span th:if="${sort == 'onboarded'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='empCode', dir=${sort == 'empCode' and dir == 'asc' ? 'desc' : 'asc'})}">Emp ID <span th:if="${sort == 'empCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='mobileNo', dir=${sort == 'mobileNo' and dir == 'asc' ? 'desc' : 'asc'})}">Mobile <span th:if="${sort == 'mobileNo'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='trainingStatus', dir=${sort == 'trainingStatus' and dir == 'asc' ? 'desc' : 'asc'})}">Training <span th:if="${sort == 'trainingStatus'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th style="position:relative;">
+                    <a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='designation', dir=${sort == 'designation' and dir == 'asc' ? 'desc' : 'asc'})}">Designation <span th:if="${sort == 'designation'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a>
+                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-designation" onclick="toggleFilter(this)">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div id="filter-designation" class="column-filter">
+                        <form method="get" th:action="@{/employees}">
+                            <input type="hidden" name="q" th:value="${q}" />
+                            <input type="hidden" name="sort" th:value="${sort}" />
+                            <input type="hidden" name="dir" th:value="${dir}" />
+                            <select name="designation">
+                                <option value="">All designation</option>
+                                <option th:each="d : ${designations}" th:value="${d.name()}" th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(d.name(), '_', ' ')))}" th:selected="${designation == d.name()}">Care Giver</option>
+                            </select>
+                            <div class="filter-actions"><button class="btn" type="submit">Apply</button></div>
+                        </form>
+                    </div>
+                </th>
+                <th style="position:relative;">
+                    Attendance
+                                        <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-attendance" onclick="toggleFilter(this)">
+                                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </button>
+                                        <div id="filter-attendance" class="column-filter">
+                        <form method="get" th:action="@{/employees}">
+                            <input type="hidden" name="q" th:value="${q}" />
+                            <input type="hidden" name="sort" th:value="${sort}" />
+                            <input type="hidden" name="dir" th:value="${dir}" />
+                                                <select name="attendance">
+                                <option value="">All attendance</option>
+                                <option th:each="a : ${attendanceOptions}" th:value="${a}" th:text="${a}" th:selected="${attendance == a}">PRESENT</option>
+                            </select>
+                                                <div class="filter-actions"><button class="btn" type="submit">Apply</button></div>
+                        </form>
+                    </div>
+                </th>
+                <th style="position:relative;">
+                    <a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='status', dir=${sort == 'status' and dir == 'asc' ? 'desc' : 'asc'})}">Status <span th:if="${sort == 'status'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a>
+                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-status" onclick="toggleFilter(this)">
+                                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </button>
+                                        <div id="filter-status" class="column-filter">
+                        <form method="get" th:action="@{/employees}">
+                            <input type="hidden" name="q" th:value="${q}" />
+                            <input type="hidden" name="sort" th:value="${sort}" />
+                            <input type="hidden" name="dir" th:value="${dir}" />
+                                                <select name="status">
+                                <option value="">All status</option>
+                                <option th:each="s : ${statuses}" th:value="${s.name()}" th:text="${s.name()}" th:selected="${status == s.name()}">ACTIVE</option>
+                            </select>
+                                                <div class="filter-actions"><button class="btn" type="submit">Apply</button></div>
+                        </form>
+                    </div>
+                </th>
+                <th><a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='onboarded', dir=${sort == 'onboarded' and dir == 'asc' ? 'desc' : 'asc'})}">Onboarded <span th:if="${sort == 'onboarded'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th></th>
             </tr>
             </thead>
@@ -43,9 +96,15 @@
                 <td th:text="${e.empCode}">EMP-1001</td>
                 <td th:text="${e.fullName}">Name</td>
                 <td th:text="${e.mobileNo}">9999999999</td>
-                <td th:text="${#temporals.format(e.joiningDate, 'dd MMM yyyy')}">01 Jan 2026</td>
                 <td><span class="badge" th:text="${e.trainingStatus}">NOT_STARTED</span></td>
-                <td th:text="${e.salary != null} ? ${#numbers.formatDecimal(e.salary, 1, 'COMMA', 2, 'POINT')} : '—'">18,000.00</td>
+                <td th:text="${e.designation != null ? #strings.capitalize(#strings.toLowerCase(#strings.replace(e.designation.name(), '_', ' '))) : '—'}">Care Giver</td>
+                <td>
+                    <span class="badge ok" th:if="${todayAttendance[e.id] != null and todayAttendance[e.id].name() == 'PRESENT'}">Present</span>
+                    <span class="badge warn" th:if="${todayAttendance[e.id] != null and todayAttendance[e.id].name() == 'HALF_DAY'}">Half day</span>
+                    <span class="badge coral" th:if="${todayAttendance[e.id] != null and todayAttendance[e.id].name() == 'ABSENT'}">Absent</span>
+                    <span class="badge muted" th:if="${todayAttendance[e.id] != null and todayAttendance[e.id].name() == 'LEAVE'}">Leave</span>
+                    <span class="badge muted" th:if="${todayAttendance[e.id] == null}">—</span>
+                </td>
                 <td>
                     <span class="badge ok" th:if="${e.status == T(com.vns.healthcare.domain.EmployeeStatus).ACTIVE}">Active</span>
                     <span class="badge muted" th:if="${e.status == T(com.vns.healthcare.domain.EmployeeStatus).INACTIVE}">Inactive</span>
@@ -69,5 +128,27 @@
         </table>
         <p class="empty" th:if="${employees.isEmpty()}">No employees match this search.</p>
     </div>
+
+<script>
+    function toggleFilter(btn) {
+        var panelId = btn.getAttribute('aria-controls');
+        var panel = panelId ? document.getElementById(panelId) : btn.nextElementSibling;
+        if (!panel) return;
+        // hide other open panels and reset aria-expanded
+        document.querySelectorAll('.column-filter').forEach(function(el){ if (el !== panel) el.style.display='none'; });
+        document.querySelectorAll('.filter-toggle').forEach(function(t){ if (t !== btn) t.setAttribute('aria-expanded','false'); });
+        var isOpen = panel.style.display === 'block';
+        panel.style.display = isOpen ? 'none' : 'block';
+        btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+    }
+    // click outside to close
+    document.addEventListener('click', function(e){
+        var target = e.target;
+        if (!target.closest || (!target.closest('.filter-toggle') && !target.closest('.column-filter'))) {
+            document.querySelectorAll('.column-filter').forEach(function(el){ el.style.display='none'; });
+            document.querySelectorAll('.filter-toggle').forEach(function(t){ t.setAttribute('aria-expanded','false'); });
+        }
+    });
+</script>
 </section>
 </html>

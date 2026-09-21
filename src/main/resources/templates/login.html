@@ -42,19 +42,34 @@
             <div th:if="${param.logout}" class="flash auth-flash">You have been logged out.</div>
 
             <label for="username">Username</label>
-            <input id="username" type="text" name="username" placeholder="admin" required/>
+            <input id="username" type="text" name="username" placeholder="admin" required autofocus/>
 
             <label for="password">Password</label>
             <input id="password" type="password" name="password" placeholder="••••••••" required/>
 
+            <div class="auth-actions">
+                <a class="forgot-password-link" th:href="@{/forgot-password}">Forgot password?</a>
+            </div>
+
             <button class="btn" type="submit">Login</button>
 
-            <div class="auth-meta">
+            <div th:if="${successMessage}" class="flash success auth-flash" th:text="${successMessage}"></div>
+
+            <!--<div class="auth-meta">
                 <span>Demo admin</span>
                 <strong>admin / admin123</strong>
-            </div>
+            </div>-->
         </form>
     </div>
 </div>
+    <script>
+        window.addEventListener('DOMContentLoaded', function () {
+            var user = document.getElementById('username');
+            if (user) {
+                user.focus();
+                user.select();
+            }
+        });
+    </script>
 </body>
 </html>

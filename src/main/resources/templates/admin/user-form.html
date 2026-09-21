@@ -13,7 +13,24 @@
         <form th:action="${userId != null} ? @{/admin/users/{id}(id=${userId})} : @{/admin/users}" method="post" th:object="${userForm}" class="form-grid">
             <div class="field full">
                 <label class="req" for="username">Username</label>
-                <input id="username" type="text" th:field="*{username}" required/>
+                <input id="username" list="employeeSuggestionsList" type="text" th:field="*{username}" required/>
+                <datalist id="employeeSuggestionsList" th:if="${employeeSuggestions != null}">
+                    <option th:each="s : ${employeeSuggestions}" th:value="${s}"></option>
+                </datalist>
+                <script>
+                    (function () {
+                        var input = document.getElementById('username');
+                        if (!input) return;
+                        input.addEventListener('change', function () {
+                            var v = input.value || '';
+                            // if selected value begins with EMP- we extract the emp id
+                            var m = v.match(/^(EMP-\d+)/i);
+                            if (m && m[1]) {
+                                input.value = m[1].toUpperCase();
+                            }
+                        });
+                    })();
+                </script>
             </div>
 
             <div class="field full">

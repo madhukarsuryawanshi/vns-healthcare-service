@@ -26,7 +26,8 @@ import java.util.Set;
 @Entity
 @EntityListeners(AuditEntityListener.class)
 @Table(name = "app_users", uniqueConstraints = {
-        @UniqueConstraint(columnNames = "username")
+        @UniqueConstraint(columnNames = "username"),
+        @UniqueConstraint(columnNames = "email")
 })
 public class AppUser extends AuditableEntity {
 
@@ -39,6 +40,9 @@ public class AppUser extends AuditableEntity {
 
     @Column(nullable = false, length = 255)
     private String password;
+
+    @Column(length = 255)
+    private String email;
 
     @Column(nullable = false)
     private boolean enabled = true;
@@ -95,6 +99,14 @@ public class AppUser extends AuditableEntity {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email == null ? null : email.trim();
     }
 
     public boolean isEnabled() {

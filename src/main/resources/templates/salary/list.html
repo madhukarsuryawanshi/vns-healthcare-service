@@ -9,27 +9,64 @@
         </div>
         <form method="get" th:action="@{/salary}" class="search" style="margin:0">
             <input type="hidden" name="year" th:value="${year}"/>
-            <select name="status" style="max-width:180px">
-                <option value="">All status</option>
-                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${status == s.name()}">ACTIVE</option>
-            </select>
-            <button class="btn" type="submit">Filter</button>
+            <!--<select name="status" style="max-width:180px" onchange="this.form.submit()">
+                <option th:each="s : ${statuses}"
+                        th:value="${s}"
+                        th:text="${s.name() == 'UNPAID' ? 'Hold' : (s.name() == 'IN_PROGRESS' ? 'In progress' : 'Paid')}"
+                        th:selected="${status == s.name()}">Paid</option>
+            </select>-->
         </form>
-        <div class="actions">
+        <div class="actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <a class="btn ghost" th:href="@{/salary(year=${prevYear}, status=${status})}" th:text="${prevYear}">2025</a>
             <strong th:text="${year}">2026</strong>
             <a class="btn ghost" th:href="@{/salary(year=${nextYear}, status=${status})}" th:text="${nextYear}">2027</a>
+            <button type="button" class="btn ghost small" th:if="${selectedMonthFilters != null and !selectedMonthFilters.isEmpty()}" onclick="resetAllMonthFilters()">Reset all month filters</button>
         </div>
     </div>
 
     <div class="panel" style="overflow-x:auto">
-        <table th:if="${!rows.isEmpty()}">
+        <div th:if="${canReadSalary}">
+            <table th:if="${!rows.isEmpty()}">
+        </div>
+        <div th:unless="${canReadSalary}">
+            <p class="empty">You do not have permission, Please contact your Admin</p>
+        </div>
             <thead>
             <tr>
                 <th><a th:href="@{/salary(year=${year}, status=${status}, sort='empCode', dir=${sort == 'empCode' and dir == 'asc' ? 'desc' : 'asc'})}">Emp ID <span th:if="${sort == 'empCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th><a th:href="@{/salary(year=${year}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th><a th:href="@{/salary(year=${year}, status=${status}, sort='salary', dir=${sort == 'salary' and dir == 'asc' ? 'desc' : 'asc'})}">Salary <span th:if="${sort == 'salary'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th th:each="name : ${monthNames}" th:text="${name}">Jan</th>
+                <th th:each="name, iterStat : ${monthNames}" style="position:relative; white-space:nowrap; padding-right:24px;">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:6px; position:relative; min-height:20px;">
+                        <span th:text="${name}">Jan</span>
+                        <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" th:aria-controls="|filter-month-${iterStat.index + 1}|" onclick="toggleFilter(this)">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div th:id="|filter-month-${iterStat.index + 1}|" class="column-filter">
+                        <form method="get" th:action="@{/salary}">
+                            <input type="hidden" name="year" th:value="${year}"/>
+                            <input type="hidden" name="sort" th:value="${sort}"/>
+                            <input type="hidden" name="dir" th:value="${dir}"/>
+                            <th:block th:each="selected : ${selectedMonthFilters}">
+                                <input th:if="${selected.key != (iterStat.index + 1)}" type="hidden" th:name="|monthStatus_${selected.key}|" th:value="${selected.value}"/>
+                            </th:block>
+                            <select th:name="|monthStatus_${iterStat.index + 1}|">
+                                <option value="">All</option>
+                                <option th:each="s : ${statuses}"
+                                        th:value="${s.name()}"
+                                        th:text="${s.name() == 'UNPAID' ? 'Hold' : (s.name() == 'IN_PROGRESS' ? 'In progress' : 'Paid')}"
+                                        th:selected="${selectedMonthFilters != null and selectedMonthFilters[iterStat.index + 1] == s.name()}">Paid</option>
+                            </select>
+                            <div class="filter-actions">
+                                <button class="btn ghost small" type="button" onclick="clearMonthFilter(this)">Clear</button>
+                                <button class="btn small" type="submit">Apply</button>
+                            </div>
+                        </form>
+                    </div>
+                </th>
             </tr>
             </thead>
             <tbody>
@@ -42,15 +79,15 @@
                     <span class="badge ok" th:if="${m.paid}">Paid</span>
                     <span class="badge warn" th:if="${m.inProgress}">In progress</span>
                     <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
-                    <form th:if="${m.status != null}" th:action="@{/salary}" method="post" style="margin-top:6px; display:flex; flex-direction:column; gap:6px; min-width:150px">
+                    <form th:if="${m.status != null and canWriteSalary}" th:action="@{/salary}" method="post" style="margin-top:6px; display:flex; flex-direction:column; gap:6px; min-width:150px">
                         <input type="hidden" name="employeeId" th:value="${entry.key.id}"/>
                         <input type="hidden" name="year" th:value="${year}"/>
                         <input type="hidden" name="month" th:value="${m.monthValue}"/>
                         <input type="hidden" name="anchor" value="salary"/>
                         <select name="status" style="max-width:110px" th:disabled="${m.paid}">
-                            <option value="PAID" th:selected="${m.paid}">Paid</option>
-                            <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
-                            <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
+                            <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).PAID}" th:selected="${m.paid}">Paid</option>
+                            <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).IN_PROGRESS}" th:selected="${m.inProgress}">In progress</option>
+                            <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).UNPAID}" th:selected="${m.unpaid}">Hold</option>
                         </select>
                         <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; min-width:130px; max-width:180px" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
                         <button class="btn secondary" type="submit" style="max-width:90px" th:disabled="${m.paid}">Save</button>
@@ -61,5 +98,56 @@
         </table>
         <p class="empty" th:if="${rows.isEmpty()}">Add active employees first.</p>
     </div>
+
+    <script>
+        function toggleFilter(btn) {
+            var panelId = btn.getAttribute('aria-controls');
+            var panel = panelId ? document.getElementById(panelId) : btn.nextElementSibling;
+            if (!panel) return;
+            document.querySelectorAll('.column-filter').forEach(function(el){ if (el !== panel) el.style.display='none'; });
+            document.querySelectorAll('.filter-toggle').forEach(function(t){ if (t !== btn) t.setAttribute('aria-expanded','false'); });
+            var isOpen = panel.style.display === 'block';
+            panel.style.display = isOpen ? 'none' : 'block';
+            btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+        }
+        function clearMonthFilter(button) {
+            var form = button.closest('form');
+            if (!form) return;
+            var select = form.querySelector('select');
+            if (select) {
+                select.value = '';
+            }
+            form.submit();
+        }
+        function resetAllMonthFilters() {
+            var form = document.createElement('form');
+            form.method = 'get';
+            form.action = '/salary';
+            var yearInput = document.createElement('input');
+            yearInput.type = 'hidden';
+            yearInput.name = 'year';
+            yearInput.value = document.querySelector('input[name="year"]').value;
+            form.appendChild(yearInput);
+            var sortInput = document.createElement('input');
+            sortInput.type = 'hidden';
+            sortInput.name = 'sort';
+            sortInput.value = 'empCode';
+            form.appendChild(sortInput);
+            var dirInput = document.createElement('input');
+            dirInput.type = 'hidden';
+            dirInput.name = 'dir';
+            dirInput.value = 'asc';
+            form.appendChild(dirInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+        document.addEventListener('click', function(e){
+            var target = e.target;
+            if (!target.closest || (!target.closest('.filter-toggle') && !target.closest('.column-filter'))) {
+                document.querySelectorAll('.column-filter').forEach(function(el){ el.style.display='none'; });
+                document.querySelectorAll('.filter-toggle').forEach(function(t){ t.setAttribute('aria-expanded','false'); });
+            }
+        });
+    </script>
 </section>
 </html>

@@ -26,6 +26,11 @@
                     <div class="error-text" th:if="${#fields.hasErrors('mobileNo')}" th:errors="*{mobileNo}"></div>
                 </div>
                 <div class="field">
+                    <label>Email</label>
+                    <input type="email" th:field="*{email}" placeholder="name@example.com"/>
+                    <div class="error-text" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+                </div>
+                <div class="field">
                     <label class="req">Joining date</label>
                     <input type="date" th:field="*{joiningDate}"/>
                     <div class="error-text" th:if="${#fields.hasErrors('joiningDate')}" th:errors="*{joiningDate}"></div>
@@ -38,6 +43,31 @@
                         <option value="FEMALE">Female</option>
                     </select>
                     <div class="error-text" th:if="${#fields.hasErrors('gender')}" th:errors="*{gender}"></div>
+                </div>
+                <div class="field">
+                    <label class="req">Marital status</label>
+                    <select th:field="*{maritalStatus}">
+                        <option value="">Select</option>
+                        <option value="SINGLE">Single</option>
+                        <option value="MARRIED">Married</option>
+                        <option value="DIVORCED">Divorced</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="req">Designation</label>
+                    <select th:field="*{designation}">
+                        <option value="">Select</option>
+                        <option value="CARE_GIVER">Care Giver</option>
+                        <option value="NURSE">Nurse</option>
+                        <option value="DOCTOR">Doctor</option>
+                        <option value="PHYSIOTHERAPY">Physiotherapy</option>
+                        <option value="HR">HR</option>
+                        <option value="FIELD_OFFICER">Field Officer</option>
+                        <option value="COORDINATOR">Coordinator</option>
+                        <option value="ACCOUNTANT">Accountant</option>
+                        <option value="DIRECTOR">Director</option>
+                    </select>
+                    <div class="error-text" th:if="${#fields.hasErrors('designation')}" th:errors="*{designation}"></div>
                 </div>
                 <div class="field">
                     <label class="req">Date of birth</label>
@@ -68,10 +98,10 @@
                     <textarea rows="3" th:field="*{fullAddress}"></textarea>
                     <div class="error-text" th:if="${#fields.hasErrors('fullAddress')}" th:errors="*{fullAddress}"></div>
                 </div>
-                <div class="field full" th:if="${mode == 'create'}">
+                <!--<div class="field full" th:if="${mode == 'create'}">
                     <label>Upload document</label>
                     <input type="file" name="document"/>
-                </div>
+                </div>-->
             </div>
             <div class="actions" style="margin-top:20px">
                 <button class="btn" type="submit" th:text="${mode == 'create'} ? 'Save employee' : 'Save changes'">Save</button>

@@ -63,7 +63,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                     .frameOptions().sameOrigin()
                     .and()
                 .authorizeRequests()
-                    .antMatchers("/login", "/css/**", "/js/**").permitAll()
+                    .antMatchers("/login", "/forgot-password", "/reset-password", "/css/**", "/js/**").permitAll()
                     .antMatchers("/admin/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
                     .and()

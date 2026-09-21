@@ -46,6 +46,9 @@ public class Customer extends AuditableEntity {
     @Column(nullable = false, length = 500)
     private String address;
 
+    @Column(name = "email", length = 160)
+    private String email;
+
     @Column(name = "patient_name", nullable = false, length = 120)
     private String patientName;
 
@@ -146,6 +149,14 @@ public class Customer extends AuditableEntity {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getPatientName() {

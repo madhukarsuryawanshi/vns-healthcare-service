@@ -50,6 +50,9 @@ public class EmployeeForm {
     @DecimalMin(value = "0.0", inclusive = true, message = "Experience cannot be negative")
     private BigDecimal noOfExperience;
 
+    @NotBlank(message = "Select designation")
+    private String designation;
+
     public String getFullName() {
         return fullName;
     }
@@ -129,4 +132,35 @@ public class EmployeeForm {
     public void setNoOfExperience(BigDecimal noOfExperience) {
         this.noOfExperience = noOfExperience;
     }
+
+    public String getDesignation() {
+        return designation;
+    }
+
+    public void setDesignation(String designation) {
+        this.designation = designation;
+    }
+
+    @javax.validation.constraints.Email(message = "Enter a valid email")
+    @Size(max = 160)
+    private String email;
+
+    private String maritalStatus;
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getMaritalStatus() {
+        return maritalStatus;
+    }
+
+    public void setMaritalStatus(String maritalStatus) {
+        this.maritalStatus = maritalStatus;
+    }
 }
+

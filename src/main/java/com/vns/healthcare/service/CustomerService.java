@@ -218,6 +218,7 @@ public class CustomerService {
         customer.setServiceStartDate(form.getServiceStartDate());
         customer.setServiceType(ServiceType.valueOf(form.getServiceType()));
         customer.setCharges(form.getCharges());
+        customer.setEmail(blankToNull(form.getEmail()));
         if (form.getEmployeeId() != null) {
             validateEmployeeAssignment(customer, form.getEmployeeId());
             customer.setAssignedEmployee(employeeService.get(form.getEmployeeId()));

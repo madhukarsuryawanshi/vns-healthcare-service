@@ -5,6 +5,11 @@
     <title th:text="'Care profile · ' + ${employee.fullName}">Brochure</title>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;500&display=swap" rel="stylesheet"/>
     <style>
+        .age-input { padding:6px 8px; border-radius:8px; border:1px solid #d9cfb8; font-size:14px; width:80px; }
+        #share-whatsapp { margin-left:12px; background:#25D366; color:#fff; border:0; padding:8px 12px; border-radius:10px; cursor:pointer; }
+        #share-whatsapp:hover { filter:brightness(0.95); }
+        .age-print { display:none; }
+        @media print { .age-input, #share-whatsapp, .print { display:none !important; } .age-print { display:inline; } }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body { margin: 0; background: #efe8d9; color: #1c2a26; font-family: "Source Sans 3", sans-serif; }
         .sheet { max-width: 740px; margin: 20px auto; background: #fffcf7; border: 1px solid #d9cfb8; padding: 22px 38px 18px; box-sizing: border-box; }
@@ -60,13 +65,16 @@
 </head>
 <body>
 <div class="sheet" id="brochure-sheet">
-    <p class="print"><button type="button" onclick="window.print()">Print / save as PDF</button></p>
+    <p class="print">
+        <button type="button" onclick="window.print()">Print / save as PDF</button>
+        <button type="button" onclick="shareWhatsApp()" id="share-whatsapp">Share (WhatsApp)</button>
+    </p>
     <!--<p class="print-hint">Tip: in the browser print dialog, enable “Background graphics” to keep the VNS Healthcare red branding and colors in the saved PDF.</p>-->
     <div class="company-header">
         <div class="company-banner">
-            <img class="brand-logo" th:src="@{/images/vns-healthcare-logo.png}" alt="VNS Healthcare logo"/>
+            <!--<img class="brand-logo" th:src="@{/images/vns-healthcare-logo.png}" alt="VNS Healthcare logo"/>-->
             <div class="brand-text">
-                <div class="brand-name">VNS Healthcare</div>
+                <div class="brand-name"><u>VNS Healthcare</u></div>
             </div>
         </div>
         <div class="company-sub">A Home Healthcare Company</div>
@@ -80,9 +88,17 @@
     <div class="profile-head" style="margin-top: 8px;">
         <div>
             <h4 style="margin: 0 0 6px; font-size: 20px;" th:text="${employee.fullName}">Name</h4>
-            <div class="code" th:text="${employee.gender} + ' · Joined ' + ${#temporals.format(employee.joiningDate, 'MMM yyyy')}">Female · Joined Aug 2026</div>
+            <div class="code">
+            <span th:text="${#strings.capitalize(employee.gender.name().toLowerCase())}">Female</span>
+            <span th:if="${employee.maritalStatus != null && employee.maritalStatus != ''}"> · <span th:text="${#strings.capitalize(employee.maritalStatus.toLowerCase())}">Single</span></span>
+            <span id="age-print" class="age-print"> · Age: <span th:text="${employeeAge}">—</span></span>
+            </div>
             <div class="code">Care staff profile</div>
             <div class="code" th:text="${employee.empCode}">EMP-1001</div>
+            <!--<div style="margin-top:8px;">
+                <label class="label" for="brochure-age-input" style="display:inline-block; margin-right:8px;">Age</label>
+                <input id="brochure-age-input" class="age-input" type="text" placeholder="e.g. 45" oninput="syncAge(this.value)" />
+            </div>-->
         </div>
         <div class="photo-wrap" th:if="${passportPhoto != null}">
             <img th:src="@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${passportPhoto.id})}" alt="Passport photo"/>
@@ -156,22 +172,18 @@
     </div>
 
     <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 28px;margin-top:18px;">
-        <div>
-            <div class="label">Mobile</div>
-            <div class="value" th:text="${employee.mobileNo}">9999999999</div>
-        </div>
-        <div>
-            <div class="label">Experience</div>
-            <div class="value" th:text="${employee.noOfExperience != null} ? ${employee.noOfExperience} + ' yrs' : '—'">—</div>
-        </div>
-        <div>
-            <div class="label">Date of birth</div>
-            <div class="value" th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</div>
-        </div>
-        <div style="grid-column: 1 / -1">
-            <div class="label">Address</div>
-            <div class="value" th:text="${employee.fullAddress}">Address</div>
-        </div>
+    <div>
+        <div class="label">Experience</div>
+        <div class="value" th:text="${employee.noOfExperience != null} ? ${employee.noOfExperience} + ' yrs' : '—'">—</div>
+    </div>
+    <!--<div>
+        <div class="label">Date of birth</div>
+        <div class="value" th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</div>
+    </div>-->
+    <div style="grid-column: 1 / -1">
+        <div class="label">Address</div>
+        <div class="value" th:text="${employee.fullAddress}">Address</div>
+    </div>
     </div>
 
     <p class="note">This information and knowledge of employee has taken after interview, training and documents are provided from the employee to the company. This letter does not require any other documents.</p>
@@ -188,8 +200,35 @@
 </div>
 
 <script>
-    function printBrochure() {
-        window.print();
+    function syncAge(value) {
+        var span = document.getElementById('age-print');
+        if (!span) return;
+        if (value && value.trim() !== '') {
+            span.style.display = 'inline';
+            // update inner number
+            span.querySelector('span') ? span.querySelector('span').textContent = value : span.innerHTML = ' · Age: ' + value;
+        } else {
+            span.style.display = 'none';
+        }
+    }
+
+    function shareWhatsApp() {
+        var name = /*[[${employee.fullName}]]*/ 'Employee';
+        var code = /*[[${employee.empCode}]]*/ 'EMP-XXXX';
+        var ageInput = document.getElementById('brochure-age-input');
+        var age = ageInput && ageInput.value ? ageInput.value.trim() : '';
+        var exp = /*[[${employee.noOfExperience}]]*/ '';
+        var address = /*[[${employee.fullAddress}]]*/ '';
+        // Build message
+        var parts = [];
+        parts.push('Employee Profile: ' + name + ' (' + code + ')');
+        if (age) parts.push('Age: ' + age);
+        if (exp) parts.push('Experience: ' + exp + ' yrs');
+        if (address) parts.push('Address: ' + address);
+        parts.push('Shared from VNS Healthcare');
+        var text = encodeURIComponent(parts.join('\n'));
+        var url = 'https://wa.me/?text=' + text;
+        window.open(url, '_blank');
     }
 </script>
 </body>

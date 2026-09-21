@@ -92,6 +92,16 @@ public class Employee extends AuditableEntity {
     @Column(nullable = false, length = 20)
     private EmployeeStatus status = EmployeeStatus.ACTIVE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "designation", length = 40)
+    private com.vns.healthcare.domain.Designation designation;
+
+    @Column(name = "email", length = 160)
+    private String email;
+
+    @Column(name = "marital_status", length = 20)
+    private String maritalStatus;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -254,6 +264,30 @@ public class Employee extends AuditableEntity {
 
     public void setStatus(EmployeeStatus status) {
         this.status = status;
+    }
+
+    public com.vns.healthcare.domain.Designation getDesignation() {
+        return designation;
+    }
+
+    public void setDesignation(com.vns.healthcare.domain.Designation designation) {
+        this.designation = designation;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getMaritalStatus() {
+        return maritalStatus;
+    }
+
+    public void setMaritalStatus(String maritalStatus) {
+        this.maritalStatus = maritalStatus;
     }
 
     public LocalDateTime getCreatedAt() {

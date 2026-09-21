@@ -56,6 +56,8 @@ public class EmployeeController {
     @GetMapping
     public String list(@RequestParam(value = "q", required = false) String query,
                        @RequestParam(value = "status", required = false) String status,
+                       @RequestParam(value = "designation", required = false) String designation,
+                       @RequestParam(value = "attendance", required = false) String attendance,
                        @RequestParam(value = "sort", required = false, defaultValue = "empCode") String sort,
                        @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
                        Model model) {
@@ -65,14 +67,54 @@ public class EmployeeController {
             final String normalized = status.trim();
             employees.removeIf(e -> e.getStatus() == null || !e.getStatus().name().equalsIgnoreCase(normalized));
         }
+        // apply designation filter
+        if (designation != null && !designation.trim().isEmpty()) {
+            final String dnorm = designation.trim();
+            employees.removeIf(e -> e.getDesignation() == null || !e.getDesignation().name().equalsIgnoreCase(dnorm));
+        }
+
+        // prepare today's attendance map
+        java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> todayMap = employeeService.todayAttendanceStatusMap();
+
+        // apply attendance filter
+        if (attendance != null && !attendance.trim().isEmpty()) {
+            final String anorm = attendance.trim().toUpperCase();
+            switch (anorm) {
+                case "PRESENT":
+                    employees.removeIf(e -> {
+                        com.vns.healthcare.domain.AttendanceStatus s = todayMap.get(e.getId());
+                        return !(s == com.vns.healthcare.domain.AttendanceStatus.PRESENT || s == com.vns.healthcare.domain.AttendanceStatus.HALF_DAY);
+                    });
+                    break;
+                case "ABSENT":
+                    employees.removeIf(e -> {
+                        com.vns.healthcare.domain.AttendanceStatus s = todayMap.get(e.getId());
+                        return s != null && s != com.vns.healthcare.domain.AttendanceStatus.ABSENT;
+                    });
+                    break;
+                case "LEAVE":
+                    employees.removeIf(e -> todayMap.get(e.getId()) != com.vns.healthcare.domain.AttendanceStatus.LEAVE);
+                    break;
+                case "HALF_DAY":
+                    employees.removeIf(e -> todayMap.get(e.getId()) != com.vns.healthcare.domain.AttendanceStatus.HALF_DAY);
+                    break;
+                default:
+                    break;
+            }
+        }
+
         employees = sortEmployees(employees, sort, dir);
         model.addAttribute("page", "employees");
         model.addAttribute("employees", employees);
         model.addAttribute("q", query == null ? "" : query);
         model.addAttribute("status", status == null ? "" : status);
+        model.addAttribute("designation", designation == null ? "" : designation);
+        model.addAttribute("attendance", attendance == null ? "" : attendance);
         model.addAttribute("sort", sort);
         model.addAttribute("dir", dir);
         model.addAttribute("statuses", com.vns.healthcare.domain.EmployeeStatus.values());
+        model.addAttribute("designations", com.vns.healthcare.domain.Designation.values());
+        model.addAttribute("attendanceOptions", new String[]{"PRESENT","ABSENT","LEAVE","HALF_DAY"});
         model.addAttribute("employeeSuggestions", employeeService.list(null).stream()
                 .flatMap(e -> java.util.stream.Stream.of(
                         e.getFullName(),
@@ -83,6 +125,8 @@ public class EmployeeController {
                 .filter(v -> v != null && !v.trim().isEmpty())
                 .sorted()
                 .collect(java.util.stream.Collectors.toList()));
+        model.addAttribute("presentTodayIds", employeeService.presentTodayEmployeeIds());
+        model.addAttribute("todayAttendance", employeeService.todayAttendanceStatusMap());
         return "employees/list";
     }
 
@@ -108,6 +152,8 @@ public class EmployeeController {
                 return Comparator.comparing(Employee::getJoiningDate, Comparator.nullsLast(LocalDate::compareTo));
             case "trainingStatus":
                 return Comparator.comparing(e -> e.getTrainingStatus() == null ? "" : e.getTrainingStatus().name(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "designation":
+                return Comparator.comparing(e -> e.getDesignation() == null ? "" : e.getDesignation().name(), Comparator.nullsLast(String::compareToIgnoreCase));
             case "salary":
                 return Comparator.comparing(Employee::getSalary, Comparator.nullsLast(java.math.BigDecimal::compareTo));
             case "status":
@@ -167,6 +213,13 @@ public class EmployeeController {
         model.addAttribute("page", "employees");
         model.addAttribute("employee", employee);
         model.addAttribute("passportPhoto", employeeService.getPassportPhoto(employee));
+        // compute age for brochure and templates (defensive)
+        if (employee.getDateOfBirth() != null) {
+            java.time.Period p = java.time.Period.between(employee.getDateOfBirth(), java.time.LocalDate.now());
+            model.addAttribute("employeeAge", p.getYears());
+        } else {
+            model.addAttribute("employeeAge", null);
+        }
         model.addAttribute("trainingStatuses", TrainingStatus.values());
         model.addAttribute("salaryYear", y);
         model.addAttribute("salaryMonths", salaryPaymentService.monthsForEmployee(employee, y));
@@ -320,6 +373,8 @@ public class EmployeeController {
     public String brochure(@PathVariable Long id,
                           @RequestParam(value = "option", required = false) List<String> options,
                           @RequestParam(value = "catheterisationCare", required = false) String catheterisationCare,
+                          @RequestParam(value = "includeAge", required = false) String includeAge,
+                          @RequestParam(value = "age", required = false) String age,
                           Model model) {
         Employee employee = employeeService.get(id);
         List<String> brochureOptions = new java.util.ArrayList<>();
@@ -341,6 +396,21 @@ public class EmployeeController {
 
         model.addAttribute("employee", employee);
         model.addAttribute("passportPhoto", employeeService.getPassportPhoto(employee));
+
+        // determine age: use provided age when includeAge checked, else derive from DOB
+        Integer resolvedAge = null;
+        if (includeAge != null && includeAge.equalsIgnoreCase("true") && age != null && !age.trim().isEmpty()) {
+            try {
+                resolvedAge = Integer.parseInt(age.trim());
+            } catch (NumberFormatException ex) {
+                // ignore invalid age, fallback to DOB
+            }
+        }
+        if (resolvedAge == null && employee.getDateOfBirth() != null) {
+            resolvedAge = java.time.Period.between(employee.getDateOfBirth(), java.time.LocalDate.now()).getYears();
+        }
+        model.addAttribute("employeeAge", resolvedAge);
+
         model.addAttribute("brochureOptions", brochureOptions);
         return "employees/brochure";
     }
@@ -357,6 +427,9 @@ public class EmployeeController {
         form.setAadharNumber(employee.getAadharNumber());
         form.setNoOfExperience(employee.getNoOfExperience());
         form.setSalary(employee.getSalary());
+        form.setDesignation(employee.getDesignation() == null ? "" : employee.getDesignation().name());
+        form.setEmail(employee.getEmail());
+        form.setMaritalStatus(employee.getMaritalStatus() == null ? "" : employee.getMaritalStatus());
         return form;
     }
 }

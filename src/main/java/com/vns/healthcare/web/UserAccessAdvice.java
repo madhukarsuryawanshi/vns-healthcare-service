@@ -46,6 +46,26 @@ public class UserAccessAdvice {
         return hasAccess(authentication, "customers:read") || canWriteCustomers(authentication);
     }
 
+    @ModelAttribute("canWriteAttendance")
+    public boolean canWriteAttendance(Authentication authentication) {
+        return hasAccess(authentication, "attendance:write") || hasRole(authentication, "ADMIN");
+    }
+
+    @ModelAttribute("canReadAttendance")
+    public boolean canReadAttendance(Authentication authentication) {
+        return hasAccess(authentication, "attendance:read") || canWriteAttendance(authentication);
+    }
+
+    @ModelAttribute("canWriteSalary")
+    public boolean canWriteSalary(Authentication authentication) {
+        return hasAccess(authentication, "salary:write") || hasRole(authentication, "ADMIN");
+    }
+
+    @ModelAttribute("canReadSalary")
+    public boolean canReadSalary(Authentication authentication) {
+        return hasAccess(authentication, "salary:read") || canWriteSalary(authentication);
+    }
+
     private boolean hasAccess(Authentication authentication, String permission) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return false;

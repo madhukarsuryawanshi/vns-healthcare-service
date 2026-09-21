@@ -78,6 +78,13 @@ public class CustomerReportService {
         CellStyle centerStyle = centerStyle(workbook);
         CellStyle moneyStyle = moneyStyle(workbook);
         CellStyle holdStyle = holdStyle(workbook);
+        CellStyle[] employeeBlockStyles = new CellStyle[] {
+                employeeBlockStyle(workbook, IndexedColors.LIGHT_GREEN),
+                employeeBlockStyle(workbook, IndexedColors.LIGHT_TURQUOISE),
+                employeeBlockStyle(workbook, IndexedColors.LIGHT_YELLOW),
+                employeeBlockStyle(workbook, IndexedColors.LIGHT_ORANGE),
+                employeeBlockStyle(workbook, IndexedColors.LIGHT_BLUE)
+        };
 
         int totalPresentCol = 3 + days.size();
         int totalCol = totalPresentCol + 1;
@@ -122,22 +129,35 @@ public class CustomerReportService {
             BigDecimal charges = customer.getCharges() == null ? BigDecimal.ZERO : customer.getCharges();
             writeMoney(excelRow, 2, charges, moneyStyle);
             int billableDays = 0;
+            String currentEmployee = null;
+            int employeeBlockIndex = 0;
             for (int i = 0; i < days.size(); i++) {
                 CustomerDuty duty = duties.get(customer.getId() + "|" + days.get(i));
                 Cell cell = excelRow.createCell(3 + i);
                 if (duty == null) {
                     cell.setCellValue("");
                     cell.setCellStyle(centerStyle);
+                    currentEmployee = null;
+                    employeeBlockIndex = 0;
                 } else if (duty.isHold()) {
                     cell.setCellValue("Hold");
                     cell.setCellStyle(holdStyle);
+                    currentEmployee = "HOLD";
+                    employeeBlockIndex = 0;
                 } else if (duty.getEmployee() != null) {
-                    cell.setCellValue(duty.getEmployee().getFullName());
-                    cell.setCellStyle(centerStyle);
+                    String employeeName = duty.getEmployee().getFullName();
+                    if (currentEmployee == null || !currentEmployee.equals(employeeName)) {
+                        currentEmployee = employeeName;
+                        employeeBlockIndex = (employeeBlockIndex + 1) % employeeBlockStyles.length;
+                    }
+                    cell.setCellValue(employeeName);
+                    cell.setCellStyle(employeeBlockStyles[employeeBlockIndex]);
                     billableDays++;
                 } else {
                     cell.setCellValue("");
                     cell.setCellStyle(centerStyle);
+                    currentEmployee = null;
+                    employeeBlockIndex = 0;
                 }
             }
             writeNumber(excelRow, totalPresentCol, BigDecimal.valueOf(billableDays), centerStyle);
@@ -234,6 +254,13 @@ public class CustomerReportService {
         DataFormat format = workbook.createDataFormat();
         style.setDataFormat(format.getFormat("#,##0.00"));
         style.setAlignment(HorizontalAlignment.RIGHT);
+        return style;
+    }
+
+    private CellStyle employeeBlockStyle(Workbook workbook, IndexedColors color) {
+        CellStyle style = centerStyle(workbook);
+        style.setFillForegroundColor(color.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         return style;
     }
 

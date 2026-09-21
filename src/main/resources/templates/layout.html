@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout (title, content)">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:fragment="layout (title, content)">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -8,25 +8,31 @@
     <title th:text="${title} + ' · VNS Healthcare'">VNS Healthcare</title>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="icon" type="image/png" th:href="@{/images/vns-healthcare-logo.png}"/>
+    <link rel="shortcut icon" type="image/png" th:href="@{/images/vns-healthcare-logo.png}"/>
+    <link rel="apple-touch-icon" th:href="@{/images/vns-healthcare-logo.png}"/>
     <link rel="stylesheet" th:href="@{/css/app.css}"/>
     <style>
         /* Flash / notification styles */
         .flash {
             position: fixed;
-            right: 16px;
+            left: 50%;
             top: 16px;
+            transform: translateX(-50%);
             z-index: 2000;
-            padding: 12px 18px;
-            border-radius: 8px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-            max-width: 360px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            box-shadow: 0 14px 40px rgba(2,8,6,0.18);
+            max-width: 320px;
             width: auto;
             text-align: center;
-            transition: opacity 180ms ease-in-out;
+            font-weight: 600;
+            display: inline-block;
+            transition: transform 220ms cubic-bezier(.2,.9,.2,1), opacity 180ms ease-in-out;
         }
-        .flash.flash-hidden { opacity: 0; pointer-events: none; }
-        .flash.error { background: #fff0f0; color: #a00; border: 1px solid #f5c2c7; }
-        .flash:not(.error) { background: #f4fff6; color: #0a6; border: 1px solid #bfe9c8; }
+        .flash.flash-hidden { opacity: 0; transform: translateX(-50%) translateY(-6px); pointer-events: none; }
+        .flash.error { background: rgba(255, 141, 107, 0.12); color: var(--coral); border: 1px solid rgba(255, 141, 107, 0.18); }
+        .flash:not(.error) { background: rgba(109, 224, 170, 0.10); color: var(--ok); border: 1px solid rgba(109, 224, 170, 0.16); }
         .info-banner { background:#fff8e6; border:1px solid #ffe2a8; padding:10px 14px; border-radius:6px; margin-bottom:12px; }
         .modal-overlay {
             position: fixed;
@@ -142,10 +148,12 @@
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .data-table-shell {
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: hidden;
             border-radius: 12px;
             border: 1px solid var(--line);
             background: var(--panel-bg);
+            scrollbar-width: thin;
         }
         .data-table-controls {
             display: flex;
@@ -187,7 +195,7 @@
             color: var(--teal);
             font-weight: 700;
         }
-        @media (max-width: 600px) { .flash { right: 8px; top: 8px; max-width: 92%; } .modal-content { height: 72vh; } .data-table-controls { flex-direction: column; align-items: flex-start; } .data-table-pagination { width: 100%; justify-content: flex-start; } }
+        @media (max-width: 600px) { .flash { left: 50%; top: 12px; max-width: 92%; transform: translateX(-50%); } .modal-content { height: 72vh; } .data-table-controls { flex-direction: column; align-items: flex-start; } .data-table-pagination { width: 100%; justify-content: flex-start; } }
     </style>
 </head>
 <body>
@@ -201,12 +209,12 @@
             </div>
         </div>
         <nav class="nav">
-            <a th:href="@{/}" th:classappend="${page == 'dashboard'} ? 'active'">Dashboard</a>
-            <a th:href="@{/employees}" th:classappend="${page == 'employees'} ? 'active'">Employees</a>
-            <a th:href="@{/customers}" th:classappend="${page == 'customers'} ? 'active'">Leads</a>
-            <a th:href="@{/attendance}" th:classappend="${page == 'attendance'} ? 'active'">Attendance</a>
-            <a th:href="@{/salary}" th:classappend="${page == 'salary'} ? 'active'">Salary</a>
-            <a th:href="@{/admin/users}" th:classappend="${page == 'admin'} ? 'active'">Admin</a>
+            <a th:if="${canReadDashboard}" th:href="@{/}" th:classappend="${page == 'dashboard'} ? 'active'">Dashboard</a>
+            <a th:if="${canReadEmployees}" th:href="@{/employees}" th:classappend="${page == 'employees'} ? 'active'">Employees</a>
+            <a th:if="${canReadCustomers}" th:href="@{/customers}" th:classappend="${page == 'customers'} ? 'active'">Leads</a>
+            <a th:if="${canReadAttendance}" th:href="@{/attendance}" th:classappend="${page == 'attendance'} ? 'active'">Attendance</a>
+            <a th:if="${canReadSalary}" th:href="@{/salary}" th:classappend="${page == 'salary'} ? 'active'">Salary</a>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}" th:classappend="${page == 'admin'} ? 'active'">Admin</a>
         </nav>
         <div class="sidebar-foot">Staffing · Patient leads · Duty roster</div>
     </aside>
@@ -214,7 +222,7 @@
         <header class="top-header">
             <div class="profile-menu-wrap">
                 <button class="profile-trigger" type="button" aria-expanded="false" data-profile-toggle>
-                    <span class="profile-avatar" th:text="${currentUser != null and !#strings.isEmpty(currentUser)} ? ${#strings.substring(currentUser, 0, 1).toUpperCase()} : 'U'">U</span>
+                    <span class="profile-avatar" th:text="${(currentUser != null and !#strings.isEmpty(currentUser)) ? #strings.substring(currentUser, 0, 1).toUpperCase() : 'U'}">U</span>
                     <span class="profile-name" th:if="${currentUser != null}" th:text="${currentUser}">admin</span>
                     <span class="caret">▾</span>
                 </button>
@@ -259,45 +267,63 @@
     <div class="modal-backdrop" data-brochure-close></div>
     <div class="modal-content brochure-modal">
         <button type="button" class="modal-close" data-brochure-close aria-label="Close brochure dialog">&times;</button>
-        <h3 class="brochure-header">Prepare brochure</h3>
-        <form id="brochure-form" method="get">
-            <div class="brochure-list">
-                <label class="brochure-option"><input type="checkbox" name="option" value="interpersonal-relationship" checked/>Interpersonal Relationship: Excellent</label>
 
-                <div style="margin-top:8px;">
-                    <div style="font-weight:700; margin-bottom:8px;">Basic Skill</div>
-                    <div class="brochure-list">
-                        <label class="brochure-option"><input type="checkbox" name="option" value="sponge-bath" checked/>Sponge Bath</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="bed-pan-diaper" checked/>Bed Pan / Diaper</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="mouth-feeding" checked/>Mouth Feeding</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="ryles-tube-feeding" checked/>Ryle's Tube Feeding</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="blood-pressure" checked/>Vitals: Blood Pressure</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="suction-mouth"/>Suction: Mouth</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="trachea"/>Trachea</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="tracheostomy-care"/>Tracheostomy Care</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="blood-sugar-test" checked/>Blood Sugar Test (BSL)</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="medications-oral" checked/>Medications: Oral</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="medications-intravenous"/>Medications: Intravenous</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="medications-intramuscular"/>Medications: Intramuscular</label>
-                        <label class="brochure-option"><input type="checkbox" name="option" value="medications-subcutaneous" checked/>Medications: Subcutaneous</label>
+        <div id="brochure-form-panel">
+            <h3 class="brochure-header">Prepare brochure</h3>
+            <form id="brochure-form" method="get">
+                <div class="brochure-list">
+                    <label class="brochure-option"><input type="checkbox" name="option" value="interpersonal-relationship" checked/>Interpersonal Relationship: Excellent</label>
 
-                        <div class="brochure-option" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                            <label style="display:flex; align-items:center; gap:10px; margin:0;">
-                                <input type="checkbox" name="option" value="catheterisation-care" checked/>Catheterisation &amp; Care
-                            </label>
-                            <select name="catheterisationCare" aria-label="Catheterisation care level" style="min-width:120px;">
-                                <option value="EXPERT">Expert</option>
-                                <option value="ONLY_CARE" selected>Only Care</option>
-                            </select>
+                    <div style="margin-top:8px;">
+                        <div style="font-weight:700; margin-bottom:8px;">Basic Skill</div>
+                        <div class="brochure-list">
+                            <label class="brochure-option"><input type="checkbox" name="option" value="sponge-bath" checked/>Sponge Bath</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="bed-pan-diaper" checked/>Bed Pan / Diaper</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="mouth-feeding" checked/>Mouth Feeding</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="ryles-tube-feeding" checked/>Ryle's Tube Feeding</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="blood-pressure" checked/>Vitals: Blood Pressure</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="suction-mouth"/>Suction: Mouth</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="trachea"/>Trachea</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="tracheostomy-care"/>Tracheostomy Care</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="blood-sugar-test" checked/>Blood Sugar Test (BSL)</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="medications-oral" checked/>Medications: Oral</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="medications-intravenous"/>Medications: Intravenous</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="medications-intramuscular"/>Medications: Intramuscular</label>
+                            <label class="brochure-option"><input type="checkbox" name="option" value="medications-subcutaneous" checked/>Medications: Subcutaneous</label>
+
+                            <div class="brochure-option" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                                <label style="display:flex; align-items:center; gap:10px; margin:0;">
+                                    <input type="checkbox" name="option" value="catheterisation-care" checked/>Catheterisation &amp; Care
+                                </label>
+                                <select name="catheterisationCare" aria-label="Catheterisation care level" style="min-width:120px;">
+                                    <option value="EXPERT">Expert</option>
+                                    <option value="ONLY_CARE" selected>Only Care</option>
+                                </select>
+                            </div>
+
+                            <div class="brochure-option" style="display:flex; align-items:center; gap:10px;">
+                                <label style="display:flex; align-items:center; gap:8px; margin:0;">
+                                    <input type="checkbox" id="include-age-checkbox" name="includeAge" value="true" /> Include Age
+                                </label>
+                                <input type="text" id="brochure-age-field" name="age" placeholder="e.g. 45" style="width:80px; padding:6px 8px; border-radius:6px; border:1px solid var(--line);" disabled />
+                            </div>
                         </div>
                     </div>
                 </div>
+                <div class="brochure-actions">
+                    <button type="button" class="btn ghost" data-brochure-close>No</button>
+                    <button type="submit" class="btn secondary">Prepare brochure</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="brochure-preview-panel" style="display:none; height: 78vh;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding: 0 0 10px; border-bottom: 1px solid var(--line); margin-bottom: 12px;">
+                <h3 class="brochure-header" style="margin:0;">Brochure preview</h3>
+                <button type="button" class="btn ghost small" data-brochure-close>Close</button>
             </div>
-            <div class="brochure-actions">
-                <button type="button" class="btn ghost" data-brochure-close>No</button>
-                <button type="submit" class="btn secondary">Prepare brochure</button>
-            </div>
-        </form>
+            <iframe id="brochure-preview-iframe" title="Brochure preview" style="width:100%; height: calc(100% - 52px); border:0; background:#fff; border-radius:10px;"></iframe>
+        </div>
     </div>
 </div>
 
@@ -426,7 +452,14 @@
                 } catch (e) {
                     // ignore coordinate errors
                 }
-                const payload = {selector: selector, scrollY: window.scrollY, x: x, y: y, ts: Date.now()};
+                const payload = {
+                    selector: selector,
+                    scrollY: window.scrollY,
+                    x: x,
+                    y: y,
+                    ts: Date.now(),
+                    path: window.location.pathname
+                };
                 sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
             } catch (e) {
                 // ignore
@@ -443,8 +476,17 @@
                 const raw = sessionStorage.getItem(STORAGE_KEY);
                 if (!raw) return;
                 const data = JSON.parse(raw);
+                if (!data || !data.ts || !data.path) {
+                    sessionStorage.removeItem(STORAGE_KEY);
+                    return;
+                }
+                // allow restore only when the flash is coming from the same page
+                if (data.path !== window.location.pathname) {
+                    sessionStorage.removeItem(STORAGE_KEY);
+                    return;
+                }
                 // expire after 5 minutes
-                if (!data || !data.ts || (Date.now() - data.ts) > (5 * 60 * 1000)) {
+                if ((Date.now() - data.ts) > (5 * 60 * 1000)) {
                     sessionStorage.removeItem(STORAGE_KEY);
                     return;
                 }
@@ -458,10 +500,10 @@
                     // position flash at top-right corner (no scrolling)
                     flash.style.position = 'fixed';
                     flash.style.zIndex = '2000';
-                    flash.style.right = '16px';
-                    flash.style.left = '';
+                    flash.style.left = '50%';
+                    flash.style.right = 'auto';
                     flash.style.top = '16px';
-                    flash.style.transform = 'none';
+                    flash.style.transform = 'translateX(-50%)';
                     flash.classList.add('flash-centered');
 
                     // auto-dismiss after 2s and dismiss on any click
@@ -550,10 +592,26 @@
                 e.preventDefault();
                 const form = document.getElementById('brochure-form');
                 if (!form) return;
+                // clear previous age field state
+                var chk = document.getElementById('include-age-checkbox');
+                var fld = document.getElementById('brochure-age-field');
+                if (chk) { chk.checked = false; }
+                if (fld) { fld.value = ''; fld.disabled = true; }
                 form.setAttribute('action', button.getAttribute('data-brochure-url'));
                 toggleModal('brochure-modal', true);
             });
         });
+
+        // toggle age field enable/disable
+        var includeAgeChk = document.getElementById('include-age-checkbox');
+        var includeAgeFld = document.getElementById('brochure-age-field');
+        function syncBrochureAgeToggle() {
+            if (!includeAgeChk || !includeAgeFld) return;
+            includeAgeFld.disabled = !includeAgeChk.checked;
+            if (!includeAgeChk.checked) includeAgeFld.value = '';
+        }
+        if (includeAgeChk) includeAgeChk.addEventListener('change', syncBrochureAgeToggle);
+
 
         document.querySelectorAll('[data-brochure-close]').forEach(function (node) {
             node.addEventListener('click', function (e) {
@@ -564,7 +622,7 @@
 
         function addTablePagination() {
             document.querySelectorAll('table').forEach(function (table) {
-                if (table.dataset.paginationBound === 'true' || table.closest('.data-table-shell')) {
+                if (table.dataset.paginationBound === 'true' || table.closest('.data-table-shell') || table.classList.contains('attendance-table')) {
                     return;
                 }
                 if (!table.tBodies || !table.tBodies[0] || !table.tBodies[0].rows.length) {
@@ -635,6 +693,18 @@
         addTablePagination();
 
         const brochureForm = document.getElementById('brochure-form');
+        const brochureFormPanel = document.getElementById('brochure-form-panel');
+        const brochurePreviewPanel = document.getElementById('brochure-preview-panel');
+        const brochurePreviewFrame = document.getElementById('brochure-preview-iframe');
+
+        function showBrochurePreview(url) {
+            if (brochurePreviewFrame) {
+                brochurePreviewFrame.src = url;
+            }
+            if (brochureFormPanel) brochureFormPanel.style.display = 'none';
+            if (brochurePreviewPanel) brochurePreviewPanel.style.display = 'block';
+        }
+
         if (brochureForm) {
             brochureForm.addEventListener('submit', function (e) {
                 e.preventDefault();
@@ -646,10 +716,21 @@
                     existing.append(key, value);
                 });
                 url.search = existing.toString();
-                window.open(url.toString(), '_blank', 'noopener');
-                toggleModal('brochure-modal', false);
+                showBrochurePreview(url.toString());
             });
         }
+
+        document.querySelectorAll('[data-brochure-close]').forEach(function (node) {
+            node.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (brochurePreviewPanel && brochurePreviewPanel.style.display === 'block') {
+                    brochurePreviewPanel.style.display = 'none';
+                    if (brochureFormPanel) brochureFormPanel.style.display = 'block';
+                    if (brochurePreviewFrame) brochurePreviewFrame.src = '';
+                }
+                toggleModal('brochure-modal', false);
+            });
+        });
 
         var confirmResolve = null;
         function showConfirm(text) {

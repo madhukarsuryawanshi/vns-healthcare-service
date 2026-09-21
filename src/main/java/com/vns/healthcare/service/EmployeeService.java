@@ -20,6 +20,9 @@ import com.vns.healthcare.repository.SalaryPaymentRepository;
 import com.vns.healthcare.web.EmployeeForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -71,6 +74,12 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<Employee> activeStaff() {
         return employeeRepository.findAllActive(EmployeeStatus.ACTIVE);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Employee> activeStaffPage(int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1));
+        return employeeRepository.findActivePage(EmployeeStatus.ACTIVE, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -279,6 +288,59 @@ public class EmployeeService {
         employee.setAadharNumber(form.getAadharNumber().trim());
         employee.setNoOfExperience(form.getNoOfExperience());
         employee.setSalary(form.getSalary());
+        if (form.getDesignation() != null && !form.getDesignation().trim().isEmpty()) {
+            try {
+                employee.setDesignation(com.vns.healthcare.domain.Designation.valueOf(form.getDesignation()));
+            } catch (IllegalArgumentException ex) {
+                // ignore invalid designation values to be defensive
+            }
+        } else {
+            employee.setDesignation(null);
+        }
+        employee.setEmail(blankToNull(form.getEmail()));
+        employee.setMaritalStatus(blankToNull(form.getMaritalStatus()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Employee> activeCareStaff() {
+        List<Employee> all = employeeRepository.findAllActive(EmployeeStatus.ACTIVE);
+        java.util.Set<com.vns.healthcare.domain.Designation> allowed = new java.util.HashSet<>();
+        allowed.add(com.vns.healthcare.domain.Designation.CARE_GIVER);
+        allowed.add(com.vns.healthcare.domain.Designation.NURSE);
+        allowed.add(com.vns.healthcare.domain.Designation.DOCTOR);
+        allowed.add(com.vns.healthcare.domain.Designation.PHYSIOTHERAPY);
+        java.util.List<Employee> out = new java.util.ArrayList<>();
+        for (Employee e : all) {
+            if (e.getDesignation() != null && allowed.contains(e.getDesignation())) {
+                out.add(e);
+            }
+        }
+        return out;
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> todayAttendanceStatusMap() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.util.List<com.vns.healthcare.entity.Attendance> list = attendanceRepository.findByDateWithEmployee(today);
+        java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> map = new java.util.HashMap<>();
+        for (com.vns.healthcare.entity.Attendance a : list) {
+            if (a.getEmployee() == null || a.getEmployee().getId() == null) continue;
+            map.put(a.getEmployee().getId(), a.getStatus());
+        }
+        return map;
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Set<Long> presentTodayEmployeeIds() {
+        java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> map = todayAttendanceStatusMap();
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        for (java.util.Map.Entry<Long, com.vns.healthcare.domain.AttendanceStatus> e : map.entrySet()) {
+            com.vns.healthcare.domain.AttendanceStatus s = e.getValue();
+            if (s == com.vns.healthcare.domain.AttendanceStatus.PRESENT || s == com.vns.healthcare.domain.AttendanceStatus.HALF_DAY) {
+                ids.add(e.getKey());
+            }
+        }
+        return ids;
     }
 
     private void storeDocumentIfPresent(Employee employee, MultipartFile file) {

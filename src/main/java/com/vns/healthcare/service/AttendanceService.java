@@ -88,4 +88,26 @@ public class AttendanceService {
             attendanceRepository.save(attendance);
         }
     }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Integer> summaryForDate(LocalDate date) {
+        java.util.List<Attendance> marks = attendanceRepository.findByDateWithEmployee(date);
+        int present = 0, half = 0, absent = 0, leave = 0;
+        for (Attendance a : marks) {
+            if (a.getStatus() == AttendanceStatus.PRESENT) present++;
+            else if (a.getStatus() == AttendanceStatus.HALF_DAY) half++;
+            else if (a.getStatus() == AttendanceStatus.ABSENT) absent++;
+            else if (a.getStatus() == AttendanceStatus.LEAVE) leave++;
+        }
+        int totalActive = employeeService.activeStaff().size();
+        int unmarked = totalActive - marks.size();
+        java.util.Map<String, Integer> map = new java.util.LinkedHashMap<>();
+        map.put("present", present);
+        map.put("half", half);
+        map.put("absent", absent);
+        map.put("leave", leave);
+        map.put("unmarked", unmarked < 0 ? 0 : unmarked);
+        map.put("total", totalActive);
+        return map;
+    }
 }

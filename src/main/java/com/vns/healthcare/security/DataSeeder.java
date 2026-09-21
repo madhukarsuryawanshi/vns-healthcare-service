@@ -55,12 +55,18 @@ public class DataSeeder implements ApplicationRunner {
         if (!userRepository.existsByUsername("admin")) {
             AppUser adminUser = new AppUser();
             adminUser.setUsername("admin");
+            adminUser.setEmail("admin@vnshealthcare.local");
             adminUser.setPassword(passwordEncoder.encode("admin123"));
             adminUser.setEnabled(true);
             adminUser.setRoles(new HashSet<Role>(Arrays.asList(adminRole)));
             userRepository.save(adminUser);
             log.info("Created default admin user: admin");
         } else {
+            AppUser adminUser = userRepository.findByUsername("admin").orElse(null);
+            if (adminUser != null && (adminUser.getEmail() == null || adminUser.getEmail().trim().isEmpty())) {
+                adminUser.setEmail("admin@vnshealthcare.local");
+                userRepository.save(adminUser);
+            }
             log.info("Default admin user already exists");
         }
         log.info("Application data seeding completed");

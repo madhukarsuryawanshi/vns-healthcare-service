@@ -40,13 +40,16 @@ public class AdminController {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.vns.healthcare.service.EmployeeService employeeService;
 
     public AdminController(RoleRepository roleRepository,
                           UserRepository userRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          com.vns.healthcare.service.EmployeeService employeeService) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.employeeService = employeeService;
     }
 
     @GetMapping({"", "/users"})
@@ -118,6 +121,20 @@ public class AdminController {
         model.addAttribute("userForm", form);
         model.addAttribute("roles", roleRepository.findAll());
         model.addAttribute("accessModules", AVAILABLE_PERMISSIONS);
+        // provide employee suggestions for username autocomplete
+        try {
+            java.util.List<com.vns.healthcare.entity.Employee> employees = employeeService.activeStaff();
+            java.util.List<String> suggestions = new java.util.ArrayList<String>();
+            for (com.vns.healthcare.entity.Employee e : employees) {
+                if (e.getEmpCode() != null && !e.getEmpCode().trim().isEmpty()) {
+                    suggestions.add(e.getEmpCode().trim() + " " + (e.getFullName() == null ? "" : e.getFullName()));
+                }
+            }
+            model.addAttribute("employeeSuggestions", suggestions);
+        } catch (Exception ex) {
+            // silent fallback if service not available
+            model.addAttribute("employeeSuggestions", java.util.Collections.emptyList());
+        }
         return "admin/user-form";
     }
 

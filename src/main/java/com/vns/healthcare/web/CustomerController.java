@@ -164,7 +164,7 @@ public class CustomerController {
         model.addAttribute("page", "customers");
         model.addAttribute("form", new CustomerForm());
         model.addAttribute("mode", "create");
-        model.addAttribute("staff", employeeService.activeStaff());
+        model.addAttribute("staff", employeeService.activeCareStaff());
         model.addAttribute("statuses", CustomerStatus.values());
         return "customers/form";
     }
@@ -180,7 +180,7 @@ public class CustomerController {
             log.warn("Customer create validation failed for form [{}]", form.getPatientName());
             model.addAttribute("page", "customers");
             model.addAttribute("mode", "create");
-            model.addAttribute("staff", employeeService.activeStaff());
+            model.addAttribute("staff", employeeService.activeCareStaff());
             model.addAttribute("statuses", CustomerStatus.values());
             return "customers/form";
         }
@@ -193,7 +193,7 @@ public class CustomerController {
             log.error("Failed to create customer [{}]", form.getPatientName(), ex);
             model.addAttribute("page", "customers");
             model.addAttribute("mode", "create");
-            model.addAttribute("staff", employeeService.activeStaff());
+            model.addAttribute("staff", employeeService.activeCareStaff());
             model.addAttribute("statuses", CustomerStatus.values());
             model.addAttribute("error", ex.getMessage());
             return "customers/form";
@@ -223,7 +223,7 @@ public class CustomerController {
 
         model.addAttribute("page", "customers");
         model.addAttribute("customer", customer);
-        model.addAttribute("staff", employeeService.activeStaff());
+        model.addAttribute("staff", employeeService.activeCareStaff());
         model.addAttribute("month", yearMonth.toString());
         model.addAttribute("monthLabel", yearMonth);
         model.addAttribute("dayRows", dayRows);
@@ -243,10 +243,11 @@ public class CustomerController {
         }
         model.addAttribute("page", "customers");
         model.addAttribute("form", toForm(customer));
+        model.addAttribute("form", toForm(customer));
         model.addAttribute("mode", "edit");
         model.addAttribute("customerId", id);
         model.addAttribute("custCode", customer.getCustCode());
-        model.addAttribute("staff", employeeService.activeStaff());
+        model.addAttribute("staff", employeeService.activeCareStaff());
         model.addAttribute("statuses", CustomerStatus.values());
         return "customers/form";
     }
@@ -395,6 +396,7 @@ public class CustomerController {
         form.setCharges(customer.getCharges());
         form.setEmployeeId(customer.getAssignedEmployee() == null ? null : customer.getAssignedEmployee().getId());
         form.setStatus(customer.getStatus().name());
+        form.setEmail(customer.getEmail());
         return form;
     }
 }

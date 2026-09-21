@@ -52,6 +52,10 @@ public class CustomerForm {
 
     private String status;
 
+    @javax.validation.constraints.Email(message = "Enter a valid email")
+    @Size(max = 160)
+    private String email;
+
     public String getFullName() {
         return fullName;
     }
@@ -146,5 +150,13 @@ public class CustomerForm {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

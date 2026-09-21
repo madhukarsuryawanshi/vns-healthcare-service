@@ -2,6 +2,8 @@ package com.vns.healthcare.repository;
 
 import com.vns.healthcare.domain.EmployeeStatus;
 import com.vns.healthcare.entity.Employee;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,6 +30,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     @Query("SELECT e FROM Employee e WHERE e.status = :status ORDER BY e.fullName")
     List<Employee> findAllActive(@Param("status") EmployeeStatus status);
+
+    @Query("SELECT e FROM Employee e WHERE e.status = :status")
+    Page<Employee> findActivePage(@Param("status") EmployeeStatus status, Pageable pageable);
 
     @Query("SELECT e FROM Employee e WHERE " +
             "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +

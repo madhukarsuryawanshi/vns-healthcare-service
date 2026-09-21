@@ -48,12 +48,34 @@ public class AttendanceController {
                          @RequestParam(value = "status", required = false) String status,
                          @RequestParam(value = "sort", required = false, defaultValue = "empCode") String sort,
                          @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
-                         Model model) {
+                         @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+                         @RequestParam(value = "size", required = false, defaultValue = "10") int size,
+                         Model model,
+                         org.springframework.security.core.Authentication authentication,
+                         org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        // If user has no attendance read or write access, redirect with flash
+        boolean hasRead = false;
+        boolean hasWrite = false;
+        boolean isAdmin = false;
+        if (authentication != null && authentication.isAuthenticated()) {
+            for (org.springframework.security.core.GrantedAuthority a : authentication.getAuthorities()) {
+                String auth = a.getAuthority();
+                if ("attendance:read".equalsIgnoreCase(auth)) hasRead = true;
+                if ("attendance:write".equalsIgnoreCase(auth)) hasWrite = true;
+                if (("ROLE_ADMIN").equalsIgnoreCase(auth)) isAdmin = true;
+            }
+        }
+        if (!(hasRead || hasWrite || isAdmin)) {
+            redirectAttributes.addFlashAttribute("error", "You do not have permission, Please contact your Admin");
+            return "redirect:/";
+        }
         if (date == null) {
             date = LocalDate.now();
         }
         LocalDate monthStart = date.withDayOfMonth(1);
-        List<Employee> employees = employeeService.activeStaff();
+        int pageSize = Math.max(size, 1);
+        org.springframework.data.domain.Page<Employee> employeePage = employeeService.activeStaffPage(page, pageSize);
+        List<Employee> employees = new ArrayList<>(employeePage.getContent());
         employees.sort(sortEmployees(sort, dir));
         Map<Long, Map<String, Attendance>> attendanceByEmployee = attendanceService.monthlyRoster(monthStart);
 
@@ -69,6 +91,10 @@ public class AttendanceController {
         model.addAttribute("status", status == null ? "" : status);
         model.addAttribute("sort", sort);
         model.addAttribute("dir", dir);
+        model.addAttribute("pageNumber", employeePage.getNumber());
+        model.addAttribute("pageSize", employeePage.getSize());
+        model.addAttribute("totalPages", employeePage.getTotalPages());
+        model.addAttribute("totalElements", employeePage.getTotalElements());
         model.addAttribute("reportFrom", monthStart);
         model.addAttribute("reportTo", monthStart.withDayOfMonth(monthStart.lengthOfMonth()));
         model.addAttribute("employees", employees);
@@ -77,6 +103,14 @@ public class AttendanceController {
         model.addAttribute("statuses", AttendanceStatus.values());
         model.addAttribute("previousMonth", monthStart.minusMonths(1));
         model.addAttribute("nextMonth", monthStart.plusMonths(1));
+        model.addAttribute("today", java.time.LocalDate.now());
+        // selected day for summaries: prefer today if in month, otherwise monthStart
+        java.time.LocalDate selectedDay = java.time.LocalDate.now();
+        if (selectedDay.isBefore(monthStart) || selectedDay.isAfter(monthStart.withDayOfMonth(monthStart.lengthOfMonth()))) {
+            selectedDay = monthStart;
+        }
+        model.addAttribute("selectedDay", selectedDay);
+        model.addAttribute("summary", attendanceService.summaryForDate(selectedDay));
         return "attendance/list";
     }
 
@@ -114,12 +148,20 @@ public class AttendanceController {
                 .body(excel);
     }
 
+    @GetMapping("/summary")
+    public ResponseEntity<java.util.Map<String,Integer>> summary(@RequestParam(value = "date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        java.util.Map<String,Integer> map = attendanceService.summaryForDate(date);
+        return ResponseEntity.ok(map);
+    }
+
     @PostMapping("/bulk")
-    public String saveMonthlyRow(@RequestParam Long employeeId,
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('attendance:write') or hasRole('ADMIN')")
+    public Object saveMonthlyRow(@RequestParam Long employeeId,
                                @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate month,
                                @RequestParam(required = false) String notes,
                                @RequestParam Map<String, String> params,
-                               RedirectAttributes redirectAttributes) {
+                               RedirectAttributes redirectAttributes,
+                               javax.servlet.http.HttpServletRequest request) {
         Map<LocalDate, AttendanceStatus> statuses = new LinkedHashMap<LocalDate, AttendanceStatus>();
         LocalDate monthStart = month.withDayOfMonth(1);
         for (LocalDate day : getDaysInMonth(monthStart)) {
@@ -130,6 +172,12 @@ public class AttendanceController {
             }
         }
         attendanceService.saveMonthlyRow(employeeId, monthStart, statuses, notes);
+
+        String xrw = request.getHeader("X-Requested-With");
+        if (xrw != null || (request.getHeader("Accept") != null && request.getHeader("Accept").contains("application/json"))) {
+            return org.springframework.http.ResponseEntity.ok().build();
+        }
+
         redirectAttributes.addFlashAttribute("success", "Attendance saved for the month.");
         return "redirect:/attendance?date=" + monthStart;
     }
@@ -146,13 +194,20 @@ public class AttendanceController {
     }
 
     @PostMapping
-    public String mark(@RequestParam Long employeeId,
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('attendance:write') or hasRole('ADMIN')")
+    public Object mark(@RequestParam Long employeeId,
                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                        @RequestParam AttendanceStatus status,
                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime checkInTime,
                        @RequestParam(required = false) String notes,
-                       RedirectAttributes redirectAttributes) {
+                       RedirectAttributes redirectAttributes,
+                       javax.servlet.http.HttpServletRequest request) {
         attendanceService.mark(employeeId, date, status, checkInTime, notes);
+        // If AJAX (fetch) request, return 200 OK without redirect
+        String xrw = request.getHeader("X-Requested-With");
+        if (xrw != null || (request.getHeader("Accept") != null && request.getHeader("Accept").contains("application/json"))) {
+            return org.springframework.http.ResponseEntity.ok().build();
+        }
         redirectAttributes.addFlashAttribute("success", "Attendance saved.");
         return "redirect:/attendance?date=" + date;
     }

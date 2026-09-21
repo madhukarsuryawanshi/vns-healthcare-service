@@ -7,14 +7,51 @@
             <h2 class="page-title">Attendance</h2>
             <p class="sub">Mark attendance for the whole month using daily status dropdowns.</p>
         </div>
-        <div class="search" style="margin:0; gap:10px; align-items:center">
-            <a class="btn secondary" th:href="@{/attendance(date=${previousMonth})}">← Prev</a>
-            <form method="get" th:action="@{/attendance}" style="display:flex; gap:10px; align-items:center; margin:0">
+    </div>
+
+    <div class="attendance-control-area">
+        <div class="attendance-action-strip">
+            <div class="attendance-toolbar attendance-toolbar-rows">
+                <form method="get" th:action="@{/attendance}" class="attendance-toolbar-form">
+                    <label class="attendance-rows-label" style="display:flex; align-items:center; gap:8px; margin:0; color:var(--muted); font-size:13px;">
+                        <span>ROWS</span>
+                        <select name="size" style="width:88px; min-width:88px;">
+                            <option value="10" th:selected="${pageSize == 10}">10</option>
+                            <option value="25" th:selected="${pageSize == 25}">25</option>
+                            <option value="50" th:selected="${pageSize == 50}">50</option>
+                        </select>
+                    </label>
+                    <input type="hidden" name="page" value="0"/>
+                    <input type="hidden" name="date" th:value="${date}"/>
+                    <button class="btn" type="submit">Apply</button>
+                </form>
+            </div>
+            <div class="attendance-toolbar attendance-toolbar-save">
+                <button class="btn save-all-btn" type="button" id="save-all-attendance" th:if="${canWriteAttendance}">Save All</button>
+            </div>
+
+            <div class="attendance-nav-block" style="display:flex; align-items:flex-end; gap:8px">
+                <form id="attendance-month-form" method="get" th:action="@{/attendance}" class="attendance-toolbar attendance-toolbar-nav">
+                    <a class="btn secondary" th:href="@{/attendance(date=${previousMonth}, page=0, size=${pageSize})}">← Prev</a>
+                    <input type="date" name="date" th:value="${date}"/>
+                    <button class="btn" type="submit">Show month</button>
+                    <input type="hidden" name="page" value="0"/>
+                    <input type="hidden" name="size" th:value="${pageSize}"/>
+                    <a class="btn secondary" th:href="@{/attendance(date=${nextMonth}, page=0, size=${pageSize})}">Next →</a>
+                </form>
+            </div>
+        </div>
+
+        <!--<div class="attendance-nav-block">
+            <form id="attendance-month-form" method="get" th:action="@{/attendance}" class="attendance-toolbar attendance-toolbar-nav">
+                <a class="btn secondary" th:href="@{/attendance(date=${previousMonth}, page=0, size=${pageSize})}">← Prev</a>
                 <input type="date" name="date" th:value="${date}"/>
                 <button class="btn" type="submit">Show month</button>
+                <input type="hidden" name="page" value="0"/>
+                <input type="hidden" name="size" th:value="${pageSize}"/>
+                <a class="btn secondary" th:href="@{/attendance(date=${nextMonth}, page=0, size=${pageSize})}">Next →</a>
             </form>
-            <a class="btn secondary" th:href="@{/attendance(date=${nextMonth})}">Next →</a>
-        </div>
+        </div>-->
     </div>
 
     <div class="panel">
@@ -27,50 +64,263 @@
     </div>
 
     <div class="panel">
-        <table th:if="${!employees.isEmpty()}" style="overflow-x:auto; display:block; white-space:nowrap; max-width:100%">
-            <thead>
-            <tr>
-                <th>Emp ID</th>
-                <th>Name</th>
-                <th:block th:each="day : ${monthDays}">
-                    <th th:text="${#temporals.format(day, 'dd')}" style="min-width:60px; text-align:center">01</th>
-                </th:block>
-                <th>Notes</th>
-                <th>Action</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="employee : ${employees}">
-                <form th:action="@{/attendance/bulk}" method="post" style="display:contents">
-                    <input type="hidden" name="employeeId" th:value="${employee.id}"/>
-                    <input type="hidden" name="month" th:value="${date}"/>
+    <div th:if="${canReadAttendance}">
+    <div class="attendance-summary" th:attr="data-summary-date=${selectedDay}" style="display:flex; gap:12px; align-items:center; margin-bottom:12px">
+        <div><strong>Selected:</strong> <span th:text="${#temporals.format(selectedDay,'dd MMM yyyy')}"></span></div>
+        <div><strong>Present:</strong> <span id="summary-present" th:text="${summary.present}">0</span></div>
+        <div><strong>Half-day:</strong> <span id="summary-half" th:text="${summary.half}">0</span></div>
+        <div><strong>Absent:</strong> <span id="summary-absent" th:text="${summary.absent}">0</span></div>
+        <div><strong>Leave:</strong> <span id="summary-leave" th:text="${summary.leave}">0</span></div>
+        <div><strong>Unmarked:</strong> <span id="summary-unmarked" th:text="${summary.unmarked}">0</span></div>
+        <div style="margin-left:auto; color:var(--muted)"><strong>Total:</strong> <span id="summary-total" th:text="${summary.total}">0</span></div>
+    </div>
+    <div th:if="${!employees.isEmpty()}">
+        <div class="attendance-panel">
+            <div class="data-table-shell attendance-table-shell">
+                <table class="attendance-table">
+                <thead>
+                <tr>
+                    <th style="min-width:90px">Emp ID</th>
+                    <th style="min-width:220px">Name</th>
+                    <th:block th:each="day : ${monthDays}">
+                        <th th:text="${#temporals.format(day, 'dd')}" style="min-width:60px; text-align:center">01</th>
+                    </th:block>
+                    <th>Notes</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="employee : ${employees}" th:attr="data-employee-id=${employee.id},data-month=${date}">
                     <td th:text="${employee.empCode}">EMP</td>
-                    <td>
-                        <a th:href="@{/employees/{id}(id=${employee.id})}" th:text="${employee.fullName}">Name</a>
-                    </td>
+                    <td><a th:href="@{/employees/{id}(id=${employee.id})}" th:text="${employee.fullName}">Name</a></td>
+
                     <th:block th:each="day : ${monthDays}">
                         <td style="padding:4px; text-align:center">
-                            <select th:name="|status_${#temporals.format(day, 'yyyy-MM-dd')}|" style="min-width:90px">
+                            <select class="attendance-status-select"
+                                   th:name="|status_${#temporals.format(day, 'yyyy-MM-dd')}|"
+                                   th:attr="data-day=${#temporals.format(day, 'yyyy-MM-dd')}"
+                                   style="min-width:90px"
+                                   th:disabled="${!canWriteAttendance}">
                                 <option value="">--</option>
                                 <option th:each="s : ${statuses}"
-                                        th:value="${s}"
-                                        th:text="${s.name() == 'HALF_DAY' ? 'HALF-DAY' : s.name()}"
-                                        th:selected="${attendanceByEmployee.get(employee.id) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')).status == s}">PRESENT</option>
+                                       th:value="${s}"
+                                       th:text="${s.name() == 'HALF_DAY' ? 'HALF-DAY' : s.name()}"
+                                       th:selected="${((attendanceByEmployee.get(employee.id) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')).status == s) or (#temporals.format(day, 'yyyy-MM-dd') == #temporals.format(today, 'yyyy-MM-dd') and (attendanceByEmployee.get(employee.id) == null or attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) == null) and s.name() == 'PRESENT'))}">PRESENT</option>
                             </select>
                         </td>
                     </th:block>
                     <td style="min-width:170px">
-                        <input type="text" name="notes" placeholder="Notes" style="width:150px"
+                        <input type="text" class="attendance-notes-input" placeholder="Notes" style="width:150px"
                                th:value="${attendanceByEmployee.get(employee.id) != null and !attendanceByEmployee.get(employee.id).isEmpty() ? attendanceByEmployee.get(employee.id).values().iterator().next().notes : ''}"/>
                     </td>
                     <td style="text-align:center">
-                        <button class="btn secondary" type="submit">Save</button>
+                        <button class="btn secondary save-row-btn" type="button" th:if="${canWriteAttendance}">Save</button>
                     </td>
-                </form>
-            </tr>
-            </tbody>
-        </table>
-        <p class="empty" th:if="${employees.isEmpty()}">Add active employees first, then mark attendance here.</p>
+                </tr>
+                </tbody>
+                </table>
+                <div class="data-table-controls attendance-controls">
+                    <div class="attendance-page-summary" th:text="|Showing ${#lists.size(employees) == 0 ? 0 : ((pageNumber * pageSize) + 1)}-${#lists.size(employees) == 0 ? 0 : ((pageNumber * pageSize) + #lists.size(employees))} of ${totalElements}|">Showing 0-0 of 0</div>
+                    <div class="attendance-pagination" aria-label="Attendance pagination">
+                        <a th:if="${pageNumber > 0}" class="page-btn" th:href="@{/attendance(date=${date}, page=${pageNumber - 1}, size=${pageSize})}">Prev</a>
+                        <span th:each="p : ${#numbers.sequence(0, totalPages - 1)}">
+                            <a th:if="${p == pageNumber}" class="page-btn active" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
+                            <a th:if="${p != pageNumber}" class="page-btn" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
+                        </span>
+                        <a th:if="${pageNumber + 1 < totalPages}" class="page-btn" th:href="@{/attendance(date=${date}, page=${pageNumber + 1}, size=${pageSize})}">Next</a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    <p class="empty" th:if="${employees.isEmpty()}">Add active employees first, then mark attendance here.</p>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var summaryPanel = document.querySelector('.attendance-summary');
+        var summaryDate = summaryPanel && summaryPanel.dataset.summaryDate ? summaryPanel.dataset.summaryDate : null;
+
+        function refreshSummary(dateValue) {
+            if (!dateValue) return;
+            fetch('/attendance/summary?date=' + encodeURIComponent(dateValue), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (data) {
+                if (!data) return;
+                document.getElementById('summary-present').textContent = data.present || 0;
+                document.getElementById('summary-half').textContent = data.half || 0;
+                document.getElementById('summary-absent').textContent = data.absent || 0;
+                document.getElementById('summary-leave').textContent = data.leave || 0;
+                document.getElementById('summary-unmarked').textContent = data.unmarked || 0;
+                document.getElementById('summary-total').textContent = data.total || 0;
+            })
+            .catch(function () {});
+        }
+
+        function serializeRow(row) {
+            var payload = new URLSearchParams();
+            var csrfInput = document.querySelector('input[name="_csrf"]');
+            if (csrfInput) {
+                payload.append(csrfInput.name, csrfInput.value);
+            }
+            payload.append('employeeId', row.dataset.employeeId || '');
+            payload.append('month', row.dataset.month || '');
+            payload.append('notes', (row.querySelector('.attendance-notes-input') || {}).value || '');
+            row.querySelectorAll('.attendance-status-select').forEach(function (select) {
+                var day = select.dataset.day;
+                var value = select.value;
+                if (day && value) {
+                    payload.append('status_' + day, value);
+                }
+            });
+            return payload;
+        }
+
+        function showSavedFlash() {
+            var panel = document.querySelector('.attendance-panel');
+            if (!panel) return;
+
+            var existing = panel.querySelector('.attendance-save-flash');
+            if (existing) {
+                existing.parentNode.removeChild(existing);
+            }
+
+            var flash = document.createElement('div');
+            flash.className = 'attendance-save-flash';
+            flash.textContent = 'Attendance saved';
+            flash.setAttribute('aria-live', 'polite');
+            flash.style.position = 'fixed';
+            flash.style.left = '50%';
+            flash.style.right = 'auto';
+            flash.style.top = '16px';
+            flash.style.transform = 'translateX(-50%)';
+            flash.style.zIndex = '2000';
+            panel.appendChild(flash);
+
+            function removeFlash() {
+                if (flash.parentNode) {
+                    flash.classList.add('flash-hidden');
+                    setTimeout(function () {
+                        if (flash.parentNode) {
+                            flash.parentNode.removeChild(flash);
+                        }
+                    }, 220);
+                }
+                document.removeEventListener('click', clickHandler, true);
+                document.removeEventListener('keydown', keyHandler, true);
+            }
+
+            var clickHandler = function (event) {
+                if (event && event.target && flash && flash.contains && flash.contains(event.target)) {
+                    return;
+                }
+                removeFlash();
+            };
+            var keyHandler = function (event) {
+                if (event && event.key === 'Escape') {
+                    removeFlash();
+                }
+            };
+
+            document.addEventListener('click', clickHandler, true);
+            document.addEventListener('keydown', keyHandler, true);
+        }
+
+        function saveRow(row) {
+            if (!row) return Promise.resolve();
+            var payload = serializeRow(row);
+            return fetch('/attendance/bulk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: payload.toString()
+            }).then(function (response) {
+                if (!response.ok) {
+                    throw new Error('Save failed');
+                }
+                return response;
+            });
+        }
+
+        function saveAllRows() {
+            var rows = Array.prototype.slice.call(document.querySelectorAll('tr[data-employee-id]'));
+            if (!rows.length) return;
+            var button = document.getElementById('save-all-attendance');
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Saving...';
+            }
+            Promise.all(rows.map(function (row) { return saveRow(row); }))
+            .then(function () {
+                showSavedFlash();
+                if (summaryDate) {
+                    refreshSummary(summaryDate);
+                }
+            })
+            .catch(function () {})
+            .then(function () {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Save All';
+                }
+            });
+        }
+
+        var saveAllButton = document.getElementById('save-all-attendance');
+        if (saveAllButton) {
+            saveAllButton.addEventListener('click', function () {
+                saveAllRows();
+            });
+        }
+
+        document.querySelectorAll('.attendance-status-select').forEach(function (select) {
+            select.addEventListener('change', function () {
+                var value = this.value;
+                if (!value) return;
+                var row = this.closest('tr');
+                if (!row) return;
+                var payload = serializeRow(row);
+                fetch('/attendance/bulk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: payload.toString()
+                }).then(function (response) {
+                    if (response.ok) {
+                        showSavedFlash();
+                        if (summaryDate) {
+                            refreshSummary(summaryDate);
+                        }
+                    }
+                }).catch(function () {});
+            });
+        });
+
+        document.querySelectorAll('.save-row-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var row = this.closest('tr');
+                if (!row) return;
+                saveRow(row)
+                .then(function () {
+                    showSavedFlash();
+                    if (summaryDate) {
+                        refreshSummary(summaryDate);
+                    }
+                })
+                .catch(function () {});
+            });
+        });
+
+    })();
+</script>
 </section>
 </html>
