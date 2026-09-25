@@ -1,0 +1,562 @@
+HTTP/1.1 302 
+Set-Cookie: JSESSIONID=E4945BEBC1FDB3A965CEDF2E47D48E08; Path=/; HttpOnly
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+
+HTTP/1.1 302 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Location: http://localhost:8080/
+Content-Length: 0
+Date: Wed, 16 Sep 2026 18:13:40 GMT
+

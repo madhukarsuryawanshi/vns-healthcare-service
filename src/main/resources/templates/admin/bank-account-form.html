@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Bank account', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Finance</p>
+            <h2 class="page-title" th:text="${bankAccountId != null} ? 'Edit bank account' : 'Add bank account'">Add bank account</h2>
+            <p class="sub">Save business account details for payment transfer.</p>
+        </div>
+    </div>
+
+    <div class="panel">
+        <form th:action="${bankAccountId != null} ? @{/admin/bank-accounts/{id}(id=${bankAccountId})} : @{/admin/bank-accounts}" method="post" th:object="${bankAccount}" class="form-grid">
+            <div class="field full">
+                <label class="req" for="accountName">Account name</label>
+                <input id="accountName" type="text" th:field="*{accountName}" placeholder="e.g. VNS Healthcare" required/>
+            </div>
+
+            <div class="field full">
+                <label class="req" for="bankName">Bank name</label>
+                <input id="bankName" type="text" th:field="*{bankName}" placeholder="e.g. HDFC Bank" required/>
+            </div>
+
+            <div class="field full">
+                <label class="req" for="accountNo">Account no.</label>
+                <input id="accountNo" type="text" th:field="*{accountNo}" placeholder="Enter account number" required/>
+            </div>
+
+            <div class="field full">
+                <label class="req" for="ifscCode">IFSC code</label>
+                <input id="ifscCode" type="text" th:field="*{ifscCode}" placeholder="e.g. HDFC0001234" required/>
+            </div>
+
+            <div class="field full">
+                <label for="gpayPhonepe">GPay / PhonePay</label>
+                <input id="gpayPhonepe" type="text" th:field="*{gpayPhonepe}" placeholder="e.g. +91 99999 99999 / UPI ID"/>
+            </div>
+
+            <div class="field full actions">
+                <button class="btn" type="submit">Save account</button>
+                <a class="btn ghost" th:href="@{/admin/bank-accounts}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+</html>

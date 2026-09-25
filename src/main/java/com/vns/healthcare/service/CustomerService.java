@@ -251,6 +251,7 @@ public class CustomerService {
                 document.setStoredFilename(stored);
                 document.setContentType(file.getContentType());
                 document.setFileSize(file.getSize());
+                document.setFileData(file.getBytes());
                 documentRepository.save(document);
                 log.info("Stored customer document [{}] for customer id [{}]", file.getOriginalFilename(), customer.getId());
             } catch (IOException ex) {

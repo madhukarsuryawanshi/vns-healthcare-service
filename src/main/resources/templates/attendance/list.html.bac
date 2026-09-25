@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Attendance', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Roster</p>
+            <h2 class="page-title">Attendance</h2>
+            <p class="sub">Mark attendance for the whole month using daily status dropdowns.</p>
+        </div>
+        <div class="search" style="margin:0; gap:10px; align-items:center">
+            <a class="btn secondary" th:href="@{/attendance(date=${previousMonth})}">← Prev</a>
+            <form method="get" th:action="@{/attendance}" style="display:flex; gap:10px; align-items:center; margin:0">
+                <input type="date" name="date" th:value="${date}"/>
+                <button class="btn" type="submit">Show month</button>
+            </form>
+            <a class="btn secondary" th:href="@{/attendance(date=${nextMonth})}">Next →</a>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>Download report</h3>
+        <form method="get" th:action="@{/attendance/report}" class="search" style="margin-bottom:0">
+            <input type="date" name="from" th:value="${reportFrom}" required="required"/>
+            <input type="date" name="to" th:value="${reportTo}" required="required"/>
+            <button class="btn secondary" type="submit">Download Excel</button>
+        </form>
+    </div>
+
+    <div class="panel">
+    <div th:if="${canReadAttendance}">
+    <div class="attendance-summary" th:attr="data-summary-date=${selectedDay}" style="display:flex; gap:12px; align-items:center; margin-bottom:12px">
+        <div><strong>Selected:</strong> <span th:text="${#temporals.format(selectedDay,'dd MMM yyyy')}"></span></div>
+        <div><strong>Present:</strong> <span id="summary-present" th:text="${summary.present}">0</span></div>
+        <div><strong>Half-day:</strong> <span id="summary-half" th:text="${summary.half}">0</span></div>
+        <div><strong>Absent:</strong> <span id="summary-absent" th:text="${summary.absent}">0</span></div>
+        <div><strong>Leave:</strong> <span id="summary-leave" th:text="${summary.leave}">0</span></div>
+        <div><strong>Unmarked:</strong> <span id="summary-unmarked" th:text="${summary.unmarked}">0</span></div>
+        <div style="margin-left:auto; color:var(--muted)"><strong>Total:</strong> <span id="summary-total" th:text="${summary.total}">0</span></div>
+    </div>
+    <div th:if="${!employees.isEmpty()}">
+        <div class="attendance-panel">
+            <div class="data-table-shell attendance-table-shell">
+                <table class="attendance-table" data-pagination-bound="true">
+                <thead>
+                <tr>
+                    <th style="min-width:90px">Emp ID</th>
+                    <th style="min-width:220px">Name</th>
+                    <th:block th:each="day : ${monthDays}">
+                        <th th:text="${#temporals.format(day, 'dd')}" style="min-width:60px; text-align:center">01</th>
+                    </th:block>
+                    <th>Notes</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="employee : ${employees}" th:attr="data-employee-id=${employee.id},data-month=${date}">
+                    <td th:text="${employee.empCode}">EMP</td>
+                    <td><a th:href="@{/employees/{id}(id=${employee.id})}" th:text="${employee.fullName}">Name</a></td>
+
+                    <th:block th:each="day : ${monthDays}">
+                        <td style="padding:4px; text-align:center">
+                            <select class="attendance-status-select"
+                                   th:name="|status_${#temporals.format(day, 'yyyy-MM-dd')}|"
+                                   th:attr="data-day=${#temporals.format(day, 'yyyy-MM-dd')}"
+                                   style="min-width:90px"
+                                   th:disabled="${!canWriteAttendance}">
+                                <option value="">--</option>
+                                <option th:each="s : ${statuses}"
+                                       th:value="${s}"
+                                       th:text="${s.name() == 'HALF_DAY' ? 'HALF-DAY' : s.name()}"
+                                       th:selected="${((attendanceByEmployee.get(employee.id) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')).status == s) or (#temporals.format(day, 'yyyy-MM-dd') == #temporals.format(today, 'yyyy-MM-dd') and (attendanceByEmployee.get(employee.id) == null or attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) == null) and s.name() == 'PRESENT'))}">PRESENT</option>
+                            </select>
+                        </td>
+                    </th:block>
+                    <td style="min-width:170px">
+                        <input type="text" class="attendance-notes-input" placeholder="Notes" style="width:150px"
+                               th:value="${attendanceByEmployee.get(employee.id) != null and !attendanceByEmployee.get(employee.id).isEmpty() ? attendanceByEmployee.get(employee.id).values().iterator().next().notes : ''}"/>
+                    </td>
+                    <td style="text-align:center">
+                        <button class="btn secondary save-row-btn" type="button" th:if="${canWriteAttendance}">Save</button>
+                    </td>
+                </tr>
+                </tbody>
+                </table>
+                <div class="data-table-controls attendance-controls">
+                    <div class="attendance-page-summary">Showing 0-0 of 0</div>
+                    <div class="data-table-pagination attendance-pagination"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <p class="empty" th:if="${employees.isEmpty()}">Add active employees first, then mark attendance here.</p>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var summaryPanel = document.querySelector('.attendance-summary');
+        var summaryDate = summaryPanel && summaryPanel.dataset.summaryDate ? summaryPanel.dataset.summaryDate : null;
+
+        function refreshSummary(dateValue) {
+            if (!dateValue) return;
+            fetch('/attendance/summary?date=' + encodeURIComponent(dateValue), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (data) {
+                if (!data) return;
+                document.getElementById('summary-present').textContent = data.present || 0;
+                document.getElementById('summary-half').textContent = data.half || 0;
+                document.getElementById('summary-absent').textContent = data.absent || 0;
+                document.getElementById('summary-leave').textContent = data.leave || 0;
+                document.getElementById('summary-unmarked').textContent = data.unmarked || 0;
+                document.getElementById('summary-total').textContent = data.total || 0;
+            })
+            .catch(function () {});
+        }
+
+        function serializeRow(row) {
+            var payload = new URLSearchParams();
+            var csrfInput = document.querySelector('input[name="_csrf"]');
+            if (csrfInput) {
+                payload.append(csrfInput.name, csrfInput.value);
+            }
+            payload.append('employeeId', row.dataset.employeeId || '');
+            payload.append('month', row.dataset.month || '');
+            payload.append('notes', (row.querySelector('.attendance-notes-input') || {}).value || '');
+            row.querySelectorAll('.attendance-status-select').forEach(function (select) {
+                var day = select.dataset.day;
+                var value = select.value;
+                if (day && value) {
+                    payload.append('status_' + day, value);
+                }
+            });
+            return payload;
+        }
+
+        function showSavedFlash() {
+            var existing = document.querySelector('.attendance-save-flash');
+            if (existing) {
+                existing.parentNode.removeChild(existing);
+            }
+
+            var flash = document.createElement('div');
+            flash.className = 'flash attendance-save-flash';
+            flash.textContent = 'Attendance saved';
+            document.body.appendChild(flash);
+
+            setTimeout(function () {
+                flash.classList.add('flash-hidden');
+                setTimeout(function () {
+                    if (flash.parentNode) {
+                        flash.parentNode.removeChild(flash);
+                    }
+                }, 220);
+            }, 1700);
+        }
+
+        document.querySelectorAll('.attendance-status-select').forEach(function (select) {
+            select.addEventListener('change', function () {
+                var value = this.value;
+                if (!value) return;
+                var row = this.closest('tr');
+                if (!row) return;
+                var payload = serializeRow(row);
+                fetch('/attendance/bulk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: payload.toString()
+                }).then(function (response) {
+                    if (response.ok) {
+                        showSavedFlash();
+                        if (summaryDate) {
+                            refreshSummary(summaryDate);
+                        }
+                    }
+                }).catch(function () {});
+            });
+        });
+
+        document.querySelectorAll('.save-row-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var row = this.closest('tr');
+                if (!row) return;
+                var payload = serializeRow(row);
+                fetch('/attendance/bulk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: payload.toString()
+                }).then(function (response) {
+                    if (response.ok) {
+                        showSavedFlash();
+                        if (summaryDate) {
+                            refreshSummary(summaryDate);
+                        }
+                    }
+                }).catch(function () {});
+            });
+        });
+    })();
+</script>
+</section>
+</html>

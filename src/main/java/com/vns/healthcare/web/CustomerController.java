@@ -1,10 +1,15 @@
 package com.vns.healthcare.web;
 
 import com.vns.healthcare.domain.CustomerStatus;
+import com.vns.healthcare.entity.BusinessBankAccount;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vns.healthcare.entity.Customer;
 import com.vns.healthcare.entity.CustomerDocument;
 import com.vns.healthcare.entity.CustomerDuty;
+import com.vns.healthcare.entity.CustomerInvoice;
 import com.vns.healthcare.exception.BusinessException;
+import com.vns.healthcare.repository.BusinessBankAccountRepository;
+import com.vns.healthcare.repository.CustomerInvoiceRepository;
 import com.vns.healthcare.service.CustomerDutyService;
 import com.vns.healthcare.service.CustomerReportService;
 import com.vns.healthcare.service.CustomerService;
@@ -21,12 +26,15 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -51,17 +59,23 @@ public class CustomerController {
     private final CustomerDutyService dutyService;
     private final CustomerReportService reportService;
     private final FileStorageService fileStorageService;
+    private final BusinessBankAccountRepository businessBankAccountRepository;
+    private final CustomerInvoiceRepository customerInvoiceRepository;
 
     public CustomerController(CustomerService customerService,
                               EmployeeService employeeService,
                               CustomerDutyService dutyService,
                               CustomerReportService reportService,
-                              FileStorageService fileStorageService) {
+                              FileStorageService fileStorageService,
+                              BusinessBankAccountRepository businessBankAccountRepository,
+                              CustomerInvoiceRepository customerInvoiceRepository) {
         this.customerService = customerService;
         this.employeeService = employeeService;
         this.dutyService = dutyService;
         this.reportService = reportService;
         this.fileStorageService = fileStorageService;
+        this.businessBankAccountRepository = businessBankAccountRepository;
+        this.customerInvoiceRepository = customerInvoiceRepository;
     }
 
     @GetMapping
@@ -220,6 +234,12 @@ public class CustomerController {
                 ? customer.getServiceClosedDate()
                 : LocalDate.now();
         LocalDate billFrom = billTo.withDayOfMonth(1);
+        BigDecimal runningTotal = dutyService.calculateCharges(customer, billFrom, billTo);
+        int serviceDays = dutyService.countBillableDays(customer, billFrom, billTo);
+        BigDecimal invoiceDailyRate = BigDecimal.ZERO;
+        if (serviceDays > 0 && runningTotal != null && runningTotal.compareTo(BigDecimal.ZERO) > 0) {
+            invoiceDailyRate = runningTotal.divide(BigDecimal.valueOf(serviceDays), 2, java.math.RoundingMode.HALF_UP);
+        }
 
         model.addAttribute("page", "customers");
         model.addAttribute("customer", customer);
@@ -227,10 +247,171 @@ public class CustomerController {
         model.addAttribute("month", yearMonth.toString());
         model.addAttribute("monthLabel", yearMonth);
         model.addAttribute("dayRows", dayRows);
-        model.addAttribute("runningTotal", dutyService.calculateCharges(customer, billFrom, billTo));
+        model.addAttribute("runningTotal", runningTotal);
         model.addAttribute("billFrom", billFrom);
         model.addAttribute("billTo", billTo);
+        model.addAttribute("serviceDays", serviceDays);
+        model.addAttribute("invoiceDailyRate", invoiceDailyRate);
+        model.addAttribute("bankAccounts", businessBankAccountRepository.findAll());
+        model.addAttribute("customerInvoices", customerInvoiceRepository.findByCustomerOrderByFromDateDesc(customer));
         return "customers/detail";
+    }
+
+    @GetMapping("/{id:\\d+}/invoices/{invoiceId:\\d+}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getInvoice(@PathVariable Long id,
+                                                         @PathVariable Long invoiceId) {
+        try {
+            Customer customer = customerService.get(id);
+            CustomerInvoice invoice = customerInvoiceRepository.findById(invoiceId)
+                    .orElseThrow(() -> new BusinessException("Invoice not found"));
+            if (!invoice.getCustomer().getId().equals(customer.getId())) {
+                throw new BusinessException("Invoice does not belong to this customer");
+            }
+            List<Object> rows = new ArrayList<Object>();
+            if (invoice.getBreakdown() != null && !invoice.getBreakdown().trim().isEmpty()) {
+                rows = new ObjectMapper().readValue(invoice.getBreakdown(), List.class);
+            }
+            Map<String, Object> result = new LinkedHashMap<String, Object>();
+            result.put("id", invoice.getId());
+            result.put("invoiceNumber", invoice.getInvoiceNumber());
+            result.put("fromDate", invoice.getFromDate() == null ? "" : invoice.getFromDate().toString());
+            result.put("toDate", invoice.getToDate() == null ? "" : invoice.getToDate().toString());
+            result.put("totalAmount", invoice.getTotalAmount() == null ? 0 : invoice.getTotalAmount());
+            result.put("discountAmount", invoice.getDiscountAmount() == null ? 0 : invoice.getDiscountAmount());
+            result.put("netAmount", invoice.getNetAmount() == null ? 0 : invoice.getNetAmount());
+            result.put("rows", rows);
+            result.put("bankAccountName", invoice.getBankAccountName());
+            result.put("bankAccountNo", invoice.getBankAccountNo());
+            result.put("ifscCode", invoice.getIfscCode());
+            result.put("gpayPhonepe", invoice.getGpayPhonepe());
+            return ResponseEntity.ok(result);
+        } catch (BusinessException ex) {
+            Map<String, Object> result = new LinkedHashMap<String, Object>();
+            result.put("success", false);
+            result.put("message", ex.getMessage());
+            return ResponseEntity.badRequest().body(result);
+        } catch (Exception ex) {
+            log.error("Failed to load invoice [{}] for customer [{}]", invoiceId, id, ex);
+            Map<String, Object> result = new LinkedHashMap<String, Object>();
+            result.put("success", false);
+            result.put("message", "Could not load invoice.");
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
+
+    @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
+    @DeleteMapping("/{id:\\d+}/invoices/{invoiceId:\\d+}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> deleteInvoice(@PathVariable Long id,
+                                                           @PathVariable Long invoiceId) {
+        try {
+            Customer customer = customerService.get(id);
+            CustomerInvoice invoice = customerInvoiceRepository.findById(invoiceId)
+                    .orElseThrow(() -> new BusinessException("Invoice not found"));
+            if (!invoice.getCustomer().getId().equals(customer.getId())) {
+                throw new BusinessException("Invoice does not belong to this customer");
+            }
+            customerInvoiceRepository.delete(invoice);
+            Map<String, Object> result = new LinkedHashMap<String, Object>();
+            result.put("success", true);
+            result.put("message", "Invoice deleted successfully.");
+            return ResponseEntity.ok(result);
+        } catch (BusinessException ex) {
+            Map<String, Object> result = new LinkedHashMap<String, Object>();
+            result.put("success", false);
+            result.put("message", ex.getMessage());
+            return ResponseEntity.badRequest().body(result);
+        } catch (Exception ex) {
+            log.error("Failed to delete invoice [{}] for customer [{}]", invoiceId, id, ex);
+            Map<String, Object> result = new LinkedHashMap<String, Object>();
+            result.put("success", false);
+            result.put("message", "Could not delete invoice.");
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
+
+    @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
+    @PostMapping("/{id:\\d+}/invoices")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> saveInvoice(@PathVariable Long id,
+                                                           @RequestBody Map<String, Object> payload) {
+        try {
+            Customer customer = customerService.get(id);
+            String invoiceNumber = safeString(payload.get("invoiceNumber"));
+            String fromDateString = safeString(payload.get("fromDate"));
+            String toDateString = safeString(payload.get("toDate"));
+            BigDecimal totalAmount = parseBigDecimal(payload.get("totalAmount"));
+            BigDecimal discountAmount = parseBigDecimal(payload.get("discountAmount"));
+            BigDecimal netAmount = parseBigDecimal(payload.get("netAmount"));
+            String breakdown = new ObjectMapper().writeValueAsString(payload.get("rows"));
+            LocalDate fromDate = LocalDate.parse(fromDateString);
+            LocalDate toDate = LocalDate.parse(toDateString);
+
+            CustomerInvoice invoice = new CustomerInvoice();
+            invoice.setCustomer(customer);
+            invoice.setInvoiceNumber(invoiceNumber.isEmpty() ? buildInvoiceNumber(customer, toDate) : invoiceNumber);
+            invoice.setFromDate(fromDate);
+            invoice.setToDate(toDate);
+            invoice.setInvoiceMonth(toDate.getMonthValue());
+            invoice.setInvoiceYear(toDate.getYear());
+            invoice.setTotalAmount(totalAmount);
+            invoice.setDiscountAmount(discountAmount);
+            invoice.setNetAmount(netAmount);
+            invoice.setBreakdown(breakdown);
+
+            Object accountId = payload.get("accountId");
+            if (accountId != null && !accountId.toString().trim().isEmpty()) {
+                try {
+                    invoice.setBankAccountId(Long.valueOf(accountId.toString()));
+                } catch (NumberFormatException ignore) {
+                    // ignore invalid numeric account id
+                }
+            }
+            invoice.setBankAccountName(safeString(payload.get("accountName")));
+            invoice.setBankAccountNo(safeString(payload.get("accountNo")));
+            invoice.setIfscCode(safeString(payload.get("ifscCode")));
+            invoice.setGpayPhonepe(safeString(payload.get("gpayPhonepe")));
+
+            CustomerInvoice saved = customerInvoiceRepository.save(invoice);
+            Map<String, Object> result = new LinkedHashMap<String, Object>();
+            result.put("success", true);
+            result.put("message", "Invoice saved successfully.");
+            result.put("invoiceId", saved.getId());
+            result.put("invoiceNumber", saved.getInvoiceNumber());
+            return ResponseEntity.ok(result);
+        } catch (Exception ex) {
+            log.error("Failed to save invoice for customer [{}]", id, ex);
+            Map<String, Object> result = new LinkedHashMap<String, Object>();
+            result.put("success", false);
+            result.put("message", ex.getMessage());
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
+
+    private String buildInvoiceNumber(Customer customer, LocalDate toDate) {
+        return "INV-" + customer.getCustCode() + "-" + toDate.getYear() + String.format("%02d", toDate.getMonthValue()) + "-" + System.currentTimeMillis();
+    }
+
+    private BigDecimal parseBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value instanceof Number) {
+            return BigDecimal.valueOf(((Number) value).doubleValue());
+        }
+        String raw = value.toString().trim();
+        if (raw.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return new BigDecimal(raw);
+    }
+
+    private String safeString(Object value) {
+        if (value == null) {
+            return "";
+        }
+        return value.toString();
     }
 
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")

@@ -17,22 +17,41 @@
         .flash {
             position: fixed;
             left: 50%;
-            top: 16px;
+            top: 18px;
             transform: translateX(-50%);
             z-index: 2000;
-            padding: 10px 14px;
-            border-radius: 10px;
-            box-shadow: 0 14px 40px rgba(2,8,6,0.18);
-            max-width: 320px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 12px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(27, 92, 84, 0.16);
+            border-left: 5px solid var(--gold);
+            background: linear-gradient(135deg, rgba(27, 92, 84, 0.08), rgba(184, 148, 74, 0.10));
+            color: var(--teal-deep);
+            box-shadow: 0 14px 38px rgba(16, 60, 55, 0.14);
+            max-width: min(420px, calc(100vw - 24px));
             width: auto;
             text-align: center;
-            font-weight: 600;
-            display: inline-block;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.02em;
             transition: transform 220ms cubic-bezier(.2,.9,.2,1), opacity 180ms ease-in-out;
         }
-        .flash.flash-hidden { opacity: 0; transform: translateX(-50%) translateY(-6px); pointer-events: none; }
-        .flash.error { background: rgba(255, 141, 107, 0.12); color: var(--coral); border: 1px solid rgba(255, 141, 107, 0.18); }
-        .flash:not(.error) { background: rgba(109, 224, 170, 0.10); color: var(--ok); border: 1px solid rgba(109, 224, 170, 0.16); }
+        .flash.flash-hidden { opacity: 0; transform: translateX(-50%) translateY(-8px); pointer-events: none; }
+        .flash.error {
+            border-left-color: var(--coral);
+            background: linear-gradient(135deg, rgba(181, 82, 56, 0.08), rgba(255, 255, 255, 0.75));
+            color: var(--coral);
+            border-color: rgba(181, 82, 56, 0.18);
+        }
+        .flash:not(.error) {
+            border-left-color: var(--gold);
+            background: linear-gradient(135deg, rgba(27, 92, 84, 0.08), rgba(184, 148, 74, 0.10));
+            color: var(--teal-deep);
+            border-color: rgba(27, 92, 84, 0.16);
+        }
         .info-banner { background:#fff8e6; border:1px solid #ffe2a8; padding:10px 14px; border-radius:6px; margin-bottom:12px; }
         .modal-overlay {
             position: fixed;
@@ -347,6 +366,36 @@
         const profileToggle = document.querySelector('[data-profile-toggle]');
         const profileDropdown = document.getElementById('profile-dropdown');
         const savedTheme = localStorage.getItem('vns-theme');
+
+function initFlashMessages() {
+    const flashes = document.querySelectorAll('.flash');
+    flashes.forEach(function (flash) {
+        if (!flash) return;
+        flash.style.display = 'inline-flex';
+        flash.classList.remove('flash-hidden');
+        flash.addEventListener('click', function () {
+            flash.classList.add('flash-hidden');
+            setTimeout(function () {
+                if (flash && flash.parentNode) {
+                    flash.parentNode.removeChild(flash);
+                }
+            }, 180);
+        }, { once: true });
+        setTimeout(function () {
+            flash.classList.add('flash-hidden');
+            setTimeout(function () {
+                if (flash && flash.parentNode) {
+                    flash.parentNode.removeChild(flash);
+                }
+            }, 180);
+        }, 2500);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initFlashMessages);
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+    initFlashMessages();
+}
         if (savedTheme) {
             root.setAttribute('data-theme', savedTheme);
         }
@@ -560,6 +609,7 @@
                 }
             }
         }
+        window.toggleModal = toggleModal;
 
         function openPreview(url) {
             try {
@@ -572,6 +622,8 @@
         function closePreview() {
             toggleModal('file-preview-modal', false);
         }
+        window.openPreview = openPreview;
+        window.closePreview = closePreview;
 
         document.querySelectorAll('[data-preview-url]').forEach(function (link) {
             link.addEventListener('click', function (e) {
@@ -617,6 +669,13 @@
             node.addEventListener('click', function (e) {
                 e.stopPropagation();
                 toggleModal('brochure-modal', false);
+            });
+        });
+
+        document.querySelectorAll('[data-confirm-close]').forEach(function (node) {
+            node.addEventListener('click', function (e) {
+                e.stopPropagation();
+                toggleModal('confirm-modal', false);
             });
         });
 

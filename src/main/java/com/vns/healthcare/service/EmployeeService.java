@@ -372,6 +372,7 @@ public class EmployeeService {
                 document.setStoredFilename(stored);
                 document.setContentType(file.getContentType());
                 document.setFileSize(file.getSize());
+                document.setFileData(file.getBytes());
                 documentRepository.save(document);
                 log.info("Stored employee document [{}] for employee id [{}]", file.getOriginalFilename(), employee.getId());
             } catch (IOException ex) {

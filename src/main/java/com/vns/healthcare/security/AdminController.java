@@ -1,5 +1,7 @@
 package com.vns.healthcare.security;
 
+import com.vns.healthcare.entity.BusinessBankAccount;
+import com.vns.healthcare.repository.BusinessBankAccountRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,15 +41,18 @@ public class AdminController {
 
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
+    private final BusinessBankAccountRepository businessBankAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final com.vns.healthcare.service.EmployeeService employeeService;
 
     public AdminController(RoleRepository roleRepository,
                           UserRepository userRepository,
+                          BusinessBankAccountRepository businessBankAccountRepository,
                           PasswordEncoder passwordEncoder,
                           com.vns.healthcare.service.EmployeeService employeeService) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
+        this.businessBankAccountRepository = businessBankAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.employeeService = employeeService;
     }
@@ -83,6 +88,88 @@ public class AdminController {
         model.addAttribute("sort", sort);
         model.addAttribute("dir", dir);
         return "admin/roles";
+    }
+
+    @GetMapping("/bank-accounts")
+    public String bankAccounts(Model model) {
+        model.addAttribute("page", "admin");
+        model.addAttribute("accounts", businessBankAccountRepository.findAll());
+        return "admin/bank-accounts";
+    }
+
+    @GetMapping("/bank-accounts/new")
+    public String newBankAccountForm(Model model) {
+        model.addAttribute("page", "admin");
+        model.addAttribute("bankAccount", new BusinessBankAccount());
+        return "admin/bank-account-form";
+    }
+
+    @GetMapping("/bank-accounts/{id}/edit")
+    public String editBankAccountForm(@PathVariable Long id, Model model) {
+        BusinessBankAccount account = businessBankAccountRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Bank account not found"));
+        model.addAttribute("page", "admin");
+        model.addAttribute("bankAccount", account);
+        model.addAttribute("bankAccountId", id);
+        return "admin/bank-account-form";
+    }
+
+    @PostMapping("/bank-accounts")
+    public String saveBankAccount(@ModelAttribute("bankAccount") BusinessBankAccount form,
+                                RedirectAttributes redirectAttributes) {
+        if (form.getAccountName() == null || form.getAccountName().trim().isEmpty()
+                || form.getBankName() == null || form.getBankName().trim().isEmpty()
+                || form.getAccountNo() == null || form.getAccountNo().trim().isEmpty()
+                || form.getIfscCode() == null || form.getIfscCode().trim().isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Account name, bank name, account no., and IFSC code are required.");
+            return "redirect:/admin/bank-accounts/new";
+        }
+
+        BusinessBankAccount account = new BusinessBankAccount();
+        account.setAccountName(form.getAccountName().trim());
+        account.setBankName(form.getBankName().trim());
+        account.setAccountNo(form.getAccountNo().trim());
+        account.setIfscCode(form.getIfscCode().trim());
+        account.setGpayPhonepe(form.getGpayPhonepe() == null ? null : form.getGpayPhonepe().trim());
+        businessBankAccountRepository.save(account);
+
+        redirectAttributes.addFlashAttribute("success", "Bank account saved successfully.");
+        return "redirect:/admin/bank-accounts";
+    }
+
+    @PostMapping("/bank-accounts/{id}")
+    public String updateBankAccount(@PathVariable Long id,
+                                  @ModelAttribute("bankAccount") BusinessBankAccount form,
+                                  RedirectAttributes redirectAttributes) {
+        BusinessBankAccount account = businessBankAccountRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Bank account not found"));
+
+        if (form.getAccountName() == null || form.getAccountName().trim().isEmpty()
+                || form.getBankName() == null || form.getBankName().trim().isEmpty()
+                || form.getAccountNo() == null || form.getAccountNo().trim().isEmpty()
+                || form.getIfscCode() == null || form.getIfscCode().trim().isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Account name, bank name, account no., and IFSC code are required.");
+            return "redirect:/admin/bank-accounts/" + id + "/edit";
+        }
+
+        account.setAccountName(form.getAccountName().trim());
+        account.setBankName(form.getBankName().trim());
+        account.setAccountNo(form.getAccountNo().trim());
+        account.setIfscCode(form.getIfscCode().trim());
+        account.setGpayPhonepe(form.getGpayPhonepe() == null ? null : form.getGpayPhonepe().trim());
+        businessBankAccountRepository.save(account);
+
+        redirectAttributes.addFlashAttribute("success", "Bank account updated successfully.");
+        return "redirect:/admin/bank-accounts";
+    }
+
+    @PostMapping("/bank-accounts/{id}/delete")
+    public String deleteBankAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        BusinessBankAccount account = businessBankAccountRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Bank account not found"));
+        businessBankAccountRepository.delete(account);
+        redirectAttributes.addFlashAttribute("success", "Bank account deleted successfully.");
+        return "redirect:/admin/bank-accounts";
     }
 
     private Comparator<AppUser> sortUsers(String sort, String dir) {

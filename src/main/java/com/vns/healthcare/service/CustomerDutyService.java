@@ -115,6 +115,26 @@ public class CustomerDutyService {
         for (CustomerDuty duty : duties) {
             byDay.put(duty.getDutyDate(), duty);
         }
+        int billable = countBillableDays(customer, from, to);
+        int divisor = payDaysDivisor(from, to);
+        if (divisor <= 0 || billable == 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return customer.getCharges()
+                .multiply(BigDecimal.valueOf(billable))
+                .divide(BigDecimal.valueOf(divisor), 2, RoundingMode.HALF_UP);
+    }
+
+    @Transactional(readOnly = true)
+    public int countBillableDays(Customer customer, LocalDate from, LocalDate to) {
+        if (customer == null || customer.getId() == null || from == null || to == null || from.isAfter(to)) {
+            return 0;
+        }
+        List<CustomerDuty> duties = dutyRepository.findForCustomerInRange(customer.getId(), from, to);
+        Map<LocalDate, CustomerDuty> byDay = new LinkedHashMap<LocalDate, CustomerDuty>();
+        for (CustomerDuty duty : duties) {
+            byDay.put(duty.getDutyDate(), duty);
+        }
         int billable = 0;
         LocalDate day = from;
         while (!day.isAfter(to)) {
@@ -124,13 +144,7 @@ public class CustomerDutyService {
             }
             day = day.plusDays(1);
         }
-        int divisor = payDaysDivisor(from, to);
-        if (divisor <= 0 || billable == 0) {
-            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        }
-        return customer.getCharges()
-                .multiply(BigDecimal.valueOf(billable))
-                .divide(BigDecimal.valueOf(divisor), 2, RoundingMode.HALF_UP);
+        return billable;
     }
 
     public int payDaysDivisor(LocalDate from, LocalDate to) {

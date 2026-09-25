@@ -421,9 +421,9 @@
                 var fromText = invoiceDateFrom ? formatDisplayDate(invoiceDateFrom.value) : '';
                 var toText = invoiceDateTo ? formatDisplayDate(invoiceDateTo.value) : '';
                 if (fromText && toText) {
-                    return 'Charges of Patient care Services for the Period of ' + fromText + ' TO ' + toText;
+                    return 'Charges of Home Nursing Services for the Period of ' + fromText + ' TO ' + toText;
                 }
-                return 'Charges of Patient care Services';
+                return 'Charges of Home Nursing Services';
             }
 
             function buildRowDateText() {
@@ -662,20 +662,20 @@
                     return sum + row.amount;
                 }, 0);
                 var discountValue = currentDiscountValue();
-                var html = '<table style="width:100%; border-collapse:collapse; margin-top:18px; font-family:Arial,sans-serif; border-radius:12px; overflow:hidden; box-shadow:0 10px 18px rgba(15,23,42,0.04);">' +
-                    '<thead><tr><th style="padding:12px 10px; background:linear-gradient(135deg,#1b5c54,#214e4a); color:#fff; text-align:center; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(255,255,255,0.14);">No.</th>' +
-                    '<th style="padding:12px 10px; background:linear-gradient(135deg,#1b5c54,#214e4a); color:#fff; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(255,255,255,0.14);">Description</th>' +
-                    '<th style="padding:12px 10px; background:linear-gradient(135deg,#1b5c54,#214e4a); color:#fff; text-align:right; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(255,255,255,0.14);">Amount (Rs.)</th></tr></thead><tbody>';
+                var html = '<table style="width:100%; border-collapse:collapse; margin-top:18px; font-family:Arial,sans-serif;">' +
+                    '<thead><tr><th style="padding:10px 8px; border:1px solid #e5e7eb; text-align:center; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280;">No.</th>' +
+                    '<th style="padding:10px 8px; border:1px solid #e5e7eb; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280;">Description</th>' +
+                    '<th style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280;">Amount (Rs.)</th></tr></thead><tbody>';
                 rows.forEach(function (row, index) {
-                    html += '<tr><td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:center; font-weight:700; color:#1b5c54; background:' + (index % 2 === 0 ? '#ffffff' : '#f8faf8') + ';">' + (index + 1) + '</td>' +
-                        '<td style="padding:12px 10px; border:1px solid #e5e7eb; background:' + (index % 2 === 0 ? '#ffffff' : '#f8faf8') + ';">' + (row.description || '—') + '</td>' +
-                        '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:' + (index % 2 === 0 ? '#ffffff' : '#f8faf8') + ';">' + formatter.format(row.amount) + '</td></tr>';
+                    html += '<tr><td style="padding:10px 8px; border:1px solid #e5e7eb; text-align:center;">' + (index + 1) + '</td>' +
+                        '<td style="padding:10px 8px; border:1px solid #e5e7eb;">' + (row.description || '—') + '</td>' +
+                        '<td style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right;">' + formatter.format(row.amount) + '</td></tr>';
                 });
-                html += '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#f3f7f5; color:#1f2937;">Total Charges</td>' +
-                    '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#f3f7f5; color:#1f2937;">' + formatter.format(total) + '</td></tr>';
+                html += '<tr><td colspan="2" style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-weight:700;">Total Charges</td>' +
+                    '<td style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-weight:700;">' + formatter.format(total) + '</td></tr>';
                 if (checkbox && checkbox.checked) {
-                    html += '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff9f0; color:#1f2937;">Discount</td>' +
-                        '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff9f0; color:#1f2937;">' + formatter.format(discountValue) + '</td></tr>';
+                    html += '<tr><td colspan="2" style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-weight:700;">Discount</td>' +
+                        '<td style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-weight:700;">' + formatter.format(discountValue) + '</td></tr>';
                 }
                 html += '</tbody></table>';
                 return html;
@@ -709,46 +709,34 @@
                 return '<!doctype html>' +
                     '<html><head><meta charset="UTF-8"><title>VNS Healthcare Invoice</title>' +
                     '<style>' +
-                    'body{font-family:Arial,sans-serif;padding:28px;background:#f5f3ee;color:#111827;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;} ' +
-                    '.card{max-width:760px;margin:0 auto;border:1px solid #dfe7e3;border-radius:18px;padding:26px;background:#fff;box-shadow:0 20px 46px rgba(15,60,55,0.10);} ' +
-                    '.brand-row{display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 12px 18px;margin-bottom:16px;border-bottom:1px solid #e7efe9;text-align:center;background:#f4faf7;border-radius:12px;} ' +
-                    '.mark{width:54px;height:54px;border:1px solid #d7c28a;background:#1b5c54;display:grid;place-items:center;font-family:Georgia,serif;font-weight:700;font-size:24px;color:#f0e2b8;letter-spacing:0.04em;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12);} ' +
+                    'body{font-family:Arial,sans-serif;padding:28px;background:#fff;color:#111827;margin:0;} ' +
+                    '.card{max-width:720px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;padding:26px;background:#fff;box-shadow:0 14px 32px rgba(16,60,55,0.08);} ' +
+                    '.brand-row{display:flex;align-items:center;justify-content:center;gap:14px;padding-bottom:14px;margin-bottom:18px;border-bottom:1px solid #e5e7eb;text-align:center;} ' +
+                    '.mark{width:48px;height:48px;border:1px solid #d7c28a;background:linear-gradient(135deg,#1b5c54,#0e3832);display:grid;place-items:center;font-family:Georgia,serif;font-weight:700;font-size:22px;color:#f0e2b8;letter-spacing:0.04em;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12);} ' +
                     '.brand-copy{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;} ' +
                     '.brand-copy h1{margin:0; font-family:Georgia,serif;font-size:30px;font-weight:600;letter-spacing:0.02em;color:#d91f26;text-align:center;} ' +
                     '.brand-copy p{margin:3px 0 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;text-align:center;} ' +
-                    '.title{font-size:28px;font-weight:700;margin:0 0 8px;text-align:center;color:#1b5c54;} ' +
-                    '.subtitle{font-size:13px;color:#6b7280;margin-bottom:16px;text-align:center;} ' +
-                    '.meta-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(170px,0.8fr);gap:12px 24px;margin:18px 0 10px;align-items:start;width:100%;} ' +
-                    '.meta-column{display:grid;gap:12px;justify-items:start;width:100%;} ' +
-                    '.meta-column:last-child{justify-items:end; text-align:right;} ' +
-                    '.meta-item{min-height:46px;} ' +
-                    '.label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;line-height:1.2;margin-bottom:4px;} ' +
-                    '.value{display:block;font-size:15px;font-weight:700;color:#0f172a;line-height:1.35;} ' +
-                    '.account-box{margin-top:18px;padding:14px 16px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;} ' +
-                    '.invoice-table{width:100%; border-collapse:collapse; margin-top:18px; font-family:Arial,sans-serif; border-radius:12px; overflow:hidden; border:1px solid #dfe7e3; background:#fff;} ' +
-                    '.invoice-table thead th{padding:12px 10px; background:#1b5c54; color:#fff; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(255,255,255,0.14); text-align:left;} ' +
-                    '.invoice-table thead th:nth-child(3), .invoice-table tbody td:nth-child(3){text-align:right;} ' +
-                    '.invoice-table tbody td{padding:12px 10px; border:1px solid #e5e7eb; vertical-align:top; color:#24313d; background:#ffffff;} ' +
-                    '.invoice-table tbody tr:nth-child(even) td{background:#f8faf8;} ' +
-                    '.summary-row{display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding:12px 0 0;margin-top:14px;font-weight:600;color:#1f2937;} ' +
-                    '.summary-row.total{font-size:20px;color:#1b5c54;padding-top:14px;border-top:2px solid #d7c28a;} ' +
-                    '.total-pill{display:inline-block;padding:8px 12px;border-radius:999px;background:#eaf3ef;color:#1b5c54;font-weight:700;} ' +
+                    '.title{font-size:28px;font-weight:700;margin:0 0 10px;text-align:center;} ' +
+                    '.subtitle{font-size:13px;color:#6b7280;margin-bottom:16px;} ' +
+                    '.meta{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;} ' +
+                    '.label{font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;} ' +
+                    '.value{font-size:16px;font-weight:600;margin-top:6px;} ' +
+                    '.account-box{margin-top:18px;padding:14px;border:1px solid #e5e7eb;border-radius:10px;background:#f8fafc;} ' +
+                    '.row{display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding-top:12px;margin-top:14px;font-weight:600;} ' +
+                    '.row.total{font-size:20px;color:#1b5c54;} ' +
                     '@media print { body { padding: 0; } .card { border: none; box-shadow: none; max-width:100%; } }' +
                     '</style></head>' +
-                    '<body><div class="card"><div class="brand-row"><div class="brand-copy"><h1><u>VNS Healthcare</u></h1><p>Home care desk</p><p>Office: Sr. No. 56/1, Shewanti colony, Near Chintamani Chowk, Chinchwad, Pune - 33</p></div></div>' +
-                    '<div class="title"><u>Invoice</u></div>' +
+                    '<body><div class="card"><div class="brand-row"><!--<div class="mark">V</div>--><div class="brand-copy"><h1><u>VNS Healthcare</u></h1><p>Home care desk</p><p>Office: Sr. No. 56/1, Shewanti colony, Near Chintamani Chowk, Chinchwad, Pune - 33</p></div></div>' +
+                    '<div class="title">Invoice</div>' +
                     '<div class="subtitle">Generated on ' + new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) + '</div>' +
-                    '<div class="meta-grid"><div class="meta-column">' +
-                    '<div class="meta-item"><span class="label">Patient</span><span class="value">' + patientName + '</span></div>' +
-                    '<div class="meta-item"><span class="label">Service days</span><span class="value">' + (serviceValue ? serviceValue.textContent.trim() : '0') + '</span></div>' +
-                    '</div><div class="meta-column">' +
-                    '<div class="meta-item"><span class="label">Customer code</span><span class="value">' + customerText + '</span></div>' +
-                    '<div class="meta-item"><span class="label">Per day service</span><span class="value">' + (rateValue ? rateValue.textContent.trim() : formatter.format(dailyRate)) + '</span></div>' +
-                    '</div></div>' +
+                    '<div class="meta"><div><div class="label">Patient</div><div class="value">' + patientName + '</div></div>' +
+                    '<div><div class="label">Customer code</div><div class="value">' + customerText + '</div></div></div>' +
+                    '<div class="meta"><div><div class="label">Service days</div><div class="value">' + (serviceValue ? serviceValue.textContent.trim() : '0') + '</div></div>' +
+                    '<div><div class="label">Per day service</div><div class="value">' + (rateValue ? rateValue.textContent.trim() : formatter.format(dailyRate)) + '</div></div></div>' +
                     accountLines +
                     buildBreakdownTableMarkup() +
-                    (checkbox && checkbox.checked ? '<div class="summary-row"><span>Discount</span><span>' + formatter.format(discountValue) + '</span></div>' : '') +
-                    '<div class="summary-row total"><span>Net amount</span><span class="total-pill">' + formatter.format(finalAmount) + '</span></div></div></body></html>';
+                    (checkbox && checkbox.checked ? '<div class="row"><span>Discount</span><span>' + formatter.format(discountValue) + '</span></div>' : '') +
+                    '<div class="row total"><span>Net amount</span><span>' + formatter.format(finalAmount) + '</span></div></div></body></html>';
             }
 
             function openInvoicePreview() {
@@ -913,27 +901,21 @@
                 var html = '<!doctype html>' +
                     '<html><head><meta charset="UTF-8"><title>VNS Healthcare Invoice</title>' +
                     '<style>' +
-                    'body{font-family:Arial,sans-serif;padding:28px;background:linear-gradient(135deg,#f1f5f4,#f8f2e8);color:#111827;margin:0;} ' +
-                    '.card{max-width:760px;margin:0 auto;border:1px solid #dfe7e3;border-radius:18px;padding:26px;background:#fff;box-shadow:0 20px 46px rgba(15,60,55,0.10);} ' +
-                    '.brand-row{display:flex;align-items:center;justify-content:center;gap:16px;padding:10px 10px 18px;margin-bottom:16px;border-bottom:1px solid #e7efe9;text-align:center;background:linear-gradient(135deg,#f5faf8,#fffaf0);border-radius:12px;} ' +
-                    '.mark{width:54px;height:54px;border:1px solid #d7c28a;background:linear-gradient(135deg,#1b5c54,#0e3832);display:grid;place-items:center;font-family:Georgia,serif;font-weight:700;font-size:24px;color:#f0e2b8;letter-spacing:0.04em;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12);} ' +
+                    'body{font-family:Arial,sans-serif;padding:28px;background:#fff;color:#111827;margin:0;} ' +
+                    '.card{max-width:720px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;padding:26px;background:#fff;box-shadow:0 14px 32px rgba(16,60,55,0.08);} ' +
+                    '.brand-row{display:flex;align-items:center;justify-content:center;gap:14px;padding-bottom:14px;margin-bottom:18px;border-bottom:1px solid #e5e7eb;text-align:center;} ' +
+                    '.mark{width:48px;height:48px;border:1px solid #d7c28a;background:linear-gradient(135deg,#1b5c54,#0e3832);display:grid;place-items:center;font-family:Georgia,serif;font-weight:700;font-size:22px;color:#f0e2b8;letter-spacing:0.04em;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12);} ' +
                     '.brand-copy{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;} ' +
                     '.brand-copy h1{margin:0; font-family:Georgia,serif;font-size:30px;font-weight:600;letter-spacing:0.02em;color:#d91f26;text-align:center;} ' +
                     '.brand-copy p{margin:3px 0 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;text-align:center;} ' +
-                    '.title{font-size:28px;font-weight:700;margin:0 0 8px;text-align:center;color:#1b5c54;} ' +
-                    '.subtitle{font-size:13px;color:#6b7280;margin-bottom:16px;text-align:center;} ' +
+                    '.title{font-size:28px;font-weight:700;margin:0 0 10px;text-align:center;} ' +
+                    '.subtitle{font-size:13px;color:#6b7280;margin-bottom:16px;} ' +
                     '.meta{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;} ' +
                     '.label{font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;} ' +
-                    '.value{font-size:16px;font-weight:700;margin-top:6px;color:#0f172a;} ' +
-                    '.account-box{margin-top:18px;padding:14px 16px;border:1px solid #e5e7eb;border-radius:12px;background:linear-gradient(135deg,#f8fafc,#f4eee3);} ' +
-                    '.invoice-table{width:100%; border-collapse:collapse; margin-top:18px; font-family:Arial,sans-serif; border-radius:12px; overflow:hidden; box-shadow:0 10px 18px rgba(15,23,42,0.04);} ' +
-                    '.invoice-table thead th{padding:12px 10px; background:linear-gradient(135deg,#1b5c54,#214e4a); color:#fff; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(255,255,255,0.14); text-align:left;} ' +
-                    '.invoice-table thead th:last-child, .invoice-table tbody td:last-child{text-align:right;} ' +
-                    '.invoice-table tbody td{padding:12px 10px; border:1px solid #e5e7eb; vertical-align:top; color:#24313d; background:#ffffff;} ' +
-                    '.invoice-table tbody tr:nth-child(even) td{background:#f8faf8;} ' +
-                    '.summary-row{display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding:12px 0 0;margin-top:14px;font-weight:600;color:#1f2937;} ' +
-                    '.summary-row.total{font-size:20px;color:#1b5c54;padding-top:14px;border-top:2px solid #d7c28a;} ' +
-                    '.total-pill{display:inline-block;padding:8px 12px;border-radius:999px;background:rgba(27,92,84,0.10);color:#1b5c54;font-weight:700;} ' +
+                    '.value{font-size:16px;font-weight:600;margin-top:6px;} ' +
+                    '.account-box{margin-top:18px;padding:14px;border:1px solid #e5e7eb;border-radius:10px;background:#f8fafc;} ' +
+                    '.row{display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding-top:12px;margin-top:14px;font-weight:600;} ' +
+                    '.row.total{font-size:20px;color:#1b5c54;} ' +
                     '@media print { body { padding: 0; } .card { border: none; box-shadow: none; max-width:100%; } }' +
                     '</style></head>' +
                     '<body><div class="card"><div class="brand-row"><div class="mark">V</div><div class="brand-copy"><h1>VNS Healthcare</h1><p>Home care desk</p><p>Office: Sr. No. 56/1, Shewanti colony, Near Chintamani Chowk, Chinchwad, Pune - 33</p></div></div>' +
@@ -942,19 +924,21 @@
                     '<div class="meta"><div><div class="label">Patient</div><div class="value">' + patientName + '</div></div>' +
                     '<div><div class="label">Customer code</div><div class="value">' + customerText + '</div></div></div>' +
                     accountLines +
-                    '<table class="invoice-table">' +
-                    '<thead><tr><th style="width:60px; text-align:center;">No.</th><th>Description</th><th style="width:160px;">Amount (Rs.)</th></tr></thead><tbody>';
+                    '<table style="width:100%; border-collapse:collapse; margin-top:18px; font-family:Arial,sans-serif;">' +
+                    '<thead><tr><th style="padding:10px 8px; border:1px solid #e5e7eb; text-align:center; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280;">No.</th>' +
+                    '<th style="padding:10px 8px; border:1px solid #e5e7eb; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280;">Description</th>' +
+                    '<th style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280;">Amount (Rs.)</th></tr></thead><tbody>';
                 rows.forEach(function (row, index) {
-                    html += '<tr><td style="text-align:center; font-weight:700; color:#1b5c54; background:' + (index % 2 === 0 ? '#ffffff' : '#f8faf8') + ';">' + (index + 1) + '</td>' +
-                        '<td style="background:' + (index % 2 === 0 ? '#ffffff' : '#f8faf8') + ';">' + (row.description || '—') + '</td>' +
-                        '<td style="text-align:right; font-weight:700; background:' + (index % 2 === 0 ? '#ffffff' : '#f8faf8') + ';">' + formatter.format(Number(row.amount || 0)) + '</td></tr>';
+                    html += '<tr><td style="padding:10px 8px; border:1px solid #e5e7eb; text-align:center;">' + (index + 1) + '</td>' +
+                        '<td style="padding:10px 8px; border:1px solid #e5e7eb;">' + (row.description || '—') + '</td>' +
+                        '<td style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right;">' + formatter.format(Number(row.amount || 0)) + '</td></tr>';
                 });
-                html += '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#f3f7f5; color:#1f2937;">Total Charges</td>' +
-                    '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#f3f7f5; color:#1f2937;">' + formatter.format(total) + '</td></tr>' +
-                    (discount > 0 ? '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff9f0; color:#1f2937;">Discount</td>' +
-                    '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff9f0; color:#1f2937;">' + formatter.format(discount) + '</td></tr>' : '') +
+                html += '<tr><td colspan="2" style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-weight:700;">Total Charges</td>' +
+                    '<td style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-weight:700;">' + formatter.format(total) + '</td></tr>' +
+                    (discount > 0 ? '<tr><td colspan="2" style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-weight:700;">Discount</td>' +
+                    '<td style="padding:10px 8px; border:1px solid #e5e7eb; text-align:right; font-weight:700;">' + formatter.format(discount) + '</td></tr>' : '') +
                     '</tbody></table>' +
-                    '<div class="summary-row total"><span>Net amount</span><span class="total-pill">' + formatter.format(finalAmount) + '</span></div></div></body></html>';
+                    '<div class="row total"><span>Net amount</span><span>' + formatter.format(finalAmount) + '</span></div></div></body></html>';
                 if (previewArea) {
                     previewArea.innerHTML = '<iframe title="Invoice preview" style="width:100%; height:520px; border:0; background:#fff;" srcdoc="' + html.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '"></iframe>';
                 }

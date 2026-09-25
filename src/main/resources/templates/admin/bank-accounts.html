@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Bank accounts', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Finance</p>
+            <h2 class="page-title">Business bank accounts</h2>
+            <p class="sub">Manage payment account details used for business transactions.</p>
+        </div>
+        <a class="btn" th:href="@{/admin/bank-accounts/new}">Add bank account</a>
+    </div>
+
+    <div class="panel">
+        <table th:if="${!accounts.isEmpty()}">
+            <thead>
+            <tr>
+                <th>Account name</th>
+                <th>Bank name</th>
+                <th>Account no.</th>
+                <th>IFSC code</th>
+                <th>GPay / PhonePe</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="account : ${accounts}">
+                <td th:text="${account.accountName}">Account name</td>
+                <td th:text="${account.bankName}">Bank name</td>
+                <td th:text="${account.accountNo}">0000000000</td>
+                <td th:text="${account.ifscCode}">ABC123</td>
+                <td th:text="${account.gpayPhonepe != null && !#strings.isEmpty(account.gpayPhonepe) ? account.gpayPhonepe : '-'}">-</td>
+                <td>
+                    <div class="row-actions compact">
+                        <a class="btn ghost small" th:href="@{/admin/bank-accounts/{id}/edit(id=${account.id})}">Edit</a>
+                        <form th:action="@{/admin/bank-accounts/{id}/delete(id=${account.id})}" method="post" onsubmit="return confirm('Delete this bank account?');">
+                            <button class="btn coral small" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${accounts.isEmpty()}">No business bank accounts added yet.</p>
+    </div>
+</section>
+</html>
