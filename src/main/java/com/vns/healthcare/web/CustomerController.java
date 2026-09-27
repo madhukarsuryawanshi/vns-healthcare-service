@@ -7,9 +7,12 @@ import com.vns.healthcare.entity.Customer;
 import com.vns.healthcare.entity.CustomerDocument;
 import com.vns.healthcare.entity.CustomerDuty;
 import com.vns.healthcare.entity.CustomerInvoice;
+import com.vns.healthcare.entity.AppSequence;
 import com.vns.healthcare.exception.BusinessException;
+import com.vns.healthcare.repository.AppSequenceRepository;
 import com.vns.healthcare.repository.BusinessBankAccountRepository;
 import com.vns.healthcare.repository.CustomerInvoiceRepository;
+import com.vns.healthcare.service.CustomerChargeStatusService;
 import com.vns.healthcare.service.CustomerDutyService;
 import com.vns.healthcare.service.CustomerReportService;
 import com.vns.healthcare.service.CustomerService;
@@ -61,6 +64,8 @@ public class CustomerController {
     private final FileStorageService fileStorageService;
     private final BusinessBankAccountRepository businessBankAccountRepository;
     private final CustomerInvoiceRepository customerInvoiceRepository;
+    private final AppSequenceRepository appSequenceRepository;
+    private final CustomerChargeStatusService chargeStatusService;
 
     public CustomerController(CustomerService customerService,
                               EmployeeService employeeService,
@@ -68,7 +73,9 @@ public class CustomerController {
                               CustomerReportService reportService,
                               FileStorageService fileStorageService,
                               BusinessBankAccountRepository businessBankAccountRepository,
-                              CustomerInvoiceRepository customerInvoiceRepository) {
+                              CustomerInvoiceRepository customerInvoiceRepository,
+                              AppSequenceRepository appSequenceRepository,
+                              CustomerChargeStatusService chargeStatusService) {
         this.customerService = customerService;
         this.employeeService = employeeService;
         this.dutyService = dutyService;
@@ -76,6 +83,8 @@ public class CustomerController {
         this.fileStorageService = fileStorageService;
         this.businessBankAccountRepository = businessBankAccountRepository;
         this.customerInvoiceRepository = customerInvoiceRepository;
+        this.appSequenceRepository = appSequenceRepository;
+        this.chargeStatusService = chargeStatusService;
     }
 
     @GetMapping
@@ -217,9 +226,11 @@ public class CustomerController {
     @GetMapping("/{id:\\d+}")
     public String detail(@PathVariable Long id,
                          @RequestParam(value = "month", required = false) String month,
+                         @RequestParam(value = "chargeYear", required = false) Integer chargeYear,
                          Model model) {
         Customer customer = customerService.get(id);
         YearMonth yearMonth = parseMonth(month);
+        int selectedChargeYear = chargeYear == null ? YearMonth.now().getYear() : chargeYear;
         LocalDate from = yearMonth.atDay(1);
         LocalDate to = yearMonth.atEndOfMonth();
         Map<LocalDate, CustomerDuty> dutyMap = new LinkedHashMap<LocalDate, CustomerDuty>();
@@ -254,6 +265,11 @@ public class CustomerController {
         model.addAttribute("invoiceDailyRate", invoiceDailyRate);
         model.addAttribute("bankAccounts", businessBankAccountRepository.findAll());
         model.addAttribute("customerInvoices", customerInvoiceRepository.findByCustomerOrderByFromDateDesc(customer));
+        model.addAttribute("chargeStatusYear", selectedChargeYear);
+        model.addAttribute("chargeStatusMonths", chargeStatusService.monthsForCustomer(customer, selectedChargeYear));
+        model.addAttribute("chargeStatuses", com.vns.healthcare.domain.ChargePayStatus.values());
+        model.addAttribute("chargeStatusPrevYear", selectedChargeYear - 1);
+        model.addAttribute("chargeStatusNextYear", selectedChargeYear + 1);
         return "customers/detail";
     }
 
@@ -423,7 +439,20 @@ public class CustomerController {
     }
 
     private String buildInvoiceNumber(Customer customer, LocalDate toDate) {
-        return "INV-" + customer.getCustCode() + "-" + toDate.getYear() + String.format("%02d", toDate.getMonthValue()) + "-" + System.currentTimeMillis();
+        int currentYear = toDate.getYear();
+        int nextYear = currentYear + 1;
+        String yearLabel = currentYear + "-" + nextYear;
+        String seqName = "INVOICE_" + currentYear;
+        AppSequence sequence = appSequenceRepository.findById(seqName).orElse(null);
+        if (sequence == null) {
+            sequence = new AppSequence();
+            sequence.setName(seqName);
+            sequence.setNextValue(1);
+        }
+        long value = sequence.getNextValue();
+        sequence.setNextValue(value + 1);
+        appSequenceRepository.save(sequence);
+        return "vns/" + yearLabel + "/" + String.format("%03d", value);
     }
 
     private BigDecimal parseBigDecimal(Object value) {
@@ -510,6 +539,24 @@ public class CustomerController {
             redirectAttributes.addFlashAttribute("success", "Staff assignment updated.");
         } catch (BusinessException ex) {
             log.error("Failed to assign employee [{}] to customer [{}]", employeeId, id, ex);
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        }
+        return "redirect:/customers/" + id;
+    }
+
+    @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
+    @PostMapping("/{id:\\d+}/charge-status")
+    public String saveChargeStatus(@PathVariable Long id,
+                                  @RequestParam int year,
+                                  @RequestParam int month,
+                                  @RequestParam com.vns.healthcare.domain.ChargePayStatus status,
+                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidOn,
+                                  @RequestParam(required = false) String remarks,
+                                  RedirectAttributes redirectAttributes) {
+        try {
+            chargeStatusService.save(id, year, month, status, paidOn, remarks);
+            redirectAttributes.addFlashAttribute("success", "Charge status saved.");
+        } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
         }
         return "redirect:/customers/" + id;

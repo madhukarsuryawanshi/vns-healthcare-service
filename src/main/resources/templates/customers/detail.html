@@ -250,6 +250,58 @@
     </div>
 
     <div class="panel">
+        <div class="topbar" style="margin-bottom:12px; align-items:center;">
+            <h3 style="margin:0;">Charges Paid Status</h3>
+            <div class="actions" style="gap:8px;">
+                <a class="btn ghost small" th:href="@{/customers/{id}(id=${customer.id}, chargeYear=${chargeStatusYear - 1})}">Previous year</a>
+                <strong th:text="${chargeStatusYear}">2026</strong>
+                <a class="btn ghost small" th:href="@{/customers/{id}(id=${customer.id}, chargeYear=${chargeStatusYear + 1})}">Next year</a>
+            </div>
+        </div>
+        <div style="overflow-x:auto; margin-top:12px;">
+            <table style="width:100%; border-collapse:collapse; min-width:760px;">
+                <thead>
+                <tr>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Month</th>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Status</th>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Paid on</th>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Remark</th>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:110px;">Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="monthRow : ${chargeStatusMonths}">
+                    <td style="padding:8px 10px; border:1px solid var(--line);" th:text="${monthRow.label} + ' ' + ${monthRow.year}">January 2026</td>
+                    <td style="padding:8px 10px; border:1px solid var(--line);">
+                        <form th:if="${canWriteCustomers and !customer.closed and monthRow.editable}" th:action="@{/customers/{id}/charge-status(id=${customer.id})}" method="post" style="margin:0; display:flex; flex-direction:column; gap:8px;">
+                            <input type="hidden" name="year" th:value="${chargeStatusYear}"/>
+                            <input type="hidden" name="month" th:value="${monthRow.monthValue}"/>
+                            <select name="status" style="max-width:180px;">
+                                <option th:each="statusItem : ${chargeStatuses}"
+                                        th:value="${statusItem}"
+                                        th:text="${statusItem.name() == 'UNPAID' ? 'Unpaid' : (statusItem.name() == 'IN_PROGRESS' ? 'In progress' : 'Paid')}"
+                                        th:selected="${monthRow.status != null and monthRow.status == statusItem}">Paid</option>
+                            </select>
+                    </td>
+                    <td style="padding:8px 10px; border:1px solid var(--line);">
+                            <input type="date" name="paidOn" style="width:100%; max-width:150px;"
+                                   th:value="${monthRow.record != null and monthRow.record.paidOn != null} ? ${#temporals.format(monthRow.record.paidOn, 'yyyy-MM-dd')} : ''"/>
+                    </td>
+                    <td style="padding:8px 10px; border:1px solid var(--line);">
+                            <textarea name="remarks" rows="2" style="width:100%; min-width:180px; resize:vertical;" th:text="${monthRow.record != null} ? ${monthRow.record.remarks} : ''"></textarea>
+                    </td>
+                    <td style="padding:8px 10px; border:1px solid var(--line); text-align:center;">
+                            <button class="btn secondary small" type="submit">Save</button>
+                        </form>
+                        <span th:unless="${canWriteCustomers and !customer.closed and monthRow.editable}" class="sub">Not available</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel">
         <h3>Duty roster (date range)</h3>
         <p class="sub">Example: Day-01 to Day-04 Employee A, then Day-05 to Day-10 Employee B. Tick Hold for unpaid days.</p>
         <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/duties(id=${customer.id})}" method="post" class="form-grid">
@@ -790,11 +842,11 @@
                 if (selectedAccount.gpayQrImage) {
                     return '<img src="data:' + (selectedAccount.gpayQrContentType || 'image/png') + ';base64,' + selectedAccount.gpayQrImage + '" alt="GPay / PhonePe QR" style="max-width:120px; height:120px; width:120px; object-fit:contain; margin-left:12px; vertical-align:top; border:1px solid #e5e7eb; border-radius:10px; background:#fff;" />';
                 }
-                if (selectedAccount.accountId) {
-                    return '<img src="/admin/bank-accounts/' + selectedAccount.accountId + '/qr" alt="GPay / PhonePe QR" style="max-width:120px; height:120px; width:120px; object-fit:contain; margin-left:12px; vertical-align:top; border:1px solid #e5e7eb; border-radius:10px; background:#fff;" />';
-                }
                 if (selectedAccount.gpayQrImageUrl) {
                     return '<img src="' + selectedAccount.gpayQrImageUrl + '" alt="GPay / PhonePe QR" style="max-width:120px; height:120px; width:120px; object-fit:contain; margin-left:12px; vertical-align:top; border:1px solid #e5e7eb; border-radius:10px; background:#fff;" />';
+                }
+                if (selectedAccount.accountId) {
+                    return '<img src="/admin/bank-accounts/' + selectedAccount.accountId + '/qr" alt="GPay / PhonePe QR" style="max-width:120px; height:120px; width:120px; object-fit:contain; margin-left:12px; vertical-align:top; border:1px solid #e5e7eb; border-radius:10px; background:#fff;" />';
                 }
                 return '<span style="display:inline-block;max-width:120px; width:120px; height:120px; margin-left:12px;vertical-align:top;border:1px solid #e5e7eb;border-radius:10px;padding:8px;background:#f8fafc;display:flex;align-items:center;justify-content:center;">QR image attached</span>';
             }
@@ -838,7 +890,7 @@
                 var finalAmount = Math.max(0, total - discountValue);
                 var patientName = (previewData.patientName && String(previewData.patientName).trim()) || (patient ? patient.textContent.trim() : 'N/A');
                 var customerText = (previewData.customerCode && String(previewData.customerCode).trim()) || (customerCode ? customerCode.textContent.trim() : 'N/A');
-                var invoiceIdText = (previewData.invoiceId && String(previewData.invoiceId).trim()) || (lastSavedInvoiceId && String(lastSavedInvoiceId).trim()) || 'Draft';
+                var invoiceIdText = (previewData.invoiceNumber && String(previewData.invoiceNumber).trim()) || (lastSavedInvoiceId && String(lastSavedInvoiceId).trim()) || 'Draft';
                 var selectedAccount = getInvoiceAccountDetails(previewData) || getSelectedAccountDetails();
                 selectedAccount = await enrichSelectedAccountWithQr(selectedAccount);
                 var qrImageMarkup = resolveQrImageMarkup(selectedAccount);
@@ -865,7 +917,9 @@
                     '.brand-copy h1{margin:0; font-family:Georgia,serif;font-size:34px;font-weight:700;letter-spacing:0.02em;color:#d91f26;text-align:center;line-height:1.08;} ' +
                     '.brand-copy p{margin:4px 0 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#4b5563;text-align:center;line-height:1.4;font-weight:600;} ' +
                     '.title{font-size:30px;font-weight:700;margin:12px 0 8px;text-align:center;color:#1b5c54;} ' +
-                    '.subtitle{font-size:13px;color:#6b7280;margin:0 0 18px;text-align:left;font-style:normal;} ' +
+                    '.subtitle{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:#6b7280;margin:0 0 18px;font-style:normal;} ' +
+                    '.subtitle .left{flex:1 1 auto;text-align:left;} ' +
+                    '.subtitle .right{flex:0 0 auto;text-align:right;} ' +
                     '.meta-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 30px;margin:0 0 8px;align-items:start;width:100%;} ' +
                     '.meta-column{display:grid;gap:10px;justify-items:stretch;width:100%; text-align:left;} ' +
                     '.meta-column:last-child{justify-items:stretch; text-align:right;} ' +
@@ -887,9 +941,9 @@
                     '.total-pill{display:inline-block;padding:8px 12px;border-radius:999px;background:#eaf3ef;color:#1b5c54;font-weight:700;} ' +
                     '@media print { body { padding: 0; } .card { border: none; box-shadow: none; max-width:100%; } }' +
                     '</style></head>' +
-                    '<body><div class="card"><div class="brand-row"><div class="brand-copy"><h1>VNS Healthcare</h1><p>Home care desk</p><p>Office: Sr. No. 56/1, Shewanti colony, Near Chintamani Chowk, Chinchwad, Pune - 33</p></div></div>' +
-                    '<div class="title">Invoice</div>' +
-                    '<div class="subtitle">Invoice ID: ' + invoiceIdText + ' · Generated on ' + new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) + '</div>' +
+                    '<body><div class="card"><div class="brand-row"><div class="brand-copy"><h1><u>VNS Healthcare</u></h1><p>Home care desk</p><p>Office: Sr. No. 56/1, Shewanti colony, Near Chintamani Chowk, Chinchwad, Pune - 33</p></div></div>' +
+                    '<div class="title"><u>Invoice</u></div>' +
+                    '<div class="subtitle"><span class="left">Invoice ID: ' + invoiceIdText + '</span><span class="right">Generated on ' + new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) + '</span></div>' +
                     '<div class="meta-grid"><div class="meta-column">' +
                     '<div class="meta-item"><span class="label">Patient</span><span class="value">' + patientName + '</span></div>' +
                     '<div class="meta-item"><span class="label">Service days</span><span class="value">' + (serviceValue ? serviceValue.textContent.trim() : '0') + '</span></div>' +
@@ -910,6 +964,7 @@
                 var customerCodeValue = document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1];
                 currentInvoicePreviewData = {
                     invoiceId: lastSavedInvoiceId || '',
+                    invoiceNumber: lastSavedInvoiceId ? '' : '',
                     fromDate: invoiceDateFrom ? invoiceDateFrom.value : '',
                     toDate: invoiceDateTo ? invoiceDateTo.value : '',
                     rows: readInvoiceRows(),
@@ -1205,6 +1260,7 @@
                 var customerCodeEl = document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1];
                 currentInvoicePreviewData = {
                     invoiceId: invoice && invoice.id ? String(invoice.id) : (lastSavedInvoiceId ? String(lastSavedInvoiceId) : ''),
+                    invoiceNumber: invoice && invoice.invoiceNumber ? invoice.invoiceNumber : '',
                     fromDate: invoice && invoice.fromDate ? invoice.fromDate : '',
                     toDate: invoice && invoice.toDate ? invoice.toDate : '',
                     rows: Array.isArray(invoice && invoice.rows) ? invoice.rows : [],
@@ -1264,7 +1320,7 @@
                     accountNo: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.accountNo || '') : '',
                     ifscCode: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.ifscCode || '') : '',
                     gpayPhonepe: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.gpayPhonepe || '') : '',
-                    invoiceNumber: lastSavedInvoiceId ? '' : 'INV-' + customerId + '-' + Date.now()
+                    invoiceNumber: lastSavedInvoiceId ? '' : ''
                 };
                 var csrfMeta = document.querySelector('meta[name="_csrf"]');
                 var csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');

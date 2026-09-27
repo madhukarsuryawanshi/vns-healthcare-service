@@ -5,6 +5,7 @@ GitHub accounts:
 -36divisionnmc . 36divisionnmc@gmail.com
 -oracleclass . classoracle0@gmail.com
 -devopswithaws . devopswithaws1@gmail.com
+-devopswithaws669 . devopswithaws2@gmail.com
 
 
 Employee:
@@ -83,9 +84,32 @@ Attedace:
 	Have a All save button to save attendace
 	cell color differes every emp switch -Done
 	
+
+Employy - Known Language? Hindi/Marathi/English - Done
+
 TODO
-Employy - Known Language? Hindi/Marathi/English
 Admin - usename: vns emailid as username and autogenerate passwor, Firsttime login ask to change password. and send password to user emailid - TODO
+Invoice generation - In Customer profile shoud generate invoice after click button - Done
+	-If discount applicable while prepare a invoice should have checkbox to enter discounted amount
+	-While preparing an invoice, give a dropdown to select account no. so that ac no will appear on invoice 
+Add bank accounts in Admin - Done
+	Account Name
+	Bank Name
+	Account no.
+	IFSC code
+	GPay/phonepay
+	
+Attachment should store in DB table - Done
+
+------
+-Add customer - add a textbox for Advance payment
+	While generate the invoice, advance should be null and deduct from total amount
+-Invoice id should be printed on invoice (vns/2026-2027/invoice-no)
+-search invoice by invoice id
+-Downloaded invoice should have name and Month
+
+
+	
 
 	
 	
