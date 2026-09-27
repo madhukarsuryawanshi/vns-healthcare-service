@@ -60,6 +60,9 @@ public class CustomerInvoice extends AuditableEntity {
     @Column(name = "bank_account_name", length = 150)
     private String bankAccountName;
 
+    @Column(name = "bank_name", length = 150)
+    private String bankName;
+
     @Column(name = "bank_account_no", length = 80)
     private String bankAccountNo;
 
@@ -203,6 +206,14 @@ public class CustomerInvoice extends AuditableEntity {
 
     public void setBankAccountName(String bankAccountName) {
         this.bankAccountName = bankAccountName;
+    }
+
+    public String getBankName() {
+        return bankName;
+    }
+
+    public void setBankName(String bankName) {
+        this.bankName = bankName;
     }
 
     public String getBankAccountNo() {

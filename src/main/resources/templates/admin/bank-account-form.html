@@ -10,7 +10,7 @@
     </div>
 
     <div class="panel">
-        <form th:action="${bankAccountId != null} ? @{/admin/bank-accounts/{id}(id=${bankAccountId})} : @{/admin/bank-accounts}" method="post" th:object="${bankAccount}" class="form-grid">
+        <form th:action="${bankAccountId != null} ? @{/admin/bank-accounts/{id}(id=${bankAccountId})} : @{/admin/bank-accounts}" method="post" th:object="${bankAccount}" enctype="multipart/form-data" class="form-grid">
             <div class="field full">
                 <label class="req" for="accountName">Account name</label>
                 <input id="accountName" type="text" th:field="*{accountName}" placeholder="e.g. VNS Healthcare" required/>
@@ -32,8 +32,15 @@
             </div>
 
             <div class="field full">
-                <label for="gpayPhonepe">GPay / PhonePay</label>
-                <input id="gpayPhonepe" type="text" th:field="*{gpayPhonepe}" placeholder="e.g. +91 99999 99999 / UPI ID"/>
+                <label for="gpayPhonepe">GPay / PhonePe scanner / UPI ID</label>
+                <input id="gpayPhonepe" type="text" th:field="*{gpayPhonepe}" placeholder="Scan QR or enter UPI ID / mobile number"/>
+                <small class="sub">Use the phone camera to scan the QR or enter the UPI ID manually.</small>
+            </div>
+
+            <div class="field full">
+                <label for="gpayQrImage">QR image attachment</label>
+                <input id="gpayQrImage" type="file" name="gpayQrImage" accept="image/*"/>
+                <small class="sub">Upload the scanned QR image to store it in the database.</small>
             </div>
 
             <div class="field full actions">

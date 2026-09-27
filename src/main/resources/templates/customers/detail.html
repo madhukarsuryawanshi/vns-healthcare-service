@@ -97,128 +97,150 @@
                 <h3 style="margin:0">VNS Healthcare Invoice</h3>
             </div>
             <div class="actions" style="gap:8px;">
+                <button type="button" class="btn secondary" id="new-invoice-btn">New Invoice</button>
                 <button type="button" class="btn secondary" id="save-invoice-btn">Save invoice</button>
                 <button type="button" class="btn ghost" id="share-invoice-btn">Share invoice</button>
             </div>
         </div>
 
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-bottom:12px;">
-            <div>
-                <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Select account</label>
-                <select id="invoice-account-select" style="width:100%;" th:if="${!#lists.isEmpty(bankAccounts)}">
-                    <option value="">Select account</option>
-                    <option th:each="account : ${bankAccounts}"
-                            th:value="${account.id}"
-                            th:text="${account.accountName + ' · ' + account.bankName + ' · ' + account.accountNo}"
-                            th:attr="data-account-name=${account.accountName}, data-bank-name=${account.bankName}, data-account-no=${account.accountNo}, data-ifsc-code=${account.ifscCode}, data-gpay-phonepe=${account.gpayPhonepe}">Account</option>
-                </select>
-                <p class="sub" th:if="${#lists.isEmpty(bankAccounts)}">No bank accounts available.</p>
-            </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:12px;">
-            <div>
-                <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Patient</label>
-                <div style="font-size:1.02rem; font-weight:600;" th:text="${customer.patientName}">Patient</div>
-            </div>
-            <div>
-                <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Customer code</label>
-                <div style="font-size:1.02rem; font-weight:600;" th:text="${customer.custCode}">CUS-1001</div>
-            </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:end; margin-bottom:12px;">
-            <div>
-                <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Service days</label>
-                <div id="invoice-service-days" style="font-size:1.2rem; font-weight:700; color:var(--ink);" th:text="${serviceDays}">0</div>
-            </div>
-            <div>
-                <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Per day service</label>
-                <div id="invoice-daily-rate" style="font-size:1.2rem; font-weight:700; color:var(--ink);"
-                     th:text="${invoiceDailyRate != null} ? ${#numbers.formatDecimal(invoiceDailyRate, 1, 'COMMA', 2, 'POINT')} : '0.00'">0.00</div>
-            </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:12px;">
-            <div>
-                <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">From date</label>
-                <input id="invoice-date-from" type="date" style="width:100%;"/>
-            </div>
-            <div>
-                <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">To date</label>
-                <input id="invoice-date-to" type="date" style="width:100%;"/>
-            </div>
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin:10px 0 8px; flex-wrap:wrap;">
-            <h4 style="margin:0; font-size:1rem;">Total charges</h4>
-            <button type="button" id="add-invoice-row-btn" class="btn secondary small">Add row</button>
-        </div>
-
-        <div style="overflow-x:auto; margin-bottom:12px;">
-            <table style="width:100%; border-collapse:collapse; min-width:620px;">
-                <thead>
-                <tr>
-                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:60px;">Sr. No</th>
-                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Description</th>
-                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:right; width:180px;">Amount (Rs.)</th>
-                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">Action</th>
-                </tr>
-                </thead>
-                <tbody id="invoice-breakdown-body"></tbody>
-            </table>
-        </div>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:end; margin-bottom:12px;">
-            <div>
-                <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Total charges</label>
-                <div id="invoice-total-raw" style="font-size:1.2rem; font-weight:700; color:var(--ink);">₹0.00</div>
-            </div>
-            <div>
-                <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);">
-                    <input type="checkbox" id="apply-discount"/>
-                    Apply discount
-                </label>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <input id="invoice-discount" type="number" min="0" step="0.01" value="0" disabled style="max-width:150px;" placeholder="0.00"/>
-                    <span class="sub">₹</span>
+        <div id="invoice-entry-panel" style="display:none;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Select account</label>
+                    <select id="invoice-account-select" style="width:100%;" th:if="${!#lists.isEmpty(bankAccounts)}">
+                        <option value="">Select account</option>
+                        <option th:each="account : ${bankAccounts}"
+                                th:value="${account.id}"
+                                th:text="${account.accountName + ' · ' + account.bankName + ' · ' + account.accountNo}"
+                                th:attr="data-account-name=${account.accountName}, data-bank-name=${account.bankName}, data-account-no=${account.accountNo}, data-ifsc-code=${account.ifscCode}, data-gpay-phonepe=${account.gpayPhonepe}, data-gpay-qr-image-url=@{/admin/bank-accounts/{id}/qr(id=${account.id})}">Account</option>
+                    </select>
+                    <p class="sub" th:if="${#lists.isEmpty(bankAccounts)}">No bank accounts available.</p>
                 </div>
             </div>
-        </div>
 
-        <hr style="margin:12px 0; border-color: var(--line);"/>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Patient</label>
+                    <div style="font-size:1.02rem; font-weight:600;" th:text="${customer.patientName}">Patient</div>
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Customer code</label>
+                    <div style="font-size:1.02rem; font-weight:600;" th:text="${customer.custCode}">CUS-1001</div>
+                </div>
+            </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-            <label style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin:0;">Net amount</label>
-            <strong id="invoice-net-amount" style="font-size:1.4rem; color:var(--teal);">₹0.00</strong>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:end; margin-bottom:12px;">
+                <div>
+                    <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Service days</label>
+                    <div id="invoice-service-days" style="font-size:1.2rem; font-weight:700; color:var(--ink);" th:text="${serviceDays}">0</div>
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Per day service</label>
+                    <div id="invoice-daily-rate" style="font-size:1.2rem; font-weight:700; color:var(--ink);"
+                         th:text="${invoiceDailyRate != null} ? ${#numbers.formatDecimal(invoiceDailyRate, 1, 'COMMA', 2, 'POINT')} : '0.00'">0.00</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">From date</label>
+                    <input id="invoice-date-from" type="date" style="width:100%;"/>
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">To date</label>
+                    <input id="invoice-date-to" type="date" style="width:100%;"/>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin:10px 0 8px; flex-wrap:wrap;">
+                <h4 style="margin:0; font-size:1rem;">Total charges</h4>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <button type="button" id="add-invoice-row-btn" class="btn secondary small">Add row</button>
+                    <button type="button" id="cancel-invoice-btn" class="btn ghost small">Cancel</button>
+                </div>
+            </div>
+
+            <div style="overflow-x:auto; margin-bottom:12px;">
+                <table style="width:100%; border-collapse:collapse; min-width:620px;">
+                    <thead>
+                    <tr>
+                        <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:60px;">Sr. No</th>
+                        <th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Description</th>
+                        <th style="padding:8px 10px; border:1px solid var(--line); text-align:right; width:180px;">Amount (Rs.)</th>
+                        <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">Action</th>
+                    </tr>
+                    </thead>
+                    <tbody id="invoice-breakdown-body"></tbody>
+                </table>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:end; margin-bottom:12px;">
+                <div>
+                    <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;">Total charges</label>
+                    <div id="invoice-total-raw" style="font-size:1.2rem; font-weight:700; color:var(--ink);">₹0.00</div>
+                </div>
+                <div>
+                    <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);">
+                        <input type="checkbox" id="apply-discount"/>
+                        Apply discount
+                    </label>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input id="invoice-discount" type="number" min="0" step="0.01" value="0" disabled style="max-width:150px;" placeholder="0.00"/>
+                        <span class="sub">₹</span>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="margin:12px 0; border-color: var(--line);"/>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                <label style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin:0;">Net amount</label>
+                <strong id="invoice-net-amount" style="font-size:1.4rem; color:var(--teal);">₹0.00</strong>
+            </div>
         </div>
 
         <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--line);">
-            <h4 style="margin:0 0 10px;">Invoice history</h4>
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
+                <h4 style="margin:0;">Invoice history</h4>
+                <div style="display:flex; align-items:center; gap:8px; min-width:220px;">
+                    <input id="invoice-history-search" type="text" placeholder="Search by Invoice ID" style="width:100%; max-width:240px;"/>
+                </div>
+            </div>
             <table th:if="${!#lists.isEmpty(customerInvoices)}" style="width:100%; border-collapse:collapse;">
                 <thead>
                 <tr>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:40px;">
+                        <input type="checkbox" id="select-all-invoices" aria-label="Select all invoices"/>
+                    </th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Period</th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Invoice</th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Total</th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Discount</th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Net</th>
-                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:150px;">Action</th>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">View</th>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">Edit</th>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">Delete</th>
                 </tr>
                 </thead>
                 <tbody id="customer-invoice-history-body">
                 <tr th:each="invoice : ${customerInvoices}" th:attr="data-invoice-id=${invoice.id}">
+                    <td style="padding:8px 10px; border:1px solid var(--line); text-align:center;">
+                        <input type="checkbox" class="invoice-select-checkbox" th:attr="data-invoice-id=${invoice.id}" aria-label="Select invoice"/>
+                    </td>
                     <td style="padding:8px 10px; border:1px solid var(--line);"
                         th:text="${#temporals.format(invoice.fromDate, 'dd MMM yyyy')} + ' - ' + ${#temporals.format(invoice.toDate, 'dd MMM yyyy')}">01 Aug - 31 Aug</td>
                     <td style="padding:8px 10px; border:1px solid var(--line);" th:text="${invoice.invoiceNumber}">INV-1001</td>
                     <td style="padding:8px 10px; border:1px solid var(--line); text-align:right;" th:text="${#numbers.formatDecimal(invoice.totalAmount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
                     <td style="padding:8px 10px; border:1px solid var(--line); text-align:right;" th:text="${#numbers.formatDecimal(invoice.discountAmount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
                     <td style="padding:8px 10px; border:1px solid var(--line); text-align:right;" th:text="${#numbers.formatDecimal(invoice.netAmount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
-                    <td style="padding:8px 10px; border:1px solid var(--line); text-align:center;">
-                        <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
-                            <button type="button" class="btn ghost small view-invoice-btn" th:attr="data-invoice-id=${invoice.id}">View</button>
-                            <button type="button" class="btn ghost small delete-invoice-btn" th:attr="data-invoice-id=${invoice.id}">Delete</button>
-                        </div>
+                    <td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">
+                        <button type="button" class="btn ghost small view-invoice-btn" th:attr="data-invoice-id=${invoice.id}">View</button>
+                    </td>
+                    <td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">
+                        <button type="button" class="btn ghost small edit-invoice-btn" th:attr="data-invoice-id=${invoice.id}">Edit</button>
+                    </td>
+                    <td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">
+                        <button type="button" class="btn ghost small delete-invoice-btn" th:attr="data-invoice-id=${invoice.id}">Delete</button>
                     </td>
                 </tr>
                 </tbody>
@@ -347,6 +369,9 @@
             var dailyRateEl = document.getElementById('invoice-daily-rate');
             var shareBtn = document.getElementById('share-invoice-btn');
             var saveBtn = document.getElementById('save-invoice-btn');
+            var newInvoiceBtn = document.getElementById('new-invoice-btn');
+            var cancelInvoiceBtn = document.getElementById('cancel-invoice-btn');
+            var invoiceEntryPanel = document.getElementById('invoice-entry-panel');
             var accountSelect = document.getElementById('invoice-account-select');
             var modal = document.getElementById('invoice-modal');
             var previewArea = document.getElementById('invoice-preview-area');
@@ -357,6 +382,8 @@
             var customerId = panel.dataset.customerId;
             var invoiceDateTo = document.getElementById('invoice-date-to');
             var invoiceTableBody = document.getElementById('invoice-breakdown-body');
+            var lastSavedInvoiceId = null;
+            var currentInvoicePreviewData = null;
             var formatter = new Intl.NumberFormat('en-IN', {
                 style: 'currency',
                 currency: 'INR',
@@ -476,6 +503,9 @@
                 if (!descriptionInput) {
                     return;
                 }
+                if (row.dataset.manualDescription === 'true') {
+                    return;
+                }
                 var dateText = buildRowDateText();
                 if (!dateText) {
                     return;
@@ -562,8 +592,14 @@
                     });
                     descriptionInput.addEventListener('input', function () {
                         row.dataset.autoDescription = 'false';
+                        row.dataset.manualDescription = 'true';
                         lastFocusedInvoiceRow = row;
                         updateInvoice();
+                    });
+                    descriptionInput.addEventListener('blur', function () {
+                        if (!descriptionInput.value || !descriptionInput.value.trim()) {
+                            row.dataset.manualDescription = 'false';
+                        }
                     });
                     if (autoDescription) {
                         descriptionInput.focus();
@@ -601,6 +637,9 @@
                 }
                 var descriptionInput = targetRow.querySelector('.invoice-item-description');
                 if (!descriptionInput) {
+                    return;
+                }
+                if (targetRow.dataset.manualDescription === 'true') {
                     return;
                 }
                 if (targetRow.dataset.autoDescription === 'true') {
@@ -645,15 +684,119 @@
                     var selectedOption = accountSelect.options[accountSelect.selectedIndex];
                     if (selectedOption && selectedOption.dataset.accountName) {
                         account = {
+                            accountId: selectedOption.value || '',
                             accountName: selectedOption.dataset.accountName || '',
                             bankName: selectedOption.dataset.bankName || '',
                             accountNo: selectedOption.dataset.accountNo || '',
                             ifscCode: selectedOption.dataset.ifscCode || '',
-                            gpayPhonepe: selectedOption.dataset.gpayPhonepe || ''
+                            gpayPhonepe: selectedOption.dataset.gpayPhonepe || '',
+                            gpayQrImage: selectedOption.dataset.gpayQrImage || '',
+                            gpayQrContentType: selectedOption.dataset.gpayQrContentType || '',
+                            gpayQrImageUrl: selectedOption.dataset.gpayQrImageUrl || ''
                         };
                     }
                 }
                 return account;
+            }
+
+            function getInvoiceAccountDetails(invoiceOverride) {
+                if (invoiceOverride) {
+                    var invoiceFields = {
+                        accountId: invoiceOverride.bankAccountId || invoiceOverride.accountId || '',
+                        accountName: invoiceOverride.bankAccountName || invoiceOverride.accountName || '',
+                        bankName: invoiceOverride.bankName || '',
+                        accountNo: invoiceOverride.bankAccountNo || invoiceOverride.accountNo || '',
+                        ifscCode: invoiceOverride.ifscCode || '',
+                        gpayPhonepe: invoiceOverride.gpayPhonepe || invoiceOverride.gpayPhonepe || '',
+                        gpayQrImage: invoiceOverride.gpayQrImage || '',
+                        gpayQrContentType: invoiceOverride.gpayQrContentType || 'image/png',
+                        gpayQrImageUrl: invoiceOverride.gpayQrImageUrl || ''
+                    };
+                    if (invoiceFields.accountId || invoiceFields.accountName || invoiceFields.bankName || invoiceFields.accountNo || invoiceFields.ifscCode || invoiceFields.gpayPhonepe || invoiceFields.gpayQrImageUrl) {
+                        return invoiceFields;
+                    }
+                }
+                var currentAccount = getSelectedAccountDetails();
+                if (currentAccount) {
+                    return currentAccount;
+                }
+                if (!invoiceOverride) {
+                    return null;
+                }
+                var invoiceFields = {
+                    accountId: invoiceOverride.bankAccountId || invoiceOverride.accountId || '',
+                    accountName: invoiceOverride.bankAccountName || invoiceOverride.accountName || '',
+                    bankName: invoiceOverride.bankName || '',
+                    accountNo: invoiceOverride.bankAccountNo || invoiceOverride.accountNo || '',
+                    ifscCode: invoiceOverride.ifscCode || '',
+                    gpayPhonepe: invoiceOverride.gpayPhonepe || invoiceOverride.gpayPhonepe || '',
+                    gpayQrImage: invoiceOverride.gpayQrImage || '',
+                    gpayQrContentType: invoiceOverride.gpayQrContentType || 'image/png',
+                    gpayQrImageUrl: invoiceOverride.gpayQrImageUrl || ''
+                };
+                if (!invoiceFields.accountId && !invoiceFields.accountName && !invoiceFields.bankName && !invoiceFields.accountNo && !invoiceFields.ifscCode && !invoiceFields.gpayPhonepe) {
+                    return null;
+                }
+                return invoiceFields;
+            }
+
+            function loadAccountQrDataUrl(accountId) {
+                if (!accountId) {
+                    return Promise.resolve('');
+                }
+                return fetch('/admin/bank-accounts/' + accountId + '/qr', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                }).then(function (response) {
+                    if (!response.ok || response.status === 204) {
+                        return '';
+                    }
+                    return response.blob();
+                }).then(function (blob) {
+                    if (!blob || !blob.size) {
+                        return '';
+                    }
+                    return new Promise(function (resolve) {
+                        var reader = new FileReader();
+                        reader.onloadend = function () {
+                            resolve(reader.result || '');
+                        };
+                        reader.onerror = function () {
+                            resolve('');
+                        };
+                        reader.readAsDataURL(blob);
+                    });
+                }).catch(function () {
+                    return '';
+                });
+            }
+
+            async function enrichSelectedAccountWithQr(account) {
+                if (!account || !account.accountId || account.gpayQrImage) {
+                    return account;
+                }
+                var qrDataUrl = await loadAccountQrDataUrl(account.accountId);
+                if (qrDataUrl) {
+                    account.gpayQrImage = qrDataUrl.replace(/^data:[^;]+;base64,/, '');
+                    account.gpayQrContentType = qrDataUrl.match(/^data:([^;]+);/) ? qrDataUrl.match(/^data:([^;]+);/)[1] : 'image/png';
+                }
+                return account;
+            }
+
+            function resolveQrImageMarkup(selectedAccount) {
+                if (!selectedAccount) {
+                    return '';
+                }
+                if (selectedAccount.gpayQrImage) {
+                    return '<img src="data:' + (selectedAccount.gpayQrContentType || 'image/png') + ';base64,' + selectedAccount.gpayQrImage + '" alt="GPay / PhonePe QR" style="max-width:120px; height:120px; width:120px; object-fit:contain; margin-left:12px; vertical-align:top; border:1px solid #e5e7eb; border-radius:10px; background:#fff;" />';
+                }
+                if (selectedAccount.accountId) {
+                    return '<img src="/admin/bank-accounts/' + selectedAccount.accountId + '/qr" alt="GPay / PhonePe QR" style="max-width:120px; height:120px; width:120px; object-fit:contain; margin-left:12px; vertical-align:top; border:1px solid #e5e7eb; border-radius:10px; background:#fff;" />';
+                }
+                if (selectedAccount.gpayQrImageUrl) {
+                    return '<img src="' + selectedAccount.gpayQrImageUrl + '" alt="GPay / PhonePe QR" style="max-width:120px; height:120px; width:120px; object-fit:contain; margin-left:12px; vertical-align:top; border:1px solid #e5e7eb; border-radius:10px; background:#fff;" />';
+                }
+                return '<span style="display:inline-block;max-width:120px; width:120px; height:120px; margin-left:12px;vertical-align:top;border:1px solid #e5e7eb;border-radius:10px;padding:8px;background:#f8fafc;display:flex;align-items:center;justify-content:center;">QR image attached</span>';
             }
 
             function buildBreakdownTableMarkup() {
@@ -673,58 +816,67 @@
                 });
                 html += '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#f3f7f5; color:#1f2937;">Total Charges</td>' +
                     '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#f3f7f5; color:#1f2937;">' + formatter.format(total) + '</td></tr>';
-                if (checkbox && checkbox.checked) {
-                    html += '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff9f0; color:#1f2937;">Discount</td>' +
-                        '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff9f0; color:#1f2937;">' + formatter.format(discountValue) + '</td></tr>';
+                if (discountValue > 0) {
+                    html += '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff7f7; color:#b91c1c;">Discount</td>' +
+                        '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff7f7; color:#b91c1c;">-' + formatter.format(discountValue) + '</td></tr>';
                 }
                 html += '</tbody></table>';
                 return html;
             }
 
-            function buildInvoiceHtml() {
+            async function buildInvoiceHtml() {
                 var patient = document.querySelector('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]');
                 var customerCode = document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1];
                 var serviceValue = document.getElementById('invoice-service-days');
                 var rateValue = document.getElementById('invoice-daily-rate');
-                var discountValue = currentDiscountValue();
-                var rows = readInvoiceRows();
-                var total = rows.reduce(function (sum, row) {
-                    return sum + row.amount;
-                }, 0);
+                var previewData = currentInvoicePreviewData || {};
+                var rows = Array.isArray(previewData.rows) && previewData.rows.length ? previewData.rows : readInvoiceRows();
+                var total = Number(previewData.totalAmount != null ? previewData.totalAmount : rows.reduce(function (sum, row) {
+                    return sum + Number(row.amount || 0);
+                }, 0));
+                var discountValue = Number(previewData.discountAmount != null ? previewData.discountAmount : currentDiscountValue());
                 var finalAmount = Math.max(0, total - discountValue);
-                var patientName = patient ? patient.textContent.trim() : 'N/A';
-                var customerText = customerCode ? customerCode.textContent.trim() : 'N/A';
-                var selectedAccount = getSelectedAccountDetails();
-                var accountLines = selectedAccount ?
-                    '<div class="account-box">' +
+                var patientName = (previewData.patientName && String(previewData.patientName).trim()) || (patient ? patient.textContent.trim() : 'N/A');
+                var customerText = (previewData.customerCode && String(previewData.customerCode).trim()) || (customerCode ? customerCode.textContent.trim() : 'N/A');
+                var invoiceIdText = (previewData.invoiceId && String(previewData.invoiceId).trim()) || (lastSavedInvoiceId && String(lastSavedInvoiceId).trim()) || 'Draft';
+                var selectedAccount = getInvoiceAccountDetails(previewData) || getSelectedAccountDetails();
+                selectedAccount = await enrichSelectedAccountWithQr(selectedAccount);
+                var qrImageMarkup = resolveQrImageMarkup(selectedAccount);
+                var accountLines = selectedAccount ? '<div class="account-box">' +
                     '<div class="label">Bank account details</div>' +
-                    '<div class="value" style="font-size:14px; line-height:1.8; margin-top:8px;">' +
+                    '<div class="value" style="font-size:14px; line-height:1.8; margin-top:8px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">' +
+                    '<div style="flex:1; min-width:0;">' +
                     'Account Name: ' + (selectedAccount.accountName || '—') + '<br/>' +
                     'Bank Name: ' + (selectedAccount.bankName || '—') + '<br/>' +
                     'Account no.: ' + (selectedAccount.accountNo || '—') + '<br/>' +
                     'IFSC code: ' + (selectedAccount.ifscCode || '—') + '<br/>' +
-                    'GPay/phonepay: ' + (selectedAccount.gpayPhonepe || '—') +
+                    'GPay / PhonePe: ' + (selectedAccount.gpayPhonepe || '—') +
+                    '</div>' +
+                    qrImageMarkup +
                     '</div></div>' :
                     '<div class="account-box"><div class="label">Bank account</div><div class="value" style="font-size:15px;">Not selected</div></div>';
                 return '<!doctype html>' +
-                    '<html><head><meta charset="UTF-8"><title>VNS Healthcare Invoice</title>' +
+                    '<html><head><meta charset="UTF-8"><title>' + buildInvoiceFileName() + '</title>' +
                     '<style>' +
                     'body{font-family:Arial,sans-serif;padding:28px;background:#f5f3ee;color:#111827;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;} ' +
-                    '.card{max-width:760px;margin:0 auto;border:1px solid #dfe7e3;border-radius:18px;padding:26px;background:#fff;box-shadow:0 20px 46px rgba(15,60,55,0.10);} ' +
-                    '.brand-row{display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 12px 18px;margin-bottom:16px;border-bottom:1px solid #e7efe9;text-align:center;background:#f4faf7;border-radius:12px;} ' +
-                    '.mark{width:54px;height:54px;border:1px solid #d7c28a;background:#1b5c54;display:grid;place-items:center;font-family:Georgia,serif;font-weight:700;font-size:24px;color:#f0e2b8;letter-spacing:0.04em;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12);} ' +
+                    '.card{max-width:760px;margin:0 auto;border:1px solid #dfe7e3;border-radius:18px;padding:26px;background:#f5f2ee;box-shadow:none;} ' +
+                    '.brand-row{display:block;padding:10px 18px 18px;margin:0 0 18px;border:1px solid #d9d9d9;border-radius:18px;background:#f3f3f1;text-align:center;} ' +
                     '.brand-copy{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;} ' +
-                    '.brand-copy h1{margin:0; font-family:Georgia,serif;font-size:30px;font-weight:600;letter-spacing:0.02em;color:#d91f26;text-align:center;} ' +
-                    '.brand-copy p{margin:3px 0 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;text-align:center;} ' +
-                    '.title{font-size:28px;font-weight:700;margin:0 0 8px;text-align:center;color:#1b5c54;} ' +
-                    '.subtitle{font-size:13px;color:#6b7280;margin-bottom:16px;text-align:center;} ' +
-                    '.meta-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(170px,0.8fr);gap:12px 24px;margin:18px 0 10px;align-items:start;width:100%;} ' +
-                    '.meta-column{display:grid;gap:12px;justify-items:start;width:100%;} ' +
-                    '.meta-column:last-child{justify-items:end; text-align:right;} ' +
-                    '.meta-item{min-height:46px;} ' +
-                    '.label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;line-height:1.2;margin-bottom:4px;} ' +
-                    '.value{display:block;font-size:15px;font-weight:700;color:#0f172a;line-height:1.35;} ' +
-                    '.account-box{margin-top:18px;padding:14px 16px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;} ' +
+                    '.brand-copy h1{margin:0; font-family:Georgia,serif;font-size:34px;font-weight:700;letter-spacing:0.02em;color:#d91f26;text-align:center;line-height:1.08;} ' +
+                    '.brand-copy p{margin:4px 0 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#4b5563;text-align:center;line-height:1.4;font-weight:600;} ' +
+                    '.title{font-size:30px;font-weight:700;margin:12px 0 8px;text-align:center;color:#1b5c54;} ' +
+                    '.subtitle{font-size:13px;color:#6b7280;margin:0 0 18px;text-align:left;font-style:normal;} ' +
+                    '.meta-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 30px;margin:0 0 8px;align-items:start;width:100%;} ' +
+                    '.meta-column{display:grid;gap:10px;justify-items:stretch;width:100%; text-align:left;} ' +
+                    '.meta-column:last-child{justify-items:stretch; text-align:right;} ' +
+                    '.meta-item{min-height:54px; text-align:left;} ' +
+                    '.meta-column:last-child .label, .meta-column:last-child .value{ text-align:right; } ' +
+                    '.label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;line-height:1.25;margin-bottom:4px; text-align:left;} ' +
+                    '.value{display:block;font-size:15px;font-weight:700;color:#0f172a;line-height:1.35; text-align:left;} ' +
+                    '.account-box{margin-top:18px;padding:14px 16px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc; text-align:left;} ' +
+                    '.account-box .value{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;} ' +
+                    '.account-box .value > div:first-child{flex:1;min-width:0;} ' +
+                    '.account-box .value img{display:block;max-width:120px;width:120px;height:120px;object-fit:contain;border:1px solid #e5e7eb;border-radius:10px;background:#fff;flex-shrink:0;} ' +
                     '.invoice-table{width:100%; border-collapse:collapse; margin-top:18px; font-family:Arial,sans-serif; border-radius:12px; overflow:hidden; border:1px solid #dfe7e3; background:#fff;} ' +
                     '.invoice-table thead th{padding:12px 10px; background:#1b5c54; color:#fff; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(255,255,255,0.14); text-align:left;} ' +
                     '.invoice-table thead th:nth-child(3), .invoice-table tbody td:nth-child(3){text-align:right;} ' +
@@ -735,9 +887,9 @@
                     '.total-pill{display:inline-block;padding:8px 12px;border-radius:999px;background:#eaf3ef;color:#1b5c54;font-weight:700;} ' +
                     '@media print { body { padding: 0; } .card { border: none; box-shadow: none; max-width:100%; } }' +
                     '</style></head>' +
-                    '<body><div class="card"><div class="brand-row"><div class="brand-copy"><h1><u>VNS Healthcare</u></h1><p>Home care desk</p><p>Office: Sr. No. 56/1, Shewanti colony, Near Chintamani Chowk, Chinchwad, Pune - 33</p></div></div>' +
-                    '<div class="title"><u>Invoice</u></div>' +
-                    '<div class="subtitle">Generated on ' + new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) + '</div>' +
+                    '<body><div class="card"><div class="brand-row"><div class="brand-copy"><h1>VNS Healthcare</h1><p>Home care desk</p><p>Office: Sr. No. 56/1, Shewanti colony, Near Chintamani Chowk, Chinchwad, Pune - 33</p></div></div>' +
+                    '<div class="title">Invoice</div>' +
+                    '<div class="subtitle">Invoice ID: ' + invoiceIdText + ' · Generated on ' + new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) + '</div>' +
                     '<div class="meta-grid"><div class="meta-column">' +
                     '<div class="meta-item"><span class="label">Patient</span><span class="value">' + patientName + '</span></div>' +
                     '<div class="meta-item"><span class="label">Service days</span><span class="value">' + (serviceValue ? serviceValue.textContent.trim() : '0') + '</span></div>' +
@@ -747,28 +899,90 @@
                     '</div></div>' +
                     accountLines +
                     buildBreakdownTableMarkup() +
-                    (checkbox && checkbox.checked ? '<div class="summary-row"><span>Discount</span><span>' + formatter.format(discountValue) + '</span></div>' : '') +
                     '<div class="summary-row total"><span>Net amount</span><span class="total-pill">' + formatter.format(finalAmount) + '</span></div></div></body></html>';
             }
 
-            function openInvoicePreview() {
+            async function openInvoicePreview() {
                 if (!previewArea) {
                     return;
                 }
-                previewArea.innerHTML = '<iframe title="Invoice preview" style="width:100%; height:520px; border:0; background:#fff;" srcdoc="' + buildInvoiceHtml().replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '"></iframe>';
+                var patientNameValue = document.querySelector('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]');
+                var customerCodeValue = document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1];
+                currentInvoicePreviewData = {
+                    invoiceId: lastSavedInvoiceId || '',
+                    fromDate: invoiceDateFrom ? invoiceDateFrom.value : '',
+                    toDate: invoiceDateTo ? invoiceDateTo.value : '',
+                    rows: readInvoiceRows(),
+                    totalAmount: readInvoiceRows().reduce(function (sum, row) { return sum + row.amount; }, 0),
+                    discountAmount: currentDiscountValue(),
+                    netAmount: Math.max(0, readInvoiceRows().reduce(function (sum, row) { return sum + row.amount; }, 0) - currentDiscountValue()),
+                    patientName: patientNameValue ? patientNameValue.textContent.trim() : '',
+                    customerCode: customerCodeValue ? customerCodeValue.textContent.trim() : '',
+                    bankAccountId: accountSelect && accountSelect.value ? accountSelect.value : '',
+                    bankAccountName: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.accountName || '') : '',
+                    bankName: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.bankName || '') : '',
+                    bankAccountNo: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.accountNo || '') : '',
+                    ifscCode: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.ifscCode || '') : '',
+                    gpayPhonepe: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.gpayPhonepe || '') : '',
+                    gpayQrImageUrl: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.gpayQrImageUrl || '') : ''
+                };
+                var html = await buildInvoiceHtml();
+                previewArea.innerHTML = '<iframe title="Invoice preview" style="width:100%; height:520px; border:0; background:#fff;" srcdoc="' + html.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '"></iframe>';
                 if (modal) {
                     modal.style.display = 'flex';
                 }
             }
 
-            function printInvoice() {
-                var printWindow = window.open('', '_blank', 'width=900,height=700');
+            function formatInvoiceFileDate(dateValue) {
+                if (!dateValue) {
+                    return '';
+                }
+                var parsed = new Date(dateValue + 'T00:00:00');
+                if (Number.isNaN(parsed.getTime())) {
+                    return dateValue;
+                }
+                var day = String(parsed.getDate()).padStart(2, '0');
+                var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+                var month = monthNames[parsed.getMonth()];
+                var year = parsed.getFullYear();
+                return day + ' ' + month + ' ' + year;
+            }
+
+            function buildInvoiceFileName() {
+                var patient = document.querySelector('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]');
+                var customerCode = document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1];
+                var patientName = patient ? patient.textContent.trim() : 'Patient';
+                var custCode = customerCode ? customerCode.textContent.trim() : 'CUS';
+                var fromDate = invoiceDateFrom && invoiceDateFrom.value ? formatInvoiceFileDate(invoiceDateFrom.value) : 'Invoice';
+                var toDate = invoiceDateTo && invoiceDateTo.value ? formatInvoiceFileDate(invoiceDateTo.value) : 'Invoice';
+                var period = fromDate && toDate ? fromDate + ' - ' + toDate : (fromDate || toDate || 'Invoice');
+                var sanitizedCode = String(custCode).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+                var sanitizedPatient = String(patientName).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+                var sanitizedPeriod = String(period).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+                return [sanitizedCode || 'CUS', sanitizedPatient || 'Patient', sanitizedPeriod || 'Invoice'].join('_');
+            }
+
+            async function printInvoice() {
+                var previewFrame = previewArea ? previewArea.querySelector('iframe') : null;
+                var invoiceHtml = '';
+                if (previewFrame && previewFrame.getAttribute('srcdoc')) {
+                    invoiceHtml = previewFrame.getAttribute('srcdoc')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>');
+                }
+                if (!invoiceHtml) {
+                    invoiceHtml = await buildInvoiceHtml();
+                }
+                var fileName = buildInvoiceFileName();
+                var printWindow = window.open('', '_blank', 'width=0,height=0,top=-9999,left=-9999');
                 if (!printWindow) {
                     showVnsFlash('Please allow pop-ups to print the invoice.', 'error');
                     return;
                 }
-                printWindow.document.write(buildInvoiceHtml());
+                printWindow.document.write(invoiceHtml.replace(/<title>.*?<\/title>/i, '<title>' + fileName + '</title>'));
                 printWindow.document.close();
+                printWindow.document.title = fileName;
                 printWindow.focus();
                 printWindow.print();
             }
@@ -782,17 +996,25 @@
                 var fromText = record.fromDate ? record.fromDate : '';
                 var toText = record.toDate ? record.toDate : '';
                 row.dataset.invoiceId = record.invoiceId || '';
-                row.innerHTML = '<td style="padding:8px 10px; border:1px solid var(--line);">' + fromText + ' - ' + toText + '</td>' +
+                row.innerHTML = '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center;">' +
+                    '<input type="checkbox" class="invoice-select-checkbox" data-invoice-id="' + (record.invoiceId || '') + '" aria-label="Select invoice"/>' +
+                    '</td>' +
+                    '<td style="padding:8px 10px; border:1px solid var(--line);">' + fromText + ' - ' + toText + '</td>' +
                     '<td style="padding:8px 10px; border:1px solid var(--line);">' + record.invoiceNumber + '</td>' +
                     '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(record.totalAmount || 0) + '</td>' +
                     '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(record.discountAmount || 0) + '</td>' +
                     '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(record.netAmount || 0) + '</td>' +
-                    '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center;">' +
-                    '<div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">' +
+                    '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">' +
                     '<button type="button" class="btn ghost small view-invoice-btn" data-invoice-id="' + (record.invoiceId || '') + '">View</button>' +
+                    '</td>' +
+                    '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">' +
+                    '<button type="button" class="btn ghost small edit-invoice-btn" data-invoice-id="' + (record.invoiceId || '') + '">Edit</button>' +
+                    '</td>' +
+                    '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">' +
                     '<button type="button" class="btn ghost small delete-invoice-btn" data-invoice-id="' + (record.invoiceId || '') + '">Delete</button>' +
-                    '</div></td>';
+                    '</td>';
                 historyBody.insertBefore(row, historyBody.firstChild);
+                syncInvoiceSelectionState();
                 bindInvoiceHistoryActions(row);
             }
 
@@ -827,7 +1049,34 @@
                 toggleModal('confirm-modal', true);
             }
 
-            function deleteInvoiceRecord(invoiceId, button) {
+            function addBulkDeleteButton() {
+                var table = document.getElementById('customer-invoice-history-body');
+                if (!table) {
+                    return;
+                }
+                var bulkBar = document.getElementById('invoice-bulk-actions');
+                if (!bulkBar) {
+                    var container = document.createElement('div');
+                    container.id = 'invoice-bulk-actions';
+                    container.style.display = 'flex';
+                    container.style.justifyContent = 'flex-end';
+                    container.style.alignItems = 'center';
+                    container.style.gap = '8px';
+                    container.style.margin = '10px 0';
+                    var deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.className = 'btn ghost small';
+                    deleteBtn.textContent = 'Delete selected';
+                    deleteBtn.addEventListener('click', deleteSelectedInvoices);
+                    container.appendChild(deleteBtn);
+                    var tableParent = table.closest('table');
+                    if (tableParent && tableParent.parentNode) {
+                        tableParent.parentNode.insertBefore(container, tableParent.nextSibling);
+                    }
+                }
+            }
+
+            function deleteInvoiceRecord(invoiceId, button, silent) {
                 fetch('/customers/' + customerId + '/invoices/' + invoiceId, {
                     method: 'DELETE',
                     credentials: 'same-origin',
@@ -840,18 +1089,64 @@
                         return data;
                     });
                 }).then(function () {
-                    var row = button && button.closest ? button.closest('tr') : null;
+                    var row = button && button.closest ? button.closest('tr') : document.querySelector('#customer-invoice-history-body tr[data-invoice-id="' + invoiceId + '"]');
                     if (row && row.parentNode) {
                         row.parentNode.removeChild(row);
                     }
-                    showVnsFlash('Invoice deleted successfully.', 'success');
+                    if (!silent) {
+                        showVnsFlash('Invoice deleted successfully.', 'success');
+                    }
                 }).catch(function (error) {
                     showVnsFlash(error.message || 'Could not delete invoice.', 'error');
                 });
             }
 
+            function loadInvoiceIntoEditor(invoice) {
+                if (!invoiceEntryPanel) {
+                    return;
+                }
+                invoiceEntryPanel.style.display = 'block';
+                lastSavedInvoiceId = invoice && invoice.id ? String(invoice.id) : null;
+                if (invoiceDateFrom) {
+                    invoiceDateFrom.value = invoice && invoice.fromDate ? invoice.fromDate : '';
+                }
+                if (invoiceDateTo) {
+                    invoiceDateTo.value = invoice && invoice.toDate ? invoice.toDate : '';
+                }
+                if (invoiceTableBody) {
+                    invoiceTableBody.innerHTML = '';
+                }
+                var rows = Array.isArray(invoice && invoice.rows) ? invoice.rows : [];
+                rows.forEach(function (rowData) {
+                    addInvoiceRow(rowData.description || '', Number(rowData.amount || 0), false);
+                });
+                if (!rows.length) {
+                    addInvoiceRow('', 0, false);
+                }
+                if (accountSelect) {
+                    accountSelect.value = '';
+                }
+                if (invoice && invoice.bankAccountName) {
+                    var accountName = invoice.bankAccountName || '';
+                    var bankName = invoice.bankName || '';
+                    var accountNo = invoice.bankAccountNo || '';
+                    var ifscCode = invoice.ifscCode || '';
+                    var gpayPhonepe = invoice.gpayPhonepe || '';
+                    var matched = Array.prototype.slice.call(accountSelect ? accountSelect.options : []).find(function (option) {
+                        return option.dataset && option.dataset.accountName === accountName && option.dataset.accountNo === accountNo && (!bankName || option.dataset.bankName === bankName) && (!ifscCode || option.dataset.ifscCode === ifscCode) && (!gpayPhonepe || option.dataset.gpayPhonepe === gpayPhonepe);
+                    });
+                    if (matched) {
+                        accountSelect.value = matched.value;
+                    }
+                }
+                updateInvoice();
+                if (invoiceDateFrom) {
+                    invoiceDateFrom.focus();
+                }
+            }
+
             function bindInvoiceHistoryActions(container) {
-                var rows = container && container.querySelectorAll ? container.querySelectorAll('.view-invoice-btn, .delete-invoice-btn') : document.querySelectorAll('.view-invoice-btn, .delete-invoice-btn');
+                var rows = container && container.querySelectorAll ? container.querySelectorAll('.view-invoice-btn, .edit-invoice-btn, .delete-invoice-btn') : document.querySelectorAll('.view-invoice-btn, .edit-invoice-btn, .delete-invoice-btn');
                 if (!rows) {
                     return;
                 }
@@ -880,6 +1175,24 @@
                             });
                             return;
                         }
+                        if (button.classList.contains('edit-invoice-btn')) {
+                            fetch('/customers/' + customerId + '/invoices/' + invoiceId, {
+                                method: 'GET',
+                                credentials: 'same-origin'
+                            }).then(function (response) {
+                                return response.json().then(function (data) {
+                                    if (!response.ok || data.success === false) {
+                                        throw new Error(data.message || 'Could not load invoice.');
+                                    }
+                                    return data;
+                                });
+                            }).then(function (invoice) {
+                                loadInvoiceIntoEditor(invoice);
+                            }).catch(function (error) {
+                                showVnsFlash(error.message || 'Could not load invoice for editing.', 'error');
+                            });
+                            return;
+                        }
                         if (button.classList.contains('delete-invoice-btn')) {
                             askDeleteInvoice(invoiceId, button);
                         }
@@ -888,79 +1201,38 @@
             }
 
             function renderSavedInvoicePreview(invoice) {
-                var patient = document.querySelector('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]');
-                var customerCode = document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1];
-                var patientName = patient ? patient.textContent.trim() : 'N/A';
-                var customerText = customerCode ? customerCode.textContent.trim() : 'N/A';
-                var rows = Array.isArray(invoice && invoice.rows) ? invoice.rows : [];
-                var total = Number(invoice && invoice.totalAmount ? invoice.totalAmount : 0);
-                var discount = Number(invoice && invoice.discountAmount ? invoice.discountAmount : 0);
-                var finalAmount = Number(invoice && invoice.netAmount ? invoice.netAmount : Math.max(0, total - discount));
-                var selectedAccount = {
-                    accountName: invoice && invoice.bankAccountName ? invoice.bankAccountName : '',
-                    bankName: '',
-                    accountNo: invoice && invoice.bankAccountNo ? invoice.bankAccountNo : '',
+                var patientEl = document.querySelector('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]');
+                var customerCodeEl = document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1];
+                currentInvoicePreviewData = {
+                    invoiceId: invoice && invoice.id ? String(invoice.id) : (lastSavedInvoiceId ? String(lastSavedInvoiceId) : ''),
+                    fromDate: invoice && invoice.fromDate ? invoice.fromDate : '',
+                    toDate: invoice && invoice.toDate ? invoice.toDate : '',
+                    rows: Array.isArray(invoice && invoice.rows) ? invoice.rows : [],
+                    totalAmount: Number(invoice && invoice.totalAmount != null ? invoice.totalAmount : 0),
+                    discountAmount: Number(invoice && invoice.discountAmount != null ? invoice.discountAmount : 0),
+                    netAmount: Number(invoice && invoice.netAmount != null ? invoice.netAmount : 0),
+                    bankAccountId: invoice && invoice.bankAccountId ? invoice.bankAccountId : '',
+                    bankAccountName: invoice && invoice.bankAccountName ? invoice.bankAccountName : '',
+                    bankName: invoice && invoice.bankName ? invoice.bankName : '',
+                    bankAccountNo: invoice && invoice.bankAccountNo ? invoice.bankAccountNo : '',
                     ifscCode: invoice && invoice.ifscCode ? invoice.ifscCode : '',
-                    gpayPhonepe: invoice && invoice.gpayPhonepe ? invoice.gpayPhonepe : ''
+                    gpayPhonepe: invoice && invoice.gpayPhonepe ? invoice.gpayPhonepe : '',
+                    gpayQrImageUrl: invoice && invoice.gpayQrImageUrl ? invoice.gpayQrImageUrl : '',
+                    patientName: (invoice && invoice.patientName) ? invoice.patientName : (patientEl ? patientEl.textContent.trim() : 'N/A'),
+                    customerCode: (invoice && invoice.customerCode) ? invoice.customerCode : (customerCodeEl ? customerCodeEl.textContent.trim() : 'N/A')
                 };
-                var accountLines = '<div class="account-box"><div class="label">Bank account details</div><div class="value" style="font-size:14px; line-height:1.8; margin-top:8px;">' +
-                    'Account Name: ' + (selectedAccount.accountName || '—') + '<br/>' +
-                    'Bank Name: ' + (selectedAccount.bankName || '—') + '<br/>' +
-                    'Account no.: ' + (selectedAccount.accountNo || '—') + '<br/>' +
-                    'IFSC code: ' + (selectedAccount.ifscCode || '—') + '<br/>' +
-                    'GPay/phonepay: ' + (selectedAccount.gpayPhonepe || '—') +
-                    '</div></div>';
-                var html = '<!doctype html>' +
-                    '<html><head><meta charset="UTF-8"><title>VNS Healthcare Invoice</title>' +
-                    '<style>' +
-                    'body{font-family:Arial,sans-serif;padding:28px;background:linear-gradient(135deg,#f1f5f4,#f8f2e8);color:#111827;margin:0;} ' +
-                    '.card{max-width:760px;margin:0 auto;border:1px solid #dfe7e3;border-radius:18px;padding:26px;background:#fff;box-shadow:0 20px 46px rgba(15,60,55,0.10);} ' +
-                    '.brand-row{display:flex;align-items:center;justify-content:center;gap:16px;padding:10px 10px 18px;margin-bottom:16px;border-bottom:1px solid #e7efe9;text-align:center;background:linear-gradient(135deg,#f5faf8,#fffaf0);border-radius:12px;} ' +
-                    '.mark{width:54px;height:54px;border:1px solid #d7c28a;background:linear-gradient(135deg,#1b5c54,#0e3832);display:grid;place-items:center;font-family:Georgia,serif;font-weight:700;font-size:24px;color:#f0e2b8;letter-spacing:0.04em;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12);} ' +
-                    '.brand-copy{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;} ' +
-                    '.brand-copy h1{margin:0; font-family:Georgia,serif;font-size:30px;font-weight:600;letter-spacing:0.02em;color:#d91f26;text-align:center;} ' +
-                    '.brand-copy p{margin:3px 0 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;text-align:center;} ' +
-                    '.title{font-size:28px;font-weight:700;margin:0 0 8px;text-align:center;color:#1b5c54;} ' +
-                    '.subtitle{font-size:13px;color:#6b7280;margin-bottom:16px;text-align:center;} ' +
-                    '.meta{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;} ' +
-                    '.label{font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;} ' +
-                    '.value{font-size:16px;font-weight:700;margin-top:6px;color:#0f172a;} ' +
-                    '.account-box{margin-top:18px;padding:14px 16px;border:1px solid #e5e7eb;border-radius:12px;background:linear-gradient(135deg,#f8fafc,#f4eee3);} ' +
-                    '.invoice-table{width:100%; border-collapse:collapse; margin-top:18px; font-family:Arial,sans-serif; border-radius:12px; overflow:hidden; box-shadow:0 10px 18px rgba(15,23,42,0.04);} ' +
-                    '.invoice-table thead th{padding:12px 10px; background:linear-gradient(135deg,#1b5c54,#214e4a); color:#fff; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(255,255,255,0.14); text-align:left;} ' +
-                    '.invoice-table thead th:last-child, .invoice-table tbody td:last-child{text-align:right;} ' +
-                    '.invoice-table tbody td{padding:12px 10px; border:1px solid #e5e7eb; vertical-align:top; color:#24313d; background:#ffffff;} ' +
-                    '.invoice-table tbody tr:nth-child(even) td{background:#f8faf8;} ' +
-                    '.summary-row{display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding:12px 0 0;margin-top:14px;font-weight:600;color:#1f2937;} ' +
-                    '.summary-row.total{font-size:20px;color:#1b5c54;padding-top:14px;border-top:2px solid #d7c28a;} ' +
-                    '.total-pill{display:inline-block;padding:8px 12px;border-radius:999px;background:rgba(27,92,84,0.10);color:#1b5c54;font-weight:700;} ' +
-                    '@media print { body { padding: 0; } .card { border: none; box-shadow: none; max-width:100%; } }' +
-                    '</style></head>' +
-                    '<body><div class="card"><div class="brand-row"><div class="mark">V</div><div class="brand-copy"><h1>VNS Healthcare</h1><p>Home care desk</p><p>Office: Sr. No. 56/1, Shewanti colony, Near Chintamani Chowk, Chinchwad, Pune - 33</p></div></div>' +
-                    '<div class="title">Invoice</div>' +
-                    '<div class="subtitle">Generated on ' + new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) + '</div>' +
-                    '<div class="meta"><div><div class="label">Patient</div><div class="value">' + patientName + '</div></div>' +
-                    '<div><div class="label">Customer code</div><div class="value">' + customerText + '</div></div></div>' +
-                    accountLines +
-                    '<table class="invoice-table">' +
-                    '<thead><tr><th style="width:60px; text-align:center;">No.</th><th>Description</th><th style="width:160px;">Amount (Rs.)</th></tr></thead><tbody>';
-                rows.forEach(function (row, index) {
-                    html += '<tr><td style="text-align:center; font-weight:700; color:#1b5c54; background:' + (index % 2 === 0 ? '#ffffff' : '#f8faf8') + ';">' + (index + 1) + '</td>' +
-                        '<td style="background:' + (index % 2 === 0 ? '#ffffff' : '#f8faf8') + ';">' + (row.description || '—') + '</td>' +
-                        '<td style="text-align:right; font-weight:700; background:' + (index % 2 === 0 ? '#ffffff' : '#f8faf8') + ';">' + formatter.format(Number(row.amount || 0)) + '</td></tr>';
+                buildInvoiceHtml().then(function (html) {
+                    if (previewArea) {
+                        previewArea.innerHTML = '<iframe title="Invoice preview" style="width:100%; height:520px; border:0; background:#fff;" srcdoc="' + html.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '"></iframe>';
+                    }
+                    if (modal) {
+                        modal.style.display = 'flex';
+                    }
+                }).catch(function () {
+                    if (previewArea) {
+                        previewArea.innerHTML = '<div style="padding:20px; color:#b91c1c;">Could not load invoice preview.</div>';
+                    }
                 });
-                html += '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#f3f7f5; color:#1f2937;">Total Charges</td>' +
-                    '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#f3f7f5; color:#1f2937;">' + formatter.format(total) + '</td></tr>' +
-                    (discount > 0 ? '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff9f0; color:#1f2937;">Discount</td>' +
-                    '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff9f0; color:#1f2937;">' + formatter.format(discount) + '</td></tr>' : '') +
-                    '</tbody></table>' +
-                    '<div class="summary-row total"><span>Net amount</span><span class="total-pill">' + formatter.format(finalAmount) + '</span></div></div></body></html>';
-                if (previewArea) {
-                    previewArea.innerHTML = '<iframe title="Invoice preview" style="width:100%; height:520px; border:0; background:#fff;" srcdoc="' + html.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '"></iframe>';
-                }
-                if (modal) {
-                    modal.style.display = 'flex';
-                }
             }
 
             function saveInvoice() {
@@ -979,6 +1251,7 @@
                 }, 0);
                 var discountValue = currentDiscountValue();
                 var payload = {
+                    invoiceId: lastSavedInvoiceId || '',
                     fromDate: invoiceDateFrom ? invoiceDateFrom.value : '',
                     toDate: invoiceDateTo ? invoiceDateTo.value : '',
                     totalAmount: total,
@@ -987,12 +1260,12 @@
                     rows: rows,
                     accountId: accountSelect ? accountSelect.value : '',
                     accountName: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.accountName || '') : '',
+                    bankName: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.bankName || '') : '',
                     accountNo: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.accountNo || '') : '',
                     ifscCode: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.ifscCode || '') : '',
                     gpayPhonepe: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.gpayPhonepe || '') : '',
-                    invoiceNumber: 'INV-' + customerId + '-' + Date.now()
+                    invoiceNumber: lastSavedInvoiceId ? '' : 'INV-' + customerId + '-' + Date.now()
                 };
-
                 var csrfMeta = document.querySelector('meta[name="_csrf"]');
                 var csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
                 var headers = { 'Content-Type': 'application/json' };
@@ -1013,8 +1286,9 @@
                         return data;
                     });
                 }).then(function (data) {
+                    lastSavedInvoiceId = data.invoiceId || lastSavedInvoiceId;
                     var invoiceRecord = {
-                        invoiceId: data.invoiceId || '',
+                        invoiceId: lastSavedInvoiceId || '',
                         fromDate: payload.fromDate ? formatDisplayDate(payload.fromDate) : '',
                         toDate: payload.toDate ? formatDisplayDate(payload.toDate) : '',
                         invoiceNumber: data.invoiceNumber || payload.invoiceNumber,
@@ -1022,8 +1296,77 @@
                         discountAmount: payload.discountAmount || 0,
                         netAmount: payload.netAmount || 0
                     };
-                    appendInvoiceHistoryRow(invoiceRecord);
-                    showVnsFlash('Invoice saved successfully.', 'success');
+                    if (lastSavedInvoiceId) {
+                        var existingRow = document.querySelector('#customer-invoice-history-body tr[data-invoice-id="' + lastSavedInvoiceId + '"]');
+                        if (existingRow) {
+                            existingRow.innerHTML = '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center;">' +
+                                '<input type="checkbox" class="invoice-select-checkbox" data-invoice-id="' + lastSavedInvoiceId + '" aria-label="Select invoice"' + (existingRow.querySelector('.invoice-select-checkbox') && existingRow.querySelector('.invoice-select-checkbox').checked ? ' checked' : '') + '/>' +
+                                '</td>' +
+                                '<td style="padding:8px 10px; border:1px solid var(--line);">' + invoiceRecord.fromDate + ' - ' + invoiceRecord.toDate + '</td>' +
+                                '<td style="padding:8px 10px; border:1px solid var(--line);">' + invoiceRecord.invoiceNumber + '</td>' +
+                                '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(invoiceRecord.totalAmount || 0) + '</td>' +
+                                '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(invoiceRecord.discountAmount || 0) + '</td>' +
+                                '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(invoiceRecord.netAmount || 0) + '</td>' +
+                                '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">' +
+                                '<button type="button" class="btn ghost small view-invoice-btn" data-invoice-id="' + lastSavedInvoiceId + '">View</button>' +
+                                '</td>' +
+                                '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">' +
+                                '<button type="button" class="btn ghost small edit-invoice-btn" data-invoice-id="' + lastSavedInvoiceId + '">Edit</button>' +
+                                '</td>' +
+                                '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">' +
+                                '<button type="button" class="btn ghost small delete-invoice-btn" data-invoice-id="' + lastSavedInvoiceId + '">Delete</button>' +
+                                '</td>';
+                            syncInvoiceSelectionState();
+                            bindInvoiceHistoryActions(existingRow);
+                        } else {
+                            appendInvoiceHistoryRow(invoiceRecord);
+                        }
+                    } else {
+                        appendInvoiceHistoryRow(invoiceRecord);
+                    }
+                    if (invoiceEntryPanel) {
+                        invoiceEntryPanel.style.display = 'none';
+                    }
+                    currentInvoicePreviewData = {
+                        invoiceId: lastSavedInvoiceId || '',
+                        fromDate: payload.fromDate || '',
+                        toDate: payload.toDate || '',
+                        rows: rows,
+                        totalAmount: total,
+                        discountAmount: discountValue,
+                        netAmount: Math.max(0, total - discountValue),
+                        patientName: document.querySelector('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]') ? document.querySelector('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]').textContent.trim() : '',
+                        customerCode: document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1] ? document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1].textContent.trim() : '',
+                        bankAccountId: payload.accountId || '',
+                        bankAccountName: payload.accountName || '',
+                        bankName: payload.bankName || '',
+                        bankAccountNo: payload.accountNo || '',
+                        ifscCode: payload.ifscCode || '',
+                        gpayPhonepe: payload.gpayPhonepe || ''
+                    };
+                    if (lastSavedInvoiceId) {
+                        showVnsFlash('Invoice updated successfully.', 'success');
+                    } else {
+                        showVnsFlash('Invoice saved successfully.', 'success');
+                    }
+                    if (window.__shareAfterSavePreview === true) {
+                        window.__shareAfterSavePreview = false;
+                        fetch('/customers/' + customerId + '/invoices/' + lastSavedInvoiceId, {
+                            method: 'GET',
+                            credentials: 'same-origin'
+                        }).then(function (response) {
+                            return response.json().then(function (data) {
+                                if (!response.ok || data.success === false) {
+                                    throw new Error(data.message || 'Could not load invoice.');
+                                }
+                                return data;
+                            });
+                        }).then(function (invoice) {
+                            renderSavedInvoicePreview(invoice);
+                        }).catch(function (error) {
+                            showVnsFlash(error.message || 'Could not load invoice preview.', 'error');
+                        });
+                    }
                 }).catch(function (error) {
                     showVnsFlash(error.message || 'Invoice save failed.', 'error');
                 });
@@ -1081,9 +1424,84 @@
                         accountSelect.focus();
                         return;
                     }
-                    openInvoicePreview();
+                    window.__shareAfterSavePreview = true;
+                    saveInvoice();
                 });
             }
+            var invoiceHistorySearch = document.getElementById('invoice-history-search');
+            var selectAllInvoices = document.getElementById('select-all-invoices');
+            function syncInvoiceSelectionState() {
+                var checkboxes = document.querySelectorAll('.invoice-select-checkbox');
+                if (!checkboxes.length) {
+                    return;
+                }
+                var selectedCount = Array.prototype.slice.call(checkboxes).filter(function (checkbox) {
+                    return checkbox.checked;
+                }).length;
+                if (selectAllInvoices) {
+                    selectAllInvoices.checked = selectedCount > 0 && selectedCount === checkboxes.length;
+                    selectAllInvoices.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+                }
+            }
+            function getSelectedInvoiceIds() {
+                return Array.prototype.slice.call(document.querySelectorAll('.invoice-select-checkbox:checked')).map(function (checkbox) {
+                    return checkbox.getAttribute('data-invoice-id');
+                }).filter(function (id) { return id; });
+            }
+            function deleteSelectedInvoices() {
+                var selectedIds = getSelectedInvoiceIds();
+                if (!selectedIds.length) {
+                    showVnsFlash('Select at least one invoice to delete.', 'error');
+                    return;
+                }
+                var confirmText = document.getElementById('confirm-text');
+                var confirmYes = document.getElementById('confirm-yes');
+                var confirmNo = document.getElementById('confirm-no');
+                if (!confirmText || !confirmYes || !confirmNo) {
+                    if (window.confirm('Delete selected invoice records?')) {
+                        selectedIds.forEach(function (invoiceId) {
+                            deleteInvoiceRecord(invoiceId, null, true);
+                        });
+                    }
+                    return;
+                }
+                confirmText.textContent = 'Delete selected invoice records?';
+                confirmYes.onclick = function () {
+                    toggleModal('confirm-modal', false);
+                    selectedIds.forEach(function (invoiceId) {
+                        deleteInvoiceRecord(invoiceId, null, true);
+                    });
+                };
+                confirmNo.onclick = function () {
+                    toggleModal('confirm-modal', false);
+                };
+                toggleModal('confirm-modal', true);
+            }
+            if (invoiceHistorySearch) {
+                invoiceHistorySearch.addEventListener('input', function () {
+                    var query = (invoiceHistorySearch.value || '').trim().toLowerCase();
+                    var rows = document.querySelectorAll('#customer-invoice-history-body tr[data-invoice-id]');
+                    rows.forEach(function (row) {
+                        var invoiceId = (row.getAttribute('data-invoice-id') || '').toLowerCase();
+                        var invoiceNumber = (row.textContent || '').toLowerCase();
+                        var match = !query || invoiceId.indexOf(query) !== -1 || invoiceNumber.indexOf(query) !== -1;
+                        row.style.display = match ? '' : 'none';
+                    });
+                });
+            }
+            if (selectAllInvoices) {
+                selectAllInvoices.addEventListener('change', function () {
+                    var checked = selectAllInvoices.checked;
+                    document.querySelectorAll('.invoice-select-checkbox').forEach(function (box) {
+                        box.checked = checked;
+                    });
+                });
+            }
+            document.addEventListener('change', function (event) {
+                if (event.target && event.target.classList && event.target.classList.contains('invoice-select-checkbox')) {
+                    syncInvoiceSelectionState();
+                }
+            });
             if (closeModalBtn) {
                 closeModalBtn.addEventListener('click', function () { if (modal) { modal.style.display = 'none'; } });
             }
@@ -1093,7 +1511,52 @@
             if (saveBtn) {
                 saveBtn.addEventListener('click', saveInvoice);
             }
+            if (cancelInvoiceBtn) {
+                cancelInvoiceBtn.addEventListener('click', function () {
+                    lastSavedInvoiceId = null;
+                    if (invoiceEntryPanel) {
+                        invoiceEntryPanel.style.display = 'none';
+                    }
+                    if (invoiceTableBody) {
+                        invoiceTableBody.innerHTML = '';
+                    }
+                    if (invoiceDateFrom) { invoiceDateFrom.value = ''; }
+                    if (invoiceDateTo) { invoiceDateTo.value = ''; }
+                    if (checkbox) { checkbox.checked = false; }
+                    if (discountInput) { discountInput.value = '0'; discountInput.disabled = true; }
+                    if (accountSelect) { accountSelect.selectedIndex = 0; }
+                    if (panel) {
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            }
+            if (newInvoiceBtn) {
+                newInvoiceBtn.addEventListener('click', function () {
+                    if (invoiceEntryPanel) {
+                        invoiceEntryPanel.style.display = 'block';
+                    }
+                    lastSavedInvoiceId = null;
+                    if (invoiceTableBody) {
+                        invoiceTableBody.innerHTML = '';
+                    }
+                    if (invoiceDateFrom) { invoiceDateFrom.value = ''; }
+                    if (invoiceDateTo) { invoiceDateTo.value = ''; }
+                    setDefaultInvoiceDates();
+                    addInvoiceRow('', baseTotal, true);
+                    if (checkbox) { checkbox.checked = false; }
+                    if (discountInput) { discountInput.value = '0'; discountInput.disabled = true; }
+                    if (accountSelect) { accountSelect.selectedIndex = 0; }
+                    if (panel) {
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    if (invoiceDateFrom) {
+                        invoiceDateFrom.focus();
+                    }
+                    updateInvoice();
+                });
+            }
             bindInvoiceHistoryActions(document);
+            addBulkDeleteButton();
             populateDefaultInvoiceRows();
             updateInvoice();
         });

@@ -14,7 +14,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.Base64;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -116,6 +121,7 @@ public class AdminController {
 
     @PostMapping("/bank-accounts")
     public String saveBankAccount(@ModelAttribute("bankAccount") BusinessBankAccount form,
+                                @RequestParam(value = "gpayQrImage", required = false) MultipartFile gpayQrImage,
                                 RedirectAttributes redirectAttributes) {
         if (form.getAccountName() == null || form.getAccountName().trim().isEmpty()
                 || form.getBankName() == null || form.getBankName().trim().isEmpty()
@@ -131,15 +137,42 @@ public class AdminController {
         account.setAccountNo(form.getAccountNo().trim());
         account.setIfscCode(form.getIfscCode().trim());
         account.setGpayPhonepe(form.getGpayPhonepe() == null ? null : form.getGpayPhonepe().trim());
+        if (gpayQrImage != null && !gpayQrImage.isEmpty()) {
+            try {
+                account.setGpayPhonepeQrImage(gpayQrImage.getBytes());
+                account.setGpayPhonepeQrContentType(gpayQrImage.getContentType());
+            } catch (Exception ex) {
+                redirectAttributes.addFlashAttribute("error", "Unable to store the QR image. Please try a smaller image.");
+                return "redirect:/admin/bank-accounts/new";
+            }
+        }
         businessBankAccountRepository.save(account);
 
         redirectAttributes.addFlashAttribute("success", "Bank account saved successfully.");
         return "redirect:/admin/bank-accounts";
     }
 
+    @GetMapping("/bank-accounts/{id}/qr")
+    @ResponseBody
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<byte[]> getBankAccountQr(@PathVariable Long id) {
+        BusinessBankAccount account = businessBankAccountRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Bank account not found"));
+        if (account.getGpayPhonepeQrImage() == null || account.getGpayPhonepeQrImage().length == 0) {
+            return ResponseEntity.noContent().build();
+        }
+        String contentType = account.getGpayPhonepeQrContentType() != null && !account.getGpayPhonepeQrContentType().trim().isEmpty()
+                ? account.getGpayPhonepeQrContentType()
+                : "image/png";
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
+                .body(account.getGpayPhonepeQrImage());
+    }
+
     @PostMapping("/bank-accounts/{id}")
     public String updateBankAccount(@PathVariable Long id,
                                   @ModelAttribute("bankAccount") BusinessBankAccount form,
+                                  @RequestParam(value = "gpayQrImage", required = false) MultipartFile gpayQrImage,
                                   RedirectAttributes redirectAttributes) {
         BusinessBankAccount account = businessBankAccountRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Bank account not found"));
@@ -157,6 +190,15 @@ public class AdminController {
         account.setAccountNo(form.getAccountNo().trim());
         account.setIfscCode(form.getIfscCode().trim());
         account.setGpayPhonepe(form.getGpayPhonepe() == null ? null : form.getGpayPhonepe().trim());
+        if (gpayQrImage != null && !gpayQrImage.isEmpty()) {
+            try {
+                account.setGpayPhonepeQrImage(gpayQrImage.getBytes());
+                account.setGpayPhonepeQrContentType(gpayQrImage.getContentType());
+            } catch (Exception ex) {
+                redirectAttributes.addFlashAttribute("error", "Unable to store the QR image. Please try a smaller image.");
+                return "redirect:/admin/bank-accounts/" + id + "/edit";
+            }
+        }
         businessBankAccountRepository.save(account);
 
         redirectAttributes.addFlashAttribute("success", "Bank account updated successfully.");

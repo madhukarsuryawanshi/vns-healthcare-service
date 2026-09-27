@@ -1,5 +1,7 @@
 package com.vns.healthcare.web;
 
+import org.springframework.format.annotation.DateTimeFormat;
+
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
@@ -39,6 +41,7 @@ public class CustomerForm {
     private String medicalHistory;
 
     @NotNull(message = "Service start date is required")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate serviceStartDate;
 
     @NotBlank(message = "Select service hours")

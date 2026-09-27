@@ -6,6 +6,7 @@ import javax.persistence.EntityListeners;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Lob;
 import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
 import javax.persistence.Table;
@@ -34,6 +35,13 @@ public class BusinessBankAccount extends AuditableEntity {
 
     @Column(name = "gpay_phonepe", length = 100)
     private String gpayPhonepe;
+
+    @Lob
+    @Column(name = "gpay_phonepe_qr_image")
+    private byte[] gpayPhonepeQrImage;
+
+    @Column(name = "gpay_phonepe_qr_content_type", length = 80)
+    private String gpayPhonepeQrContentType;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -99,6 +107,22 @@ public class BusinessBankAccount extends AuditableEntity {
 
     public void setGpayPhonepe(String gpayPhonepe) {
         this.gpayPhonepe = gpayPhonepe;
+    }
+
+    public byte[] getGpayPhonepeQrImage() {
+        return gpayPhonepeQrImage;
+    }
+
+    public void setGpayPhonepeQrImage(byte[] gpayPhonepeQrImage) {
+        this.gpayPhonepeQrImage = gpayPhonepeQrImage;
+    }
+
+    public String getGpayPhonepeQrContentType() {
+        return gpayPhonepeQrContentType;
+    }
+
+    public void setGpayPhonepeQrContentType(String gpayPhonepeQrContentType) {
+        this.gpayPhonepeQrContentType = gpayPhonepeQrContentType;
     }
 
     public LocalDateTime getCreatedAt() {

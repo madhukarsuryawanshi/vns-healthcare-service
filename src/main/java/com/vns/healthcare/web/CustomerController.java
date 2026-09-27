@@ -281,10 +281,32 @@ public class CustomerController {
             result.put("discountAmount", invoice.getDiscountAmount() == null ? 0 : invoice.getDiscountAmount());
             result.put("netAmount", invoice.getNetAmount() == null ? 0 : invoice.getNetAmount());
             result.put("rows", rows);
+            result.put("bankAccountId", invoice.getBankAccountId());
+            if (invoice.getBankAccountId() != null && (invoice.getBankAccountName() == null || invoice.getBankName() == null || invoice.getBankAccountNo() == null || invoice.getIfscCode() == null || invoice.getGpayPhonepe() == null)) {
+                businessBankAccountRepository.findById(invoice.getBankAccountId()).ifPresent(account -> {
+                    if (invoice.getBankAccountName() == null) {
+                        invoice.setBankAccountName(account.getAccountName());
+                    }
+                    if (invoice.getBankName() == null) {
+                        invoice.setBankName(account.getBankName());
+                    }
+                    if (invoice.getBankAccountNo() == null) {
+                        invoice.setBankAccountNo(account.getAccountNo());
+                    }
+                    if (invoice.getIfscCode() == null) {
+                        invoice.setIfscCode(account.getIfscCode());
+                    }
+                    if (invoice.getGpayPhonepe() == null) {
+                        invoice.setGpayPhonepe(account.getGpayPhonepe());
+                    }
+                });
+            }
             result.put("bankAccountName", invoice.getBankAccountName());
+            result.put("bankName", invoice.getBankName());
             result.put("bankAccountNo", invoice.getBankAccountNo());
             result.put("ifscCode", invoice.getIfscCode());
             result.put("gpayPhonepe", invoice.getGpayPhonepe());
+            result.put("gpayQrImageUrl", invoice.getBankAccountId() != null ? "/admin/bank-accounts/" + invoice.getBankAccountId() + "/qr" : "");
             return ResponseEntity.ok(result);
         } catch (BusinessException ex) {
             Map<String, Object> result = new LinkedHashMap<String, Object>();
@@ -338,48 +360,59 @@ public class CustomerController {
                                                            @RequestBody Map<String, Object> payload) {
         try {
             Customer customer = customerService.get(id);
-            String invoiceNumber = safeString(payload.get("invoiceNumber"));
-            String fromDateString = safeString(payload.get("fromDate"));
-            String toDateString = safeString(payload.get("toDate"));
-            BigDecimal totalAmount = parseBigDecimal(payload.get("totalAmount"));
-            BigDecimal discountAmount = parseBigDecimal(payload.get("discountAmount"));
-            BigDecimal netAmount = parseBigDecimal(payload.get("netAmount"));
-            String breakdown = new ObjectMapper().writeValueAsString(payload.get("rows"));
-            LocalDate fromDate = LocalDate.parse(fromDateString);
-            LocalDate toDate = LocalDate.parse(toDateString);
+           String invoiceIdValue = safeString(payload.get("invoiceId"));
+           String invoiceNumber = safeString(payload.get("invoiceNumber"));
+           String fromDateString = safeString(payload.get("fromDate"));
+           String toDateString = safeString(payload.get("toDate"));
+           BigDecimal totalAmount = parseBigDecimal(payload.get("totalAmount"));
+           BigDecimal discountAmount = parseBigDecimal(payload.get("discountAmount"));
+           BigDecimal netAmount = parseBigDecimal(payload.get("netAmount"));
+           String breakdown = new ObjectMapper().writeValueAsString(payload.get("rows"));
+           LocalDate fromDate = LocalDate.parse(fromDateString);
+           LocalDate toDate = LocalDate.parse(toDateString);
 
-            CustomerInvoice invoice = new CustomerInvoice();
-            invoice.setCustomer(customer);
-            invoice.setInvoiceNumber(invoiceNumber.isEmpty() ? buildInvoiceNumber(customer, toDate) : invoiceNumber);
-            invoice.setFromDate(fromDate);
-            invoice.setToDate(toDate);
-            invoice.setInvoiceMonth(toDate.getMonthValue());
-            invoice.setInvoiceYear(toDate.getYear());
-            invoice.setTotalAmount(totalAmount);
-            invoice.setDiscountAmount(discountAmount);
-            invoice.setNetAmount(netAmount);
-            invoice.setBreakdown(breakdown);
+           CustomerInvoice invoice;
+           if (!invoiceIdValue.isEmpty()) {
+               invoice = customerInvoiceRepository.findById(Long.valueOf(invoiceIdValue))
+                       .orElseThrow(() -> new BusinessException("Invoice not found"));
+               if (!invoice.getCustomer().getId().equals(customer.getId())) {
+                   throw new BusinessException("Invoice does not belong to this customer");
+               }
+           } else {
+               invoice = new CustomerInvoice();
+               invoice.setCustomer(customer);
+           }
+           invoice.setInvoiceNumber(invoiceNumber.isEmpty() ? (invoice.getInvoiceNumber() == null ? buildInvoiceNumber(customer, toDate) : invoice.getInvoiceNumber()) : invoiceNumber);
+           invoice.setFromDate(fromDate);
+           invoice.setToDate(toDate);
+           invoice.setInvoiceMonth(toDate.getMonthValue());
+           invoice.setInvoiceYear(toDate.getYear());
+           invoice.setTotalAmount(totalAmount);
+           invoice.setDiscountAmount(discountAmount);
+           invoice.setNetAmount(netAmount);
+           invoice.setBreakdown(breakdown);
 
-            Object accountId = payload.get("accountId");
-            if (accountId != null && !accountId.toString().trim().isEmpty()) {
-                try {
-                    invoice.setBankAccountId(Long.valueOf(accountId.toString()));
-                } catch (NumberFormatException ignore) {
-                    // ignore invalid numeric account id
-                }
-            }
-            invoice.setBankAccountName(safeString(payload.get("accountName")));
-            invoice.setBankAccountNo(safeString(payload.get("accountNo")));
-            invoice.setIfscCode(safeString(payload.get("ifscCode")));
-            invoice.setGpayPhonepe(safeString(payload.get("gpayPhonepe")));
+           Object accountId = payload.get("accountId");
+           if (accountId != null && !accountId.toString().trim().isEmpty()) {
+               try {
+                   invoice.setBankAccountId(Long.valueOf(accountId.toString()));
+               } catch (NumberFormatException ignore) {
+                   // ignore invalid numeric account id
+               }
+           }
+           invoice.setBankAccountName(safeString(payload.get("accountName")));
+           invoice.setBankName(safeString(payload.get("bankName")));
+           invoice.setBankAccountNo(safeString(payload.get("accountNo")));
+           invoice.setIfscCode(safeString(payload.get("ifscCode")));
+           invoice.setGpayPhonepe(safeString(payload.get("gpayPhonepe")));
 
-            CustomerInvoice saved = customerInvoiceRepository.save(invoice);
-            Map<String, Object> result = new LinkedHashMap<String, Object>();
-            result.put("success", true);
-            result.put("message", "Invoice saved successfully.");
-            result.put("invoiceId", saved.getId());
-            result.put("invoiceNumber", saved.getInvoiceNumber());
-            return ResponseEntity.ok(result);
+           CustomerInvoice saved = customerInvoiceRepository.save(invoice);
+           Map<String, Object> result = new LinkedHashMap<String, Object>();
+           result.put("success", true);
+           result.put("message", "Invoice saved successfully.");
+           result.put("invoiceId", saved.getId());
+           result.put("invoiceNumber", saved.getInvoiceNumber());
+           return ResponseEntity.ok(result);
         } catch (Exception ex) {
             log.error("Failed to save invoice for customer [{}]", id, ex);
             Map<String, Object> result = new LinkedHashMap<String, Object>();
