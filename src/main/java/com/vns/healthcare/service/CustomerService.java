@@ -56,7 +56,7 @@ public class CustomerService {
     public List<Customer> list(String query) {
         String search = query == null ? "" : query.trim();
         if (search.isEmpty()) {
-            return customerRepository.findAllWithEmployee();
+            return customerRepository.findPage(PageRequest.of(0, 20)).getContent();
         }
         return customerRepository.findSuggestions(CustomerRepository.buildPrefix(search), PageRequest.of(0, 20));
     }
@@ -64,7 +64,7 @@ public class CustomerService {
     @Transactional(readOnly = true)
     @Cacheable(value = "customer-pages", key = "T(java.util.Objects).hash(#pageable.getPageNumber(), #pageable.getPageSize(), #pageable.getSort())")
     public Page<Customer> listPage(Pageable pageable) {
-        return customerRepository.findAllWithEmployeePage(pageable);
+        return customerRepository.findPage(pageable);
     }
 
     @Transactional(readOnly = true)
@@ -80,7 +80,7 @@ public class CustomerService {
     @Transactional(readOnly = true)
     public Page<Customer> searchByStatus(String query, CustomerStatus status, Pageable pageable) {
         String search = query == null ? "" : query.trim();
-        return customerRepository.searchByStatus(CustomerRepository.buildPrefix(search), status, pageable);
+        return customerRepository.searchByStatus(search, status, pageable);
     }
 
     @Transactional(readOnly = true)

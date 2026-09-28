@@ -65,38 +65,25 @@ public class EmployeeController {
                        @RequestParam(value = "sort", required = false, defaultValue = "empCode") String sort,
                        @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
                        @RequestParam(value = "page", required = false, defaultValue = "0") int page,
-                       @RequestParam(value = "size", required = false, defaultValue = "100") int size,
+                       @RequestParam(value = "size", required = false, defaultValue = "25") int size,
                        Model model) {
         log.info("Listing employees with query [{}], status [{}], sort [{}], dir [{}], page [{}], size [{}]", query, status, sort, dir, page, size);
 
         int safePage = Math.max(page, 0);
-        int safeSize = Math.min(Math.max(size, 1), 100);
+        int safeSize = Math.min(Math.max(size, 10), 50);
         String normalizedSort = normalizeSortField(sort);
         Sort.Direction direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(direction, normalizedSort));
 
         java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> todayMap = employeeService.todayAttendanceStatusMap();
+        java.util.List<String> employeeSuggestions = employeeService.searchSuggestions(query, 15);
         Page<Employee> employeePage;
-        java.util.List<String> employeeSuggestions = employeeService.search("", PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
-                .flatMap(e -> java.util.stream.Stream.of(
-                       e.getFullName(),
-                       e.getMobileNo(),
-                       e.getEmpCode(),
-                       e.getAadharNumber()))
-                .filter(v -> v != null && !v.trim().isEmpty())
-                .distinct()
-                .sorted()
-                .collect(java.util.stream.Collectors.toList());
 
-        if (status != null && !status.trim().isEmpty()) {
-            com.vns.healthcare.domain.EmployeeStatus normalizedStatus = com.vns.healthcare.domain.EmployeeStatus.valueOf(status.trim().toUpperCase());
-            if (query != null && !query.trim().isEmpty()) {
-                employeePage = employeeService.searchByStatus(query.trim(), normalizedStatus, pageable);
-            } else {
-                employeePage = employeeService.findByStatus(normalizedStatus, pageable);
-            }
-        } else if (query != null && !query.trim().isEmpty()) {
-            employeePage = employeeService.search(query.trim(), pageable);
+        com.vns.healthcare.domain.EmployeeStatus normalizedStatus = parseEmployeeStatus(status);
+        com.vns.healthcare.domain.Designation normalizedDesignation = parseDesignation(designation);
+
+        if (normalizedStatus != null || normalizedDesignation != null || (query != null && !query.trim().isEmpty())) {
+            employeePage = employeeService.filterPage(normalizedStatus, normalizedDesignation, query, pageable);
         } else {
             employeePage = employeeService.listPage(pageable);
         }
@@ -179,6 +166,28 @@ public class EmployeeController {
             case "empCode":
             default:
                 return "empCode";
+        }
+    }
+
+    private com.vns.healthcare.domain.EmployeeStatus parseEmployeeStatus(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return com.vns.healthcare.domain.EmployeeStatus.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private com.vns.healthcare.domain.Designation parseDesignation(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return com.vns.healthcare.domain.Designation.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
     }
 

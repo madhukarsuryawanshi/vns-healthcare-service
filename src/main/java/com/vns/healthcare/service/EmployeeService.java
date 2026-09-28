@@ -82,28 +82,58 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     @Cacheable(value = "employee-pages", key = "T(java.util.Objects).hash(#pageable.getPageNumber(), #pageable.getPageSize(), #pageable.getSort())")
     public Page<Employee> listPage(Pageable pageable) {
-        return employeeRepository.findAll(pageable);
+        return employeeRepository.findFilteredPage(null, null, "", EmployeeRepository.buildPrefix(""), pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Employee> search(String query, Pageable pageable) {
-        return employeeRepository.search(query == null ? "" : query.trim(), pageable);
+        String q = query == null ? "" : query.trim();
+        return employeeRepository.search(q, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Employee> filterPage(com.vns.healthcare.domain.EmployeeStatus status,
+                                    com.vns.healthcare.domain.Designation designation,
+                                    String query,
+                                    Pageable pageable) {
+        String q = query == null ? "" : query.trim();
+        return employeeRepository.findFilteredPage(status, designation, q, EmployeeRepository.buildPrefix(q), pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Employee> findByStatus(EmployeeStatus status, Pageable pageable) {
-        return employeeRepository.findByStatusPage(status, pageable);
+        String q = "";
+        return employeeRepository.findFilteredByStatusPage(status, q, EmployeeRepository.buildPrefix(q), pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Employee> searchByStatus(String query, EmployeeStatus status, Pageable pageable) {
-        return employeeRepository.searchByStatus(query == null ? "" : query.trim(), status, pageable);
+        String q = query == null ? "" : query.trim();
+        return employeeRepository.findFilteredByStatusPage(status, q, EmployeeRepository.buildPrefix(q), pageable);
     }
 
     @Transactional(readOnly = true)
     @Cacheable(value = "employee-active", key = "'all'")
     public List<Employee> activeStaff() {
         return employeeRepository.findAllActive(EmployeeStatus.ACTIVE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> searchSuggestions(String query, int limit) {
+        String q = query == null ? "" : query.trim();
+        String prefix = EmployeeRepository.buildPrefix(q);
+        return employeeRepository.findSuggestions(prefix, PageRequest.of(0, Math.max(limit, 1)))
+                .stream()
+                .flatMap(e -> java.util.stream.Stream.of(
+                        e.getFullName(),
+                        e.getMobileNo(),
+                        e.getEmpCode(),
+                        e.getAadharNumber()))
+                .filter(v -> v != null && !v.trim().isEmpty())
+                .distinct()
+                .sorted()
+                .limit(Math.max(limit, 1))
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -387,11 +417,12 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> todayAttendanceStatusMap() {
         java.time.LocalDate today = java.time.LocalDate.now();
-        java.util.List<com.vns.healthcare.entity.Attendance> list = attendanceRepository.findByDateWithEmployee(today);
         java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> map = new java.util.HashMap<>();
-        for (com.vns.healthcare.entity.Attendance a : list) {
-            if (a.getEmployee() == null || a.getEmployee().getId() == null) continue;
-            map.put(a.getEmployee().getId(), a.getStatus());
+        for (com.vns.healthcare.repository.AttendanceStatusProjection row : attendanceRepository.findStatusByDate(today)) {
+            if (row.getEmployeeId() == null || row.getStatus() == null) {
+                continue;
+            }
+            map.put(row.getEmployeeId(), com.vns.healthcare.domain.AttendanceStatus.valueOf(row.getStatus()));
         }
         return map;
     }

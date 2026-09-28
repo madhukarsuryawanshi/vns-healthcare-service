@@ -40,14 +40,18 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status) " +
             "AND (:designation IS NULL OR e.designation = :designation) " +
             "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR LOWER(e.fullName) LIKE LOWER(:prefix))")
-    Page<Employee> searchPage(@Param("status") EmployeeStatus status,
-                              @Param("designation") Designation designation,
-                              @Param("search") String search,
-                              @Param("prefix") String prefix,
-                              Pageable pageable);
+    Page<Employee> findFilteredPage(@Param("status") EmployeeStatus status,
+                                  @Param("designation") Designation designation,
+                                  @Param("search") String search,
+                                  @Param("prefix") String prefix,
+                                  Pageable pageable);
 
-    @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status)")
-    Page<Employee> findByStatusPage(@Param("status") EmployeeStatus status, Pageable pageable);
+    @Query("SELECT e FROM Employee e WHERE e.status = :status " +
+            "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR LOWER(e.fullName) LIKE LOWER(:prefix))")
+    Page<Employee> findFilteredByStatusPage(@Param("status") EmployeeStatus status,
+                                          @Param("search") String search,
+                                          @Param("prefix") String prefix,
+                                          Pageable pageable);
 
     @Query("SELECT e FROM Employee e WHERE (:designation IS NULL OR e.designation = :designation)")
     Page<Employee> findByDesignationPage(@Param("designation") Designation designation, Pageable pageable);
@@ -66,16 +70,16 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     default Page<Employee> search(String query, Pageable pageable) {
         String search = query == null ? "" : query.trim();
-        return searchPage(null, null, search, buildPrefix(search), pageable);
+        return findFilteredPage(null, null, search, buildPrefix(search), pageable);
     }
 
     default Page<Employee> searchByStatus(String query, EmployeeStatus status, Pageable pageable) {
         String search = query == null ? "" : query.trim();
-        return searchPage(status, null, search, buildPrefix(search), pageable);
+        return findFilteredByStatusPage(status, search, buildPrefix(search), pageable);
     }
 
     default Page<Employee> findByStatus(EmployeeStatus status, Pageable pageable) {
-        return findByStatusPage(status, pageable);
+        return findFilteredByStatusPage(status, "", buildPrefix(""), pageable);
     }
 
     static String buildPrefix(String value) {
