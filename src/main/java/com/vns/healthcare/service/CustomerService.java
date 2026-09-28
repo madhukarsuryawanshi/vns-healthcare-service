@@ -12,6 +12,8 @@ import com.vns.healthcare.repository.CustomerRepository;
 import com.vns.healthcare.web.CustomerForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -49,6 +51,26 @@ public class CustomerService {
             return customerRepository.findAllWithEmployee();
         }
         return customerRepository.search(query.trim());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Customer> listPage(Pageable pageable) {
+        return customerRepository.findAllWithEmployee(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Customer> search(String query, Pageable pageable) {
+        return customerRepository.search(query.trim(), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Customer> findByStatus(CustomerStatus status, Pageable pageable) {
+        return customerRepository.findByStatus(status, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Customer> searchByStatus(String query, CustomerStatus status, Pageable pageable) {
+        return customerRepository.searchByStatus(query.trim(), status, pageable);
     }
 
     @Transactional(readOnly = true)

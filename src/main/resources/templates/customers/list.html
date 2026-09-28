@@ -37,14 +37,14 @@
         <table th:if="${!customers.isEmpty()}">
             <thead>
             <tr>
-                <th><a th:href="@{/customers(q=${q}, sort='custCode', dir=${sort == 'custCode' and dir == 'asc' ? 'desc' : 'asc'})}">Cust ID <span th:if="${sort == 'custCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/customers(q=${q}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Customer <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/customers(q=${q}, sort='patientName', dir=${sort == 'patientName' and dir == 'asc' ? 'desc' : 'asc'})}">Patient <span th:if="${sort == 'patientName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/customers(q=${q}, sort='serviceType', dir=${sort == 'serviceType' and dir == 'asc' ? 'desc' : 'asc'})}">Service <span th:if="${sort == 'serviceType'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/customers(q=${q}, sort='charges', dir=${sort == 'charges' and dir == 'asc' ? 'desc' : 'asc'})}">Charges <span th:if="${sort == 'charges'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/customers(q=${q}, sort='assignedEmployee', dir=${sort == 'assignedEmployee' and dir == 'asc' ? 'desc' : 'asc'})}">Assigned staff <span th:if="${sort == 'assignedEmployee'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/customers(q=${q}, sort='status', dir=${sort == 'status' and dir == 'asc' ? 'desc' : 'asc'})}">Status <span th:if="${sort == 'status'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/customers(q=${q}, sort='billedAmount', dir=${sort == 'billedAmount' and dir == 'asc' ? 'desc' : 'asc'})}">Billed <span th:if="${sort == 'billedAmount'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='custCode', dir=${sort == 'custCode' and dir == 'asc' ? 'desc' : 'asc'})}">Cust ID <span th:if="${sort == 'custCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Customer <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='patientName', dir=${sort == 'patientName' and dir == 'asc' ? 'desc' : 'asc'})}">Patient <span th:if="${sort == 'patientName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='serviceType', dir=${sort == 'serviceType' and dir == 'asc' ? 'desc' : 'asc'})}">Service <span th:if="${sort == 'serviceType'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='charges', dir=${sort == 'charges' and dir == 'asc' ? 'desc' : 'asc'})}">Charges <span th:if="${sort == 'charges'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='assignedEmployee', dir=${sort == 'assignedEmployee' and dir == 'asc' ? 'desc' : 'asc'})}">Assigned staff <span th:if="${sort == 'assignedEmployee'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='status', dir=${sort == 'status' and dir == 'asc' ? 'desc' : 'asc'})}">Status <span th:if="${sort == 'status'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='billedAmount', dir=${sort == 'billedAmount' and dir == 'asc' ? 'desc' : 'asc'})}">Billed <span th:if="${sort == 'billedAmount'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th></th>
             </tr>
             </thead>
@@ -76,6 +76,21 @@
             </tr>
             </tbody>
         </table>
+
+        <div class="panel" th:if="${pagination != null and pagination.totalPages > 1}" style="margin-top:16px; border-top:1px solid var(--line); padding-top:16px;">
+            <div class="search" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <div class="sub" th:text="'Page ' + (${pagination.number + 1}) + ' of ' + ${pagination.totalPages}">Page 1 of 1</div>
+                <div class="actions" style="gap:8px;">
+                    <a class="btn ghost small"
+                       th:if="${!pagination.first}"
+                       th:href="@{/customers(q=${q}, status=${status}, sort=${sort}, dir=${dir}, page=${pagination.number - 1}, size=${pageSize})}">Previous</a>
+                    <a class="btn ghost small"
+                       th:if="${!pagination.last}"
+                       th:href="@{/customers(q=${q}, status=${status}, sort=${sort}, dir=${dir}, page=${pagination.number + 1}, size=${pageSize})}">Next</a>
+                </div>
+            </div>
+        </div>
+
         <p class="empty" th:if="${customers.isEmpty()}">No leads yet.</p>
     </div>
 </section>

@@ -11,6 +11,10 @@ import com.vns.healthcare.service.SalaryPaymentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -60,36 +64,56 @@ public class EmployeeController {
                        @RequestParam(value = "attendance", required = false) String attendance,
                        @RequestParam(value = "sort", required = false, defaultValue = "empCode") String sort,
                        @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
+                       @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+                       @RequestParam(value = "size", required = false, defaultValue = "100") int size,
                        Model model) {
-        log.info("Listing employees with query [{}], status [{}], sort [{}], dir [{}]", query, status, sort, dir);
-        List<Employee> employees = new ArrayList<Employee>(employeeService.list(query));
-        if (status != null && !status.trim().isEmpty()) {
-            final String normalized = status.trim();
-            employees.removeIf(e -> e.getStatus() == null || !e.getStatus().name().equalsIgnoreCase(normalized));
+        log.info("Listing employees with query [{}], status [{}], sort [{}], dir [{}], page [{}], size [{}]", query, status, sort, dir, page, size);
+
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by("createdAt").descending());
+
+        if (sort != null && !sort.trim().isEmpty()) {
+            String sortField = normalizeSortField(sort);
+            Sort.Direction direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+            pageable = PageRequest.of(safePage, safeSize, Sort.by(direction, sortField));
         }
-        // apply designation filter
+
+        java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> todayMap = employeeService.todayAttendanceStatusMap();
+        Page<Employee> employeePage;
+
+        if (status != null && !status.trim().isEmpty()) {
+            com.vns.healthcare.domain.EmployeeStatus normalizedStatus = com.vns.healthcare.domain.EmployeeStatus.valueOf(status.trim().toUpperCase());
+            if (query != null && !query.trim().isEmpty()) {
+                employeePage = employeeService.searchByStatus(query.trim(), normalizedStatus, pageable);
+            } else {
+                employeePage = employeeService.findByStatus(normalizedStatus, pageable);
+            }
+        } else if (query != null && !query.trim().isEmpty()) {
+            employeePage = employeeService.search(query.trim(), pageable);
+        } else {
+            employeePage = employeeService.listPage(pageable);
+        }
+
+        List<Employee> employees = new ArrayList<Employee>(employeePage.getContent());
         if (designation != null && !designation.trim().isEmpty()) {
             final String dnorm = designation.trim();
             employees.removeIf(e -> e.getDesignation() == null || !e.getDesignation().name().equalsIgnoreCase(dnorm));
         }
 
-        // prepare today's attendance map
-        java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> todayMap = employeeService.todayAttendanceStatusMap();
-
-        // apply attendance filter
         if (attendance != null && !attendance.trim().isEmpty()) {
             final String anorm = attendance.trim().toUpperCase();
             switch (anorm) {
                 case "PRESENT":
                     employees.removeIf(e -> {
-                        com.vns.healthcare.domain.AttendanceStatus s = todayMap.get(e.getId());
-                        return !(s == com.vns.healthcare.domain.AttendanceStatus.PRESENT || s == com.vns.healthcare.domain.AttendanceStatus.HALF_DAY);
+                       com.vns.healthcare.domain.AttendanceStatus s = todayMap.get(e.getId());
+                       return !(s == com.vns.healthcare.domain.AttendanceStatus.PRESENT || s == com.vns.healthcare.domain.AttendanceStatus.HALF_DAY);
                     });
                     break;
                 case "ABSENT":
                     employees.removeIf(e -> {
-                        com.vns.healthcare.domain.AttendanceStatus s = todayMap.get(e.getId());
-                        return s != null && s != com.vns.healthcare.domain.AttendanceStatus.ABSENT;
+                       com.vns.healthcare.domain.AttendanceStatus s = todayMap.get(e.getId());
+                       return s != null && s != com.vns.healthcare.domain.AttendanceStatus.ABSENT;
                     });
                     break;
                 case "LEAVE":
@@ -103,9 +127,11 @@ public class EmployeeController {
             }
         }
 
-        employees = sortEmployees(employees, sort, dir);
         model.addAttribute("page", "employees");
         model.addAttribute("employees", employees);
+        model.addAttribute("pagination", employeePage);
+        model.addAttribute("currentPage", safePage);
+        model.addAttribute("pageSize", safeSize);
         model.addAttribute("q", query == null ? "" : query);
         model.addAttribute("status", status == null ? "" : status);
         model.addAttribute("designation", designation == null ? "" : designation);
@@ -117,10 +143,10 @@ public class EmployeeController {
         model.addAttribute("attendanceOptions", new String[]{"PRESENT","ABSENT","LEAVE","HALF_DAY"});
         model.addAttribute("employeeSuggestions", employeeService.list(null).stream()
                 .flatMap(e -> java.util.stream.Stream.of(
-                        e.getFullName(),
-                        e.getMobileNo(),
-                        e.getEmpCode(),
-                        e.getAadharNumber()))
+                       e.getFullName(),
+                       e.getMobileNo(),
+                       e.getEmpCode(),
+                       e.getAadharNumber()))
                 .distinct()
                 .filter(v -> v != null && !v.trim().isEmpty())
                 .sorted()
@@ -128,6 +154,33 @@ public class EmployeeController {
         model.addAttribute("presentTodayIds", employeeService.presentTodayEmployeeIds());
         model.addAttribute("todayAttendance", employeeService.todayAttendanceStatusMap());
         return "employees/list";
+    }
+
+    private String normalizeSortField(String sort) {
+        if (sort == null || sort.trim().isEmpty()) {
+            return "empCode";
+        }
+        switch (sort) {
+            case "fullName":
+                return "fullName";
+            case "mobileNo":
+                return "mobileNo";
+            case "joiningDate":
+                return "joiningDate";
+            case "trainingStatus":
+                return "trainingStatus";
+            case "designation":
+                return "designation";
+            case "salary":
+                return "salary";
+            case "status":
+                return "status";
+            case "onboarded":
+                return "onboarded";
+            case "empCode":
+            default:
+                return "empCode";
+        }
     }
 
     private List<Employee> sortEmployees(List<Employee> employees, String sort, String dir) {

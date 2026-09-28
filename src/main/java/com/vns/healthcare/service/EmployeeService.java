@@ -72,6 +72,26 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
+    public Page<Employee> listPage(Pageable pageable) {
+        return employeeRepository.findAllByOrderByCreatedAtDesc(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Employee> search(String query, Pageable pageable) {
+        return employeeRepository.search(query.trim(), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Employee> findByStatus(EmployeeStatus status, Pageable pageable) {
+        return employeeRepository.findByStatus(status, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Employee> searchByStatus(String query, EmployeeStatus status, Pageable pageable) {
+        return employeeRepository.searchByStatus(query.trim(), status, pageable);
+    }
+
+    @Transactional(readOnly = true)
     public List<Employee> activeStaff() {
         return employeeRepository.findAllActive(EmployeeStatus.ACTIVE);
     }

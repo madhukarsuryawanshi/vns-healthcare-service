@@ -15,6 +15,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     List<Employee> findAllByOrderByCreatedAtDesc();
 
+    Page<Employee> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
     Optional<Employee> findByEmpCode(String empCode);
 
     @Query("SELECT DISTINCT e FROM Employee e LEFT JOIN FETCH e.documents WHERE e.id = :id")
@@ -41,4 +43,23 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%')) " +
             "ORDER BY e.createdAt DESC")
     List<Employee> search(@Param("q") String query);
+
+    @Query("SELECT e FROM Employee e WHERE " +
+            "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
+            "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
+            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%')) " +
+            "ORDER BY e.createdAt DESC")
+    Page<Employee> search(@Param("q") String query, Pageable pageable);
+
+    @Query("SELECT e FROM Employee e WHERE e.status = :status ORDER BY e.createdAt DESC")
+    Page<Employee> findByStatus(@Param("status") EmployeeStatus status, Pageable pageable);
+
+    @Query("SELECT e FROM Employee e WHERE " +
+            "(LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
+            "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
+            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND e.status = :status " +
+            "ORDER BY e.createdAt DESC")
+    Page<Employee> searchByStatus(@Param("q") String query, @Param("status") EmployeeStatus status, Pageable pageable);
 }

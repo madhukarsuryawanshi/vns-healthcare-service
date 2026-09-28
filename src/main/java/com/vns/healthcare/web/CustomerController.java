@@ -21,6 +21,10 @@ import com.vns.healthcare.service.FileStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -92,17 +96,40 @@ public class CustomerController {
                        @RequestParam(value = "status", required = false) String status,
                        @RequestParam(value = "sort", required = false, defaultValue = "custCode") String sort,
                        @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
+                       @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+                       @RequestParam(value = "size", required = false, defaultValue = "20") int size,
                        Model model) {
-        log.info("Listing customers with query [{}], status [{}], sort [{}], dir [{}]", query, status, sort, dir);
+        log.info("Listing customers with query [{}], status [{}], sort [{}], dir [{}], page [{}], size [{}]", query, status, sort, dir, page, size);
         LocalDate today = LocalDate.now();
-        List<Customer> customers = new ArrayList<Customer>(customerService.list(query));
-        if (status != null && !status.trim().isEmpty()) {
-            final String normalized = status.trim();
-            customers.removeIf(c -> c.getStatus() == null || !c.getStatus().name().equalsIgnoreCase(normalized));
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+        Page<Customer> customerPage;
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by("createdAt").descending());
+
+        if (sort != null && !sort.trim().isEmpty()) {
+            String sortField = normalizeSortField(sort);
+            Sort.Direction sortDirection = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+            pageable = PageRequest.of(safePage, safeSize, Sort.by(sortDirection, sortField));
         }
-        customers = sortCustomers(customers, sort, dir);
+
+        if (status != null && !status.trim().isEmpty()) {
+            CustomerStatus normalizedStatus = CustomerStatus.valueOf(status.trim().toUpperCase());
+            if (query != null && !query.trim().isEmpty()) {
+                customerPage = customerService.searchByStatus(query.trim(), normalizedStatus, pageable);
+            } else {
+                customerPage = customerService.findByStatus(normalizedStatus, pageable);
+            }
+        } else if (query != null && !query.trim().isEmpty()) {
+            customerPage = customerService.search(query.trim(), pageable);
+        } else {
+            customerPage = customerService.listPage(pageable);
+        }
+
         model.addAttribute("page", "customers");
-        model.addAttribute("customers", customers);
+        model.addAttribute("customers", customerPage.getContent());
+        model.addAttribute("pagination", customerPage);
+        model.addAttribute("currentPage", safePage);
+        model.addAttribute("pageSize", safeSize);
         model.addAttribute("q", query == null ? "" : query);
         model.addAttribute("status", status == null ? "" : status);
         model.addAttribute("sort", sort);
@@ -112,17 +139,42 @@ public class CustomerController {
         model.addAttribute("reportTo", today);
         model.addAttribute("customerSuggestions", customerService.list(null).stream()
                 .flatMap(c -> java.util.stream.Stream.of(
-                        c.getFullName(),
-                        c.getMobileNo(),
-                        c.getPatientName(),
-                        c.getCustCode(),
-                        c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
-                        c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
+                       c.getFullName(),
+                       c.getMobileNo(),
+                       c.getPatientName(),
+                       c.getCustCode(),
+                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
+                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
                 .distinct()
                 .filter(v -> v != null && !v.trim().isEmpty())
                 .sorted()
                 .collect(java.util.stream.Collectors.toList()));
         return "customers/list";
+    }
+
+    private String normalizeSortField(String sort) {
+        if (sort == null || sort.trim().isEmpty()) {
+            return "custCode";
+        }
+        switch (sort) {
+            case "fullName":
+                return "fullName";
+            case "patientName":
+                return "patientName";
+            case "serviceType":
+                return "serviceType";
+            case "charges":
+                return "charges";
+            case "status":
+                return "status";
+            case "billedAmount":
+                return "billedAmount";
+            case "assignedEmployee":
+                return "assignedEmployee.fullName";
+            case "custCode":
+            default:
+                return "custCode";
+        }
     }
 
     private List<Customer> sortCustomers(List<Customer> customers, String sort, String dir) {
