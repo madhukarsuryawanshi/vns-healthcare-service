@@ -11,6 +11,7 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.PrePersist;
@@ -23,9 +24,15 @@ import java.time.LocalTime;
 
 @Entity
 @EntityListeners(AuditEntityListener.class)
-@Table(name = "attendance", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"employee_id", "attendance_date"})
-})
+@Table(name = "attendance",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"employee_id", "attendance_date"})
+        },
+        indexes = {
+                @Index(name = "idx_attendance_date_status", columnList = "attendance_date, status"),
+                @Index(name = "idx_attendance_employee_date", columnList = "employee_id, attendance_date"),
+                @Index(name = "idx_attendance_status", columnList = "status")
+        })
 public class Attendance extends AuditableEntity {
 
     @Id

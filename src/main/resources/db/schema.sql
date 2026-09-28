@@ -38,7 +38,11 @@ CREATE TABLE IF NOT EXISTS employees (
     created_at         DATETIME     NOT NULL,
     updated_at         DATETIME     NOT NULL,
     INDEX idx_emp_name (full_name),
-    INDEX idx_emp_mobile (mobile_no)
+    INDEX idx_emp_mobile (mobile_no),
+    INDEX idx_emp_status_created_at (status, created_at),
+    INDEX idx_emp_designation_status (designation, status),
+    INDEX idx_emp_training_status (training_status),
+    INDEX idx_emp_emp_code (emp_code)
 );
 
 -- KYC / ID / certificates uploaded for an employee
@@ -49,9 +53,11 @@ CREATE TABLE IF NOT EXISTS employee_documents (
     stored_filename    VARCHAR(255) NOT NULL,
     content_type       VARCHAR(120) NULL,
     file_size          BIGINT       NOT NULL,
+    document_type      VARCHAR(20)  NOT NULL DEFAULT 'DOCUMENT',
     created_by         VARCHAR(100) NULL,
     updated_by         VARCHAR(100) NULL,
     uploaded_at        DATETIME     NOT NULL,
+    INDEX idx_emp_doc_type (document_type),
     CONSTRAINT fk_doc_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
 );
 
@@ -80,7 +86,10 @@ CREATE TABLE IF NOT EXISTS customers (
     updated_at           DATETIME     NOT NULL,
     CONSTRAINT fk_cust_employee FOREIGN KEY (assigned_employee_id) REFERENCES employees (id) ON DELETE SET NULL,
     INDEX idx_cust_name (full_name),
-    INDEX idx_cust_mobile (mobile_no)
+    INDEX idx_cust_mobile (mobile_no),
+    INDEX idx_cust_assigned_employee (assigned_employee_id),
+    INDEX idx_cust_created_at (created_at),
+    INDEX idx_cust_status_created_at (status, created_at)
 );
 
 -- KYC / ID / certificates uploaded for a customer
@@ -125,6 +134,9 @@ CREATE TABLE IF NOT EXISTS attendance (
     updated_by       VARCHAR(100) NULL,
     created_at       DATETIME     NOT NULL,
     UNIQUE KEY uk_emp_day (employee_id, attendance_date),
+    INDEX idx_attendance_date_status (attendance_date, status),
+    INDEX idx_attendance_employee_date (employee_id, attendance_date),
+    INDEX idx_attendance_status (status),
     CONSTRAINT fk_att_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
 );
 

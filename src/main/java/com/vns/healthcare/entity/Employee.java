@@ -18,6 +18,7 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.OrderBy;
@@ -34,10 +35,17 @@ import java.util.Set;
 
 @Entity
 @EntityListeners(AuditEntityListener.class)
-@Table(name = "employees", uniqueConstraints = {
-        @UniqueConstraint(columnNames = "emp_code"),
-        @UniqueConstraint(columnNames = "aadhar_number")
-})
+@Table(name = "employees",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = "emp_code"),
+                @UniqueConstraint(columnNames = "aadhar_number")
+        },
+        indexes = {
+                @Index(name = "idx_employee_status_created_at", columnList = "status, created_at"),
+                @Index(name = "idx_employee_designation_status", columnList = "designation, status"),
+                @Index(name = "idx_employee_training_status", columnList = "training_status"),
+                @Index(name = "idx_employee_emp_code", columnList = "emp_code")
+        })
 public class Employee extends AuditableEntity {
 
     @Id

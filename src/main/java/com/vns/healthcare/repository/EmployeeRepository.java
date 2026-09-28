@@ -14,9 +14,8 @@ import java.util.Optional;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
-    List<Employee> findAllByOrderByCreatedAtDesc();
+    List<Employee> findTop5ByOrderByCreatedAtDesc();
 
-    Page<Employee> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     Optional<Employee> findByEmpCode(String empCode);
 
@@ -42,26 +41,34 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
             "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
             "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%')) " +
-            "ORDER BY e.createdAt DESC")
+            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))")
     List<Employee> search(@Param("q") String query);
 
-    @Query("SELECT e FROM Employee e WHERE " +
+    @Query(value = "SELECT e FROM Employee e WHERE " +
             "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
             "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
             "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%')) " +
-            "ORDER BY e.createdAt DESC")
+            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))",
+            countQuery = "SELECT count(e) FROM Employee e WHERE " +
+            "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
+            "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
+            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))")
     Page<Employee> search(@Param("q") String query, Pageable pageable);
 
-    @Query("SELECT e FROM Employee e WHERE e.status = :status ORDER BY e.createdAt DESC")
+    @Query(value = "SELECT e FROM Employee e WHERE e.status = :status",
+            countQuery = "SELECT count(e) FROM Employee e WHERE e.status = :status")
     Page<Employee> findByStatus(@Param("status") EmployeeStatus status, Pageable pageable);
 
-    @Query("SELECT e FROM Employee e WHERE " +
+    @Query(value = "SELECT e FROM Employee e WHERE " +
             "(LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
             "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
             "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND e.status = :status " +
-            "ORDER BY e.createdAt DESC")
+            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND e.status = :status",
+            countQuery = "SELECT count(e) FROM Employee e WHERE " +
+            "(LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
+            "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
+            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND e.status = :status")
     Page<Employee> searchByStatus(@Param("q") String query, @Param("status") EmployeeStatus status, Pageable pageable);
 }

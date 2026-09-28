@@ -81,6 +81,16 @@ public class EmployeeController {
 
         java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> todayMap = employeeService.todayAttendanceStatusMap();
         Page<Employee> employeePage;
+        java.util.List<String> employeeSuggestions = employeeService.listPage(PageRequest.of(0, 50, Sort.by("createdAt").descending())).getContent().stream()
+                .flatMap(e -> java.util.stream.Stream.of(
+                        e.getFullName(),
+                        e.getMobileNo(),
+                        e.getEmpCode(),
+                        e.getAadharNumber()))
+                .filter(v -> v != null && !v.trim().isEmpty())
+                .distinct()
+                .sorted()
+                .collect(java.util.stream.Collectors.toList());
 
         if (status != null && !status.trim().isEmpty()) {
             com.vns.healthcare.domain.EmployeeStatus normalizedStatus = com.vns.healthcare.domain.EmployeeStatus.valueOf(status.trim().toUpperCase());
@@ -141,18 +151,9 @@ public class EmployeeController {
         model.addAttribute("statuses", com.vns.healthcare.domain.EmployeeStatus.values());
         model.addAttribute("designations", com.vns.healthcare.domain.Designation.values());
         model.addAttribute("attendanceOptions", new String[]{"PRESENT","ABSENT","LEAVE","HALF_DAY"});
-        model.addAttribute("employeeSuggestions", employeeService.list(null).stream()
-                .flatMap(e -> java.util.stream.Stream.of(
-                       e.getFullName(),
-                       e.getMobileNo(),
-                       e.getEmpCode(),
-                       e.getAadharNumber()))
-                .distinct()
-                .filter(v -> v != null && !v.trim().isEmpty())
-                .sorted()
-                .collect(java.util.stream.Collectors.toList()));
-        model.addAttribute("presentTodayIds", employeeService.presentTodayEmployeeIds());
-        model.addAttribute("todayAttendance", employeeService.todayAttendanceStatusMap());
+        model.addAttribute("employeeSuggestions", employeeSuggestions);
+        model.addAttribute("presentTodayIds", employeeService.presentTodayEmployeeIds(todayMap));
+        model.addAttribute("todayAttendance", todayMap);
         return "employees/list";
     }
 
@@ -266,6 +267,7 @@ public class EmployeeController {
         model.addAttribute("page", "employees");
         model.addAttribute("employee", employee);
         model.addAttribute("passportPhoto", employeeService.getPassportPhoto(employee));
+        model.addAttribute("documentsForDisplay", employeeService.getDocuments(id, "DOCUMENT"));
         // compute age for brochure and templates (defensive)
         if (employee.getDateOfBirth() != null) {
             java.time.Period p = java.time.Period.between(employee.getDateOfBirth(), java.time.LocalDate.now());

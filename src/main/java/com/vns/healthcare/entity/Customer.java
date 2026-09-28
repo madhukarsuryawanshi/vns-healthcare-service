@@ -13,6 +13,7 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
@@ -27,7 +28,12 @@ import java.util.List;
 
 @Entity
 @EntityListeners(AuditEntityListener.class)
-@Table(name = "customers")
+@Table(name = "customers",
+        indexes = {
+                @Index(name = "idx_customer_assigned_employee", columnList = "assigned_employee_id"),
+                @Index(name = "idx_customer_created_at", columnList = "created_at"),
+                @Index(name = "idx_customer_status_created_at", columnList = "status, created_at")
+        })
 public class Customer extends AuditableEntity {
 
     @Id

@@ -29,8 +29,8 @@ public class DashboardController {
     public String home(Model model) {
         model.addAttribute("page", "dashboard");
         model.addAttribute("stats", dashboardService.stats());
-        model.addAttribute("recentEmployees", take(employeeRepository.findAllByOrderByCreatedAtDesc(), 5));
-        model.addAttribute("recentCustomers", take(customerRepository.findAllWithEmployee(), 5));
+        model.addAttribute("recentEmployees", employeeRepository.findTop5ByOrderByCreatedAtDesc());
+        model.addAttribute("recentCustomers", customerRepository.findTop5WithEmployee());
         model.addAttribute("today", LocalDate.now());
         return "dashboard";
     }

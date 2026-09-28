@@ -125,6 +125,19 @@ public class CustomerController {
             customerPage = customerService.listPage(pageable);
         }
 
+        java.util.List<String> customerSuggestions = customerService.listPage(PageRequest.of(0, 50, Sort.by("createdAt").descending())).getContent().stream()
+                .flatMap(c -> java.util.stream.Stream.of(
+                       c.getFullName(),
+                       c.getMobileNo(),
+                       c.getPatientName(),
+                       c.getCustCode(),
+                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
+                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
+                .distinct()
+                .filter(v -> v != null && !v.trim().isEmpty())
+                .sorted()
+                .collect(java.util.stream.Collectors.toList());
+
         model.addAttribute("page", "customers");
         model.addAttribute("customers", customerPage.getContent());
         model.addAttribute("pagination", customerPage);
@@ -137,18 +150,7 @@ public class CustomerController {
         model.addAttribute("statuses", CustomerStatus.values());
         model.addAttribute("reportFrom", today.withDayOfMonth(1));
         model.addAttribute("reportTo", today);
-        model.addAttribute("customerSuggestions", customerService.list(null).stream()
-                .flatMap(c -> java.util.stream.Stream.of(
-                       c.getFullName(),
-                       c.getMobileNo(),
-                       c.getPatientName(),
-                       c.getCustCode(),
-                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
-                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
-                .distinct()
-                .filter(v -> v != null && !v.trim().isEmpty())
-                .sorted()
-                .collect(java.util.stream.Collectors.toList()));
+        model.addAttribute("customerSuggestions", customerSuggestions);
         return "customers/list";
     }
 

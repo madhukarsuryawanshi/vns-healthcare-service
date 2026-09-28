@@ -69,14 +69,14 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<Employee> list(String query) {
         if (query == null || query.trim().isEmpty()) {
-            return employeeRepository.findAllByOrderByCreatedAtDesc();
+            return employeeRepository.findTop5ByOrderByCreatedAtDesc();
         }
         return employeeRepository.search(query.trim());
     }
 
     @Transactional(readOnly = true)
     public Page<Employee> listPage(Pageable pageable) {
-        return employeeRepository.findAllByOrderByCreatedAtDesc(pageable);
+        return employeeRepository.findAll(pageable);
     }
 
     @Transactional(readOnly = true)
@@ -278,15 +278,17 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
+    public List<EmployeeDocument> getDocuments(Long employeeId, String documentType) {
+        return documentRepository.findByEmployeeIdAndDocumentType(employeeId, documentType);
+    }
+
+    @Transactional(readOnly = true)
     public EmployeeDocument getPassportPhoto(Employee employee) {
         if (employee == null || employee.getDocuments() == null || employee.getDocuments().isEmpty()) {
             return null;
         }
         for (EmployeeDocument document : employee.getDocuments()) {
-            String contentType = document.getContentType();
-            String filename = document.getOriginalFilename() == null ? "" : document.getOriginalFilename().toLowerCase();
-            if ((contentType != null && ("image/png".equalsIgnoreCase(contentType) || "image/jpeg".equalsIgnoreCase(contentType)))
-                    || filename.endsWith(".png") || filename.endsWith(".jpg") || filename.endsWith(".jpeg")) {
+            if (document.getDocumentType() != null && "PHOTO".equalsIgnoreCase(document.getDocumentType())) {
                 return document;
             }
         }
@@ -382,9 +384,13 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public java.util.Set<Long> presentTodayEmployeeIds() {
-        java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> map = todayAttendanceStatusMap();
+        return presentTodayEmployeeIds(todayAttendanceStatusMap());
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Set<Long> presentTodayEmployeeIds(java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> attendanceMap) {
         java.util.Set<Long> ids = new java.util.HashSet<>();
-        for (java.util.Map.Entry<Long, com.vns.healthcare.domain.AttendanceStatus> e : map.entrySet()) {
+        for (java.util.Map.Entry<Long, com.vns.healthcare.domain.AttendanceStatus> e : attendanceMap.entrySet()) {
             com.vns.healthcare.domain.AttendanceStatus s = e.getValue();
             if (s == com.vns.healthcare.domain.AttendanceStatus.PRESENT || s == com.vns.healthcare.domain.AttendanceStatus.HALF_DAY) {
                 ids.add(e.getKey());
@@ -394,18 +400,30 @@ public class EmployeeService {
     }
 
     private void storeDocumentIfPresent(Employee employee, MultipartFile file) {
-        // kept for backward compatibility
         if (file == null || file.isEmpty()) return;
-        storeDocumentsIfPresent(employee, new MultipartFile[]{file});
+        storeDocumentsIfPresent(employee, new MultipartFile[]{file}, "PHOTO");
     }
 
     private void storeDocumentsIfPresent(Employee employee, MultipartFile[] files) {
+        storeDocumentsIfPresent(employee, files, "DOCUMENT");
+    }
+
+    private void storeDocumentsIfPresent(Employee employee, MultipartFile[] files, String documentType) {
         if (files == null || files.length == 0) return;
         Set<String> seen = new HashSet<String>();
         for (MultipartFile file : files) {
             if (file == null || file.isEmpty()) continue;
             String fingerprint = fingerprint(file);
             if (!seen.add(fingerprint)) {
+                continue;
+            }
+            if (documentRepository.existsByEmployeeIdAndDocumentTypeAndOriginalFilenameAndFileSizeAndContentType(
+                    employee.getId(),
+                    documentType,
+                    file.getOriginalFilename(),
+                    file.getSize(),
+                    file.getContentType())) {
+                log.info("Skipping duplicate employee {} upload for employee id [{}], file [{}]", documentType.toLowerCase(), employee.getId(), file.getOriginalFilename());
                 continue;
             }
             try {
@@ -417,11 +435,12 @@ public class EmployeeService {
                 document.setStoredFilename(stored);
                 document.setContentType(safeFile.getContentType());
                 document.setFileSize(safeFile.getSize());
+                document.setDocumentType(documentType);
                 document.setFileData(safeFile.getBytes());
                 documentRepository.save(document);
-                log.info("Stored employee document [{}] for employee id [{}]", safeFile.getOriginalFilename(), employee.getId());
+                log.info("Stored employee {} document [{}] for employee id [{}]", documentType.toLowerCase(), safeFile.getOriginalFilename(), employee.getId());
             } catch (IOException ex) {
-                log.error("Failed to store employee document for employee id [{}]", employee.getId(), ex);
+                log.error("Failed to store employee {} document for employee id [{}]", documentType.toLowerCase(), employee.getId(), ex);
                 throw new BusinessException("Could not store one of the uploaded documents");
             }
         }

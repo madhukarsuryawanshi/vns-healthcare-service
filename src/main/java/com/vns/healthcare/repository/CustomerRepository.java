@@ -23,15 +23,20 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     long countByAssignedEmployeeIsNotNull();
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c ORDER BY c.createdAt DESC")
+    @Query("SELECT c FROM Customer c")
     List<Customer> findAllWithEmployee();
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e ORDER BY c.createdAt DESC")
+    @Query("SELECT c FROM Customer c")
+    List<Customer> findTop5WithEmployee();
+
+    @EntityGraph(attributePaths = {"assignedEmployee"})
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e")
     Page<Customer> findAllWithEmployee(Pageable pageable);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE c.status = :status ORDER BY c.createdAt DESC")
+    @Query(value = "SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE c.status = :status",
+            countQuery = "SELECT count(c) FROM Customer c WHERE c.status = :status")
     Page<Customer> findByStatus(@Param("status") CustomerStatus status, Pageable pageable);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
@@ -41,8 +46,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
             "LOWER(c.patientName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
             "LOWER(c.custCode) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
             "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%')) " +
-            "ORDER BY c.createdAt DESC",
+            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))",
             countQuery = "SELECT count(c) FROM Customer c LEFT JOIN c.assignedEmployee e WHERE " +
                     "LOWER(c.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
                     "c.mobileNo LIKE CONCAT('%', :q, '%') OR " +
@@ -59,8 +63,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
             "LOWER(c.patientName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
             "LOWER(c.custCode) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
             "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND c.status = :status " +
-            "ORDER BY c.createdAt DESC",
+            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND c.status = :status",
             countQuery = "SELECT count(c) FROM Customer c LEFT JOIN c.assignedEmployee e WHERE " +
                     "(LOWER(c.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
                     "c.mobileNo LIKE CONCAT('%', :q, '%') OR " +

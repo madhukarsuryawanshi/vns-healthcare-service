@@ -12,11 +12,15 @@ import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.persistence.PrePersist;
 import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 
 @Entity
 @EntityListeners(AuditEntityListener.class)
-@Table(name = "employee_documents")
+@Table(name = "employee_documents",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"employee_id", "document_type", "original_filename", "file_size", "content_type"})
+        })
 public class EmployeeDocument extends AuditableEntity {
 
     @Id
@@ -39,6 +43,9 @@ public class EmployeeDocument extends AuditableEntity {
     @Column(name = "file_size", nullable = false)
     private long fileSize;
 
+    @Column(name = "document_type", nullable = false, length = 20)
+    private String documentType = "DOCUMENT";
+
     @Lob
     @Column(name = "file_data", columnDefinition = "LONGBLOB")
     private byte[] fileData;
@@ -49,6 +56,9 @@ public class EmployeeDocument extends AuditableEntity {
     @PrePersist
     public void onCreate() {
         uploadedAt = LocalDateTime.now();
+        if (documentType == null || documentType.trim().isEmpty()) {
+            documentType = "DOCUMENT";
+        }
     }
 
     public Long getId() {
@@ -93,6 +103,14 @@ public class EmployeeDocument extends AuditableEntity {
 
     public void setFileSize(long fileSize) {
         this.fileSize = fileSize;
+    }
+
+    public String getDocumentType() {
+        return documentType;
+    }
+
+    public void setDocumentType(String documentType) {
+        this.documentType = documentType;
     }
 
     public byte[] getFileData() {
