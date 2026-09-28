@@ -79,6 +79,11 @@
                     <div class="error-text" th:if="${#fields.hasErrors('charges')}" th:errors="*{charges}"></div>
                 </div>
                 <div class="field">
+                    <label>Advance payment</label>
+                    <input type="text" th:field="*{advancePayment}" inputmode="decimal" placeholder="e.g. 5000"/>
+                    <div class="error-text" th:if="${#fields.hasErrors('advancePayment')}" th:errors="*{advancePayment}"></div>
+                </div>
+                <div class="field">
                     <label class="req">Service start date</label>
                     <input type="date" th:field="*{serviceStartDate}" required/>
                     <div class="error-text" th:if="${#fields.hasErrors('serviceStartDate')}" th:errors="*{serviceStartDate}"></div>

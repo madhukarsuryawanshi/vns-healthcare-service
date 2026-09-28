@@ -655,6 +655,7 @@ public class CustomerController {
         form.setServiceStartDate(customer.getServiceStartDate());
         form.setServiceType(customer.getServiceType().name());
         form.setCharges(customer.getCharges());
+        form.setAdvancePayment(customer.getAdvancePayment());
         form.setEmployeeId(customer.getAssignedEmployee() == null ? null : customer.getAssignedEmployee().getId());
         form.setStatus(customer.getStatus().name());
         form.setEmail(customer.getEmail());

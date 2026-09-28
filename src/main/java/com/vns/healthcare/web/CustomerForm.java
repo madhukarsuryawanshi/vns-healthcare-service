@@ -51,6 +51,9 @@ public class CustomerForm {
     @DecimalMin(value = "0.0", inclusive = true, message = "Charges cannot be negative")
     private BigDecimal charges;
 
+    @DecimalMin(value = "0.0", inclusive = true, message = "Advance payment cannot be negative")
+    private BigDecimal advancePayment;
+
     private Long employeeId;
 
     private String status;
@@ -137,6 +140,14 @@ public class CustomerForm {
 
     public void setCharges(BigDecimal charges) {
         this.charges = charges;
+    }
+
+    public BigDecimal getAdvancePayment() {
+        return advancePayment;
+    }
+
+    public void setAdvancePayment(BigDecimal advancePayment) {
+        this.advancePayment = advancePayment;
     }
 
     public Long getEmployeeId() {

@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS customers (
     service_start_date   DATE         NULL,
     service_type         VARCHAR(20)  NOT NULL,
     charges              DECIMAL(12,2) NULL,
+    advance_payment      DECIMAL(12,2) NULL,
     assigned_employee_id BIGINT       NULL,
     status               VARCHAR(20)  NOT NULL DEFAULT 'NEW',
     billed_amount        DECIMAL(12,2) NULL,

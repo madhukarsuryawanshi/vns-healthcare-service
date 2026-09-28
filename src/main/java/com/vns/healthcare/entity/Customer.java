@@ -72,6 +72,9 @@ public class Customer extends AuditableEntity {
     @Column(precision = 12, scale = 2)
     private java.math.BigDecimal charges;
 
+    @Column(name = "advance_payment", precision = 12, scale = 2)
+    private java.math.BigDecimal advancePayment;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_employee_id")
     private Employee assignedEmployee;
@@ -213,6 +216,14 @@ public class Customer extends AuditableEntity {
 
     public void setCharges(java.math.BigDecimal charges) {
         this.charges = charges;
+    }
+
+    public java.math.BigDecimal getAdvancePayment() {
+        return advancePayment;
+    }
+
+    public void setAdvancePayment(java.math.BigDecimal advancePayment) {
+        this.advancePayment = advancePayment;
     }
 
     public Employee getAssignedEmployee() {
