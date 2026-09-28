@@ -24,11 +24,22 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.Iterator;
 import java.util.UUID;
 
 @Service
@@ -79,43 +90,49 @@ public class FileStorageService {
         }
     }
 
+    public static final long MAX_IMAGE_BYTES = 2L * 1024L * 1024L;
+    public static final long MAX_DOCUMENT_BYTES = 5L * 1024L * 1024L;
+    public static final int MAX_IMAGE_DIMENSION = 1200;
+
     public String store(Long employeeId, MultipartFile file) throws IOException {
+        MultipartFile safeFile = normalizeUpload(file, false);
         if (databaseEnabled) {
             return "db:" + UUID.randomUUID();
         }
         if (s3Enabled) {
-            return storeToS3("employees", employeeId, file);
+            return storeToS3("employees", employeeId, safeFile);
         }
         File folder = new File(root, "employees/" + employeeId);
         if (!folder.exists() && !folder.mkdirs()) {
             throw new IOException("Cannot create employee upload folder");
         }
-        String original = file.getOriginalFilename() == null ? "document" : file.getOriginalFilename();
+        String original = safeFile.getOriginalFilename() == null ? "document" : safeFile.getOriginalFilename();
         String safe = original.replaceAll("[^a-zA-Z0-9._-]", "_");
         String stored = UUID.randomUUID().toString() + "_" + safe;
         File dest = new File(folder, stored);
-        Files.copy(file.getInputStream(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(safeFile.getInputStream(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
         try { dest.setWritable(true, false); } catch (Exception ignored) {}
         log.info("Stored employee document [{}] in [{}]", original, dest.getAbsolutePath());
         return stored;
     }
 
     public String storeCustomer(Long customerId, MultipartFile file) throws IOException {
+        MultipartFile safeFile = normalizeUpload(file, false);
         if (databaseEnabled) {
             return "db:" + UUID.randomUUID();
         }
         if (s3Enabled) {
-            return storeToS3("customers", customerId, file);
+            return storeToS3("customers", customerId, safeFile);
         }
         File folder = new File(root, "customers/" + customerId);
         if (!folder.exists() && !folder.mkdirs()) {
             throw new IOException("Cannot create customer upload folder");
         }
-        String original = file.getOriginalFilename() == null ? "document" : file.getOriginalFilename();
+        String original = safeFile.getOriginalFilename() == null ? "document" : safeFile.getOriginalFilename();
         String safe = original.replaceAll("[^a-zA-Z0-9._-]", "_");
         String stored = UUID.randomUUID().toString() + "_" + safe;
         File dest = new File(folder, stored);
-        Files.copy(file.getInputStream(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(safeFile.getInputStream(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
         try { dest.setWritable(true, false); } catch (Exception ignored) {}
         log.info("Stored customer document [{}] in [{}]", original, dest.getAbsolutePath());
         return stored;
@@ -143,6 +160,130 @@ public class FileStorageService {
         File file = resolveLocalCustomerFile(document);
         log.info("Loading customer document from [{}]", file.getAbsolutePath());
         return new FileSystemResource(file);
+    }
+
+    public MultipartFile normalizeUpload(MultipartFile file, boolean allowPdfOnly) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Please select a file to upload.");
+        }
+        String original = file.getOriginalFilename() == null ? "document" : file.getOriginalFilename();
+        String lower = original.toLowerCase();
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
+        boolean isImage = contentType.startsWith("image/") || lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg");
+        boolean isPdf = "application/pdf".equalsIgnoreCase(contentType) || lower.endsWith(".pdf");
+        long maxBytes = isImage ? MAX_IMAGE_BYTES : MAX_DOCUMENT_BYTES;
+        if (file.getSize() > maxBytes) {
+            throw new IllegalArgumentException("File is too large. Maximum allowed size is " + (maxBytes / (1024 * 1024)) + " MB.");
+        }
+        if (allowPdfOnly && !isPdf) {
+            throw new IllegalArgumentException("Only PDF files are allowed for this upload.");
+        }
+        if (!isImage && !isPdf && !allowPdfOnly) {
+            return file;
+        }
+        if (!isImage) {
+            return file;
+        }
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(file.getBytes()));
+        if (image == null) {
+            return file;
+        }
+        int width = image.getWidth();
+        int height = image.getHeight();
+        if (width <= MAX_IMAGE_DIMENSION && height <= MAX_IMAGE_DIMENSION) {
+            return file;
+        }
+        int targetWidth = width;
+        int targetHeight = height;
+        if (width > height) {
+            targetWidth = MAX_IMAGE_DIMENSION;
+            targetHeight = (int) Math.round(height * (MAX_IMAGE_DIMENSION / (double) width));
+        } else {
+            targetHeight = MAX_IMAGE_DIMENSION;
+            targetWidth = (int) Math.round(width * (MAX_IMAGE_DIMENSION / (double) height));
+        }
+        BufferedImage resized = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = resized.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.drawImage(image, 0, 0, targetWidth, targetHeight, null);
+        g.dispose();
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
+        if (!writers.hasNext()) {
+            return file;
+        }
+        ImageWriter writer = writers.next();
+        ImageOutputStream ios = ImageIO.createImageOutputStream(baos);
+        writer.setOutput(ios);
+        ImageWriteParam param = writer.getDefaultWriteParam();
+        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        param.setCompressionQuality(0.8f);
+        writer.write(null, new IIOImage(resized, null, null), param);
+        ios.close();
+        writer.dispose();
+        return new MultipartFileAdapter(file.getName(), file.getOriginalFilename(), "image/jpeg", baos.toByteArray());
+    }
+
+    private static final class MultipartFileAdapter implements MultipartFile {
+        private final String name;
+        private final String originalFilename;
+        private final String contentType;
+        private final byte[] content;
+
+        private MultipartFileAdapter(String name, String originalFilename, String contentType, byte[] content) {
+            this.name = name;
+            this.originalFilename = originalFilename;
+            this.contentType = contentType;
+            this.content = content;
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public String getOriginalFilename() {
+            return originalFilename;
+        }
+
+        @Override
+        public String getContentType() {
+            return contentType;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return content == null || content.length == 0;
+        }
+
+        @Override
+        public long getSize() {
+            return content == null ? 0 : content.length;
+        }
+
+        @Override
+        public byte[] getBytes() throws IOException {
+            return content.clone();
+        }
+
+        @Override
+        public java.io.InputStream getInputStream() throws IOException {
+            return new java.io.ByteArrayInputStream(content);
+        }
+
+        @Override
+        public void transferTo(File dest) throws IOException, IllegalStateException {
+            java.nio.file.Files.write(dest.toPath(), content);
+        }
+
+        @Override
+        public void transferTo(java.nio.file.Path dest) throws IOException, IllegalStateException {
+            java.nio.file.Files.write(dest, content);
+        }
     }
 
     public void delete(EmployeeDocument document) {

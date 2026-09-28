@@ -19,8 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.security.MessageDigest;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class CustomerService {
@@ -120,6 +123,22 @@ public class CustomerService {
         if (files == null || files.length == 0) {
             log.warn("Customer document upload rejected for id [{}]: no files", id);
             throw new BusinessException("Choose one or more documents to upload");
+        }
+        Set<String> seen = new HashSet<String>();
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) {
+                continue;
+            }
+            String fingerprint = fingerprint(file);
+            if (!seen.add(fingerprint)) {
+                continue;
+            }
+            long maxBytes = file.getContentType() != null && file.getContentType().toLowerCase().startsWith("image/")
+                    ? FileStorageService.MAX_IMAGE_BYTES
+                    : FileStorageService.MAX_DOCUMENT_BYTES;
+            if (file.getSize() > maxBytes) {
+                throw new BusinessException("File is too large. Maximum allowed size is " + (maxBytes / (1024 * 1024)) + " MB.");
+            }
         }
         storeDocumentsIfPresent(get(id), files);
     }
@@ -264,23 +283,44 @@ public class CustomerService {
 
     private void storeDocumentsIfPresent(Customer customer, MultipartFile[] files) {
         if (files == null || files.length == 0) return;
+        Set<String> seen = new HashSet<String>();
         for (MultipartFile file : files) {
             if (file == null || file.isEmpty()) continue;
+            String fingerprint = fingerprint(file);
+            if (!seen.add(fingerprint)) {
+                continue;
+            }
             try {
-                String stored = fileStorageService.storeCustomer(customer.getId(), file);
+                MultipartFile safeFile = fileStorageService.normalizeUpload(file, false);
+                String stored = fileStorageService.storeCustomer(customer.getId(), safeFile);
                 CustomerDocument document = new CustomerDocument();
                 document.setCustomer(customer);
-                document.setOriginalFilename(file.getOriginalFilename());
+                document.setOriginalFilename(safeFile.getOriginalFilename());
                 document.setStoredFilename(stored);
-                document.setContentType(file.getContentType());
-                document.setFileSize(file.getSize());
-                document.setFileData(file.getBytes());
+                document.setContentType(safeFile.getContentType());
+                document.setFileSize(safeFile.getSize());
+                document.setFileData(safeFile.getBytes());
                 documentRepository.save(document);
-                log.info("Stored customer document [{}] for customer id [{}]", file.getOriginalFilename(), customer.getId());
+                log.info("Stored customer document [{}] for customer id [{}]", safeFile.getOriginalFilename(), customer.getId());
             } catch (IOException ex) {
                 log.error("Failed to store customer document for customer id [{}]", customer.getId(), ex);
                 throw new BusinessException("Could not store one of the uploaded documents");
             }
+        }
+    }
+
+    private String fingerprint(MultipartFile file) {
+        try {
+            byte[] bytes = file.getBytes();
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(bytes);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return file.getOriginalFilename() + "::" + sb.toString();
+        } catch (Exception ex) {
+            return file.getOriginalFilename() + "::" + file.getSize();
         }
     }
 

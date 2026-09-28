@@ -4,6 +4,7 @@ import com.vns.healthcare.domain.EmployeeStatus;
 import com.vns.healthcare.entity.Employee;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,7 +20,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     Optional<Employee> findByEmpCode(String empCode);
 
-    @Query("SELECT DISTINCT e FROM Employee e LEFT JOIN FETCH e.documents WHERE e.id = :id")
+    @EntityGraph(attributePaths = {"documents", "knownLanguages"})
+    @Query("SELECT e FROM Employee e WHERE e.id = :id")
     Optional<Employee> findWithDocuments(@Param("id") Long id);
 
     boolean existsByAadharNumber(String aadharNumber);
