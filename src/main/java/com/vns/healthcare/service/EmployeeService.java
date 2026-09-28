@@ -20,6 +20,8 @@ import com.vns.healthcare.repository.SalaryPaymentRepository;
 import com.vns.healthcare.web.EmployeeForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -67,6 +69,7 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "employee-lists", key = "#query == null ? 'all' : #query.trim()")
     public List<Employee> list(String query) {
         String search = query == null ? "" : query.trim();
         if (search.isEmpty()) {
@@ -77,6 +80,7 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "employee-pages", key = "T(java.util.Objects).hash(#pageable.getPageNumber(), #pageable.getPageSize(), #pageable.getSort())")
     public Page<Employee> listPage(Pageable pageable) {
         return employeeRepository.findAll(pageable);
     }
@@ -97,11 +101,13 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "employee-active", key = "'all'")
     public List<Employee> activeStaff() {
         return employeeRepository.findAllActive(EmployeeStatus.ACTIVE);
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "employee-active-pages", key = "#page + ':' + #size")
     public Page<Employee> activeStaffPage(int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1));
         return employeeRepository.findActivePage(EmployeeStatus.ACTIVE, pageable);
@@ -114,6 +120,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
     public Employee create(EmployeeForm form, MultipartFile[] documents) {
         log.info("Creating employee with Aadhar [{}] and name [{}]", form.getAadharNumber(), form.getFullName());
         if (employeeRepository.existsByAadharNumber(form.getAadharNumber())) {
@@ -130,6 +137,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
     public Employee update(Long id, EmployeeForm form) {
         Employee employee = get(id);
         log.info("Updating employee id [{}] with Aadhar [{}]", id, form.getAadharNumber());
@@ -144,6 +152,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
     public void delete(Long id) {
         Employee employee = get(id);
         log.info("Deleting employee id [{}] [{}]", id, employee.getFullName());
@@ -186,6 +195,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
     public void updateTraining(Long id, TrainingStatus status, String notes) {
         Employee employee = get(id);
         log.info("Updating training for employee id [{}] to status [{}]", id, status);
@@ -195,6 +205,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
     public void onboard(Long id, LocalDate salaryStartDate) {
         Employee employee = get(id);
         log.info("Onboarding employee id [{}] with salary start date [{}]", id, salaryStartDate);
@@ -205,6 +216,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
     public void resign(Long id) {
         Employee employee = get(id);
         log.info("Resigning employee id [{}] [{}]", id, employee.getFullName());

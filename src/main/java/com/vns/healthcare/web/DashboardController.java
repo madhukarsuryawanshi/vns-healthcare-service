@@ -3,6 +3,8 @@ package com.vns.healthcare.web;
 import com.vns.healthcare.repository.CustomerRepository;
 import com.vns.healthcare.repository.EmployeeRepository;
 import com.vns.healthcare.service.DashboardService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,6 +13,8 @@ import java.time.LocalDate;
 
 @Controller
 public class DashboardController {
+
+    private static final Logger log = LoggerFactory.getLogger(DashboardController.class);
 
     private final DashboardService dashboardService;
     private final EmployeeRepository employeeRepository;
@@ -27,11 +31,13 @@ public class DashboardController {
     @GetMapping("/")
     @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('dashboard:read') or hasRole('ADMIN')")
     public String home(Model model) {
+        log.info("Loading dashboard page");
         model.addAttribute("page", "dashboard");
         model.addAttribute("stats", dashboardService.stats());
         model.addAttribute("recentEmployees", employeeRepository.findTop5ByOrderByCreatedAtDesc());
         model.addAttribute("recentCustomers", customerRepository.findTop5WithEmployee());
         model.addAttribute("today", LocalDate.now());
+        log.info("Dashboard page prepared successfully");
         return "dashboard";
     }
 

@@ -6,6 +6,8 @@ import com.vns.healthcare.entity.Employee;
 import com.vns.healthcare.exception.BusinessException;
 import com.vns.healthcare.repository.CustomerDutyRepository;
 import com.vns.healthcare.repository.CustomerRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,8 @@ import java.util.Map;
 
 @Service
 public class CustomerDutyService {
+
+    private static final Logger log = LoggerFactory.getLogger(CustomerDutyService.class);
 
     private final CustomerDutyRepository dutyRepository;
     private final CustomerRepository customerRepository;
@@ -37,11 +41,14 @@ public class CustomerDutyService {
 
     @Transactional(readOnly = true)
     public List<CustomerDuty> list(Long customerId, LocalDate from, LocalDate to) {
+        log.debug("Fetching duty list for customer [{}] from [{}] to [{}]", customerId, from, to);
         return dutyRepository.findForCustomerInRange(customerId, from, to);
     }
 
     @Transactional
     public void applyRange(Long customerId, LocalDate from, LocalDate to, Long employeeId, boolean hold) {
+        log.info("Applying customer duty range for customer [{}], from [{}], to [{}], employee [{}], hold [{}]",
+                customerId, from, to, employeeId, hold);
         Customer customer = customerService.get(customerId);
         customerService.assertOpen(customer);
         if (from == null || to == null) {
@@ -74,6 +81,7 @@ public class CustomerDutyService {
         if (employee != null) {
             customer.setAssignedEmployee(employee);
         }
+        log.info("Customer duty range applied successfully for customer [{}]", customerId);
     }
 
     private void validateEmployeeAvailability(Customer customer, Employee employee, LocalDate from, LocalDate to) {
@@ -107,6 +115,7 @@ public class CustomerDutyService {
 
     @Transactional(readOnly = true)
     public BigDecimal calculateCharges(Customer customer, LocalDate from, LocalDate to) {
+        log.debug("Calculating charges for customer [{}] from [{}] to [{}]", customer.getId(), from, to);
         if (customer.getCharges() == null || from == null || to == null || from.isAfter(to)) {
             return BigDecimal.ZERO;
         }
@@ -120,9 +129,11 @@ public class CustomerDutyService {
         if (divisor <= 0 || billable == 0) {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
-        return customer.getCharges()
+        BigDecimal total = customer.getCharges()
                 .multiply(BigDecimal.valueOf(billable))
                 .divide(BigDecimal.valueOf(divisor), 2, RoundingMode.HALF_UP);
+        log.debug("Calculated charge total for customer [{}]: {}", customer.getId(), total);
+        return total;
     }
 
     @Transactional(readOnly = true)
@@ -166,11 +177,13 @@ public class CustomerDutyService {
 
     @Transactional(readOnly = true)
     public Map<String, CustomerDuty> indexInRange(LocalDate from, LocalDate to) {
+        log.debug("Indexing customer duties for range [{}] to [{}]", from, to);
         List<CustomerDuty> duties = dutyRepository.findInRange(from, to);
         Map<String, CustomerDuty> byKey = new LinkedHashMap<String, CustomerDuty>();
         for (CustomerDuty duty : duties) {
             byKey.put(duty.getCustomer().getId() + "|" + duty.getDutyDate(), duty);
         }
+        log.debug("Indexed {} customer duties in range [{}] to [{}]", duties.size(), from, to);
         return byKey;
     }
 }

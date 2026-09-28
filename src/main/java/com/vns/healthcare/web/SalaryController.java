@@ -4,6 +4,8 @@ import com.vns.healthcare.domain.SalaryPayStatus;
 import com.vns.healthcare.entity.Employee;
 import com.vns.healthcare.exception.BusinessException;
 import com.vns.healthcare.service.SalaryPaymentService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,6 +27,8 @@ import java.util.Map;
 @Controller
 @RequestMapping("/salary")
 public class SalaryController {
+
+    private static final Logger log = LoggerFactory.getLogger(SalaryController.class);
 
     private final SalaryPaymentService salaryPaymentService;
 
@@ -54,10 +58,12 @@ public class SalaryController {
             }
         }
         if (!(hasSalaryRead || hasSalaryWrite || isAdmin)) {
+            log.warn("Denied salary access for user [{}]", authentication != null ? authentication.getName() : "anonymous");
             redirectAttributes.addFlashAttribute("error", "You do not have permission, Please contact your Admin");
             return "redirect:/";
         }
         int y = year == null ? YearMonth.now().getYear() : year;
+        log.info("Loading salary register for year [{}], sort [{}], dir [{}]", y, sort, dir);
         Map<Integer, String> monthStatusFilters = new LinkedHashMap<Integer, String>();
         for (int month = 1; month <= 12; month++) {
             String value = requestParams.get("monthStatus_" + month);
@@ -87,6 +93,7 @@ public class SalaryController {
         model.addAttribute("today", LocalDate.now());
         model.addAttribute("statuses", com.vns.healthcare.domain.SalaryPayStatus.values());
         model.addAttribute("selectedMonthFilters", monthStatusFilters);
+        log.debug("Salary register page prepared with {} rows", rowEntries.size());
         return "salary/list";
     }
 
@@ -139,10 +146,13 @@ public class SalaryController {
                        @RequestParam(required = false) String notes,
                        @RequestParam(required = false) String anchor,
                        RedirectAttributes redirectAttributes) {
+        log.info("Saving salary status for employee [{}] year [{}] month [{}] status [{}]", employeeId, year, month, status);
         try {
             salaryPaymentService.mark(employeeId, year, month, status, paidOn, notes);
             redirectAttributes.addFlashAttribute("success", "Salary status saved.");
+            log.info("Salary status saved for employee [{}] year [{}] month [{}]", employeeId, year, month);
         } catch (BusinessException ex) {
+            log.warn("Failed to save salary status for employee [{}]: {}", employeeId, ex.getMessage());
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
         }
         String redirect = "redirect:/salary?year=" + year;

@@ -12,6 +12,8 @@ import com.vns.healthcare.repository.CustomerRepository;
 import com.vns.healthcare.web.CustomerForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -50,6 +52,7 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "customer-lists", key = "#query == null ? 'all' : #query.trim()")
     public List<Customer> list(String query) {
         String search = query == null ? "" : query.trim();
         if (search.isEmpty()) {
@@ -59,6 +62,7 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "customer-pages", key = "T(java.util.Objects).hash(#pageable.getPageNumber(), #pageable.getPageSize(), #pageable.getSort())")
     public Page<Customer> listPage(Pageable pageable) {
         return customerRepository.findAllWithEmployeePage(pageable);
     }
@@ -91,6 +95,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
     public Customer create(CustomerForm form, MultipartFile[] documents) {
         log.info("Creating customer with patient name [{}] and phone [{}]", form.getPatientName(), form.getMobileNo());
         Customer customer = new Customer();
@@ -103,6 +108,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
     public Customer update(Long id, CustomerForm form) {
         Customer customer = get(id);
         log.info("Updating customer id [{}] [{}]", id, customer.getPatientName());
@@ -114,6 +120,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
     public void delete(Long id) {
         Customer customer = get(id);
         log.info("Deleting customer id [{}] [{}]", id, customer.getPatientName());
@@ -173,6 +180,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
     public void assignEmployee(Long customerId, Long employeeId) {
         Customer customer = get(customerId);
         log.info("Processing employee assignment for customer [{}] with employee [{}]", customerId, employeeId);
@@ -195,6 +203,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
     public Customer closeService(Long id, CustomerDutyService dutyService) {
         Customer customer = get(id);
         log.info("Closing service for customer id [{}]", id);
@@ -211,6 +220,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
     public Customer recalculateBilledAmount(Long id, CustomerDutyService dutyService) {
         Customer customer = get(id);
         log.info("Recalculating billed amount for customer id [{}]", id);

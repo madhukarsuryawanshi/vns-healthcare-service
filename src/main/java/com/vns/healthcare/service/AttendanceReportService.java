@@ -8,6 +8,8 @@ import com.vns.healthcare.entity.SalaryPayment;
 import com.vns.healthcare.exception.BusinessException;
 import com.vns.healthcare.repository.AttendanceRepository;
 import com.vns.healthcare.repository.SalaryPaymentRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -38,6 +40,7 @@ import java.util.Map;
 @Service
 public class AttendanceReportService {
 
+    private static final Logger log = LoggerFactory.getLogger(AttendanceReportService.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy");
 
     private final AttendanceRepository attendanceRepository;
