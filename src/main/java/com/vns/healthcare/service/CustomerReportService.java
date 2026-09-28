@@ -1,8 +1,11 @@
 package com.vns.healthcare.service;
 
+import com.vns.healthcare.domain.ChargePayStatus;
 import com.vns.healthcare.entity.Customer;
+import com.vns.healthcare.entity.CustomerChargeStatus;
 import com.vns.healthcare.entity.CustomerDuty;
 import com.vns.healthcare.exception.BusinessException;
+import com.vns.healthcare.repository.CustomerChargeStatusRepository;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -34,10 +37,13 @@ public class CustomerReportService {
 
     private final CustomerService customerService;
     private final CustomerDutyService dutyService;
+    private final CustomerChargeStatusRepository customerChargeStatusRepository;
 
-    public CustomerReportService(CustomerService customerService, CustomerDutyService dutyService) {
+    public CustomerReportService(CustomerService customerService, CustomerDutyService dutyService,
+                                CustomerChargeStatusRepository customerChargeStatusRepository) {
         this.customerService = customerService;
         this.dutyService = dutyService;
+        this.customerChargeStatusRepository = customerChargeStatusRepository;
     }
 
     @Transactional(readOnly = true)
@@ -55,11 +61,12 @@ public class CustomerReportService {
         List<LocalDate> days = dutyService.daysInRange(from, to);
         List<Customer> customers = customerService.list(null);
         Map<String, CustomerDuty> duties = dutyService.indexInRange(from, to);
+        Map<Long, Map<Integer, ChargePayStatus>> customerPaymentStatus = loadPaymentStatus(customers, from, to);
         int daysForRate = dutyService.payDaysDivisor(from, to);
 
         try {
             Workbook workbook = new XSSFWorkbook();
-            writeSheet(workbook, from, to, days, customers, duties, daysForRate);
+            writeSheet(workbook, from, to, days, customers, duties, customerPaymentStatus, daysForRate);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
             workbook.close();
@@ -70,7 +77,8 @@ public class CustomerReportService {
     }
 
     private void writeSheet(Workbook workbook, LocalDate from, LocalDate to, List<LocalDate> days,
-                            List<Customer> customers, Map<String, CustomerDuty> duties, int daysForRate) {
+                            List<Customer> customers, Map<String, CustomerDuty> duties,
+                            Map<Long, Map<Integer, ChargePayStatus>> customerPaymentStatus, int daysForRate) {
         Sheet sheet = workbook.createSheet("Customer charges");
         CellStyle titleStyle = titleStyle(workbook);
         CellStyle headerStyle = headerStyle(workbook);
@@ -104,21 +112,21 @@ public class CustomerReportService {
 
         r++;
         Row header = sheet.createRow(r++);
-        String[] fixed = {"Cust ID", "Patient", "Charges"};
+        String[] fixed = {"Cust ID", "Patient", "Charges", "Paid status"};
         for (int i = 0; i < fixed.length; i++) {
             Cell cell = header.createCell(i);
             cell.setCellValue(fixed[i]);
             cell.setCellStyle(headerStyle);
         }
         for (int i = 0; i < days.size(); i++) {
-            Cell cell = header.createCell(3 + i);
+            Cell cell = header.createCell(4 + i);
             cell.setCellValue(dayHeader(days.get(i)));
             cell.setCellStyle(headerStyle);
         }
-        Cell presentHeader = header.createCell(totalPresentCol);
+        Cell presentHeader = header.createCell(totalPresentCol + 1);
         presentHeader.setCellValue("Total Days Present");
         presentHeader.setCellStyle(headerStyle);
-        Cell totalHeader = header.createCell(totalCol);
+        Cell totalHeader = header.createCell(totalCol + 1);
         totalHeader.setCellValue("Total");
         totalHeader.setCellStyle(headerStyle);
 
@@ -128,12 +136,13 @@ public class CustomerReportService {
             write(excelRow, 1, customer.getPatientName(), cellStyle);
             BigDecimal charges = customer.getCharges() == null ? BigDecimal.ZERO : customer.getCharges();
             writeMoney(excelRow, 2, charges, moneyStyle);
+            write(excelRow, 3, paymentStatusLabel(customerPaymentStatus.get(customer.getId())), centerStyle);
             int billableDays = 0;
             String currentEmployee = null;
             int employeeBlockIndex = 0;
             for (int i = 0; i < days.size(); i++) {
                 CustomerDuty duty = duties.get(customer.getId() + "|" + days.get(i));
-                Cell cell = excelRow.createCell(3 + i);
+                Cell cell = excelRow.createCell(4 + i);
                 if (duty == null) {
                     cell.setCellValue("");
                     cell.setCellStyle(centerStyle);
@@ -160,20 +169,21 @@ public class CustomerReportService {
                     employeeBlockIndex = 0;
                 }
             }
-            writeNumber(excelRow, totalPresentCol, BigDecimal.valueOf(billableDays), centerStyle);
+            writeNumber(excelRow, totalPresentCol + 1, BigDecimal.valueOf(billableDays), centerStyle);
             BigDecimal total = dutyService.calculateCharges(customer, from, to);
-            writeMoney(excelRow, totalCol, total, moneyStyle);
+            writeMoney(excelRow, totalCol + 1, total, moneyStyle);
         }
 
         sheet.setColumnWidth(0, 12 * 256);
         sheet.setColumnWidth(1, 22 * 256);
         sheet.setColumnWidth(2, 12 * 256);
+        sheet.setColumnWidth(3, 14 * 256);
         for (int i = 0; i < days.size(); i++) {
-            sheet.setColumnWidth(3 + i, 16 * 256);
+            sheet.setColumnWidth(4 + i, 16 * 256);
         }
-        sheet.setColumnWidth(totalPresentCol, 16 * 256);
-        sheet.setColumnWidth(totalCol, 14 * 256);
-        sheet.createFreezePane(3, 4);
+        sheet.setColumnWidth(totalPresentCol + 1, 16 * 256);
+        sheet.setColumnWidth(totalCol + 1, 14 * 256);
+        sheet.createFreezePane(4, 4);
     }
 
     private void write(Row row, int col, String value, CellStyle style) {
@@ -192,6 +202,49 @@ public class CustomerReportService {
         Cell cell = row.createCell(col);
         cell.setCellValue(value == null ? 0d : value.doubleValue());
         cell.setCellStyle(style);
+    }
+
+    private Map<Long, Map<Integer, ChargePayStatus>> loadPaymentStatus(List<Customer> customers, LocalDate from, LocalDate to) {
+        Map<Long, Map<Integer, ChargePayStatus>> result = new java.util.HashMap<>();
+        if (customers == null || customers.isEmpty()) {
+            return result;
+        }
+        List<Long> customerIds = customers.stream().map(Customer::getId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+        if (customerIds.isEmpty()) {
+            return result;
+        }
+
+        int fromYear = from.getYear();
+        int toYear = to.getYear();
+        for (Long customerId : customerIds) {
+            Map<Integer, ChargePayStatus> statuses = new java.util.HashMap<>();
+            for (CustomerChargeStatus record : customerChargeStatusRepository.findByCustomerIdAndPayYearBetweenOrderByPayYearAscPayMonthAsc(customerId, fromYear, toYear)) {
+                if (record == null || record.getStatus() == null) {
+                    continue;
+                }
+                statuses.put(record.getPayYear() * 100 + record.getPayMonth(), record.getStatus());
+            }
+            result.put(customerId, statuses);
+        }
+        return result;
+    }
+
+    private String paymentStatusLabel(Map<Integer, ChargePayStatus> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return "Unpaid";
+        }
+        ChargePayStatus latest = null;
+        int latestKey = Integer.MIN_VALUE;
+        for (Map.Entry<Integer, ChargePayStatus> entry : statuses.entrySet()) {
+            if (entry.getKey() > latestKey) {
+                latestKey = entry.getKey();
+                latest = entry.getValue();
+            }
+        }
+        if (latest == null) {
+            return "Unpaid";
+        }
+        return latest == ChargePayStatus.PAID ? "Paid" : (latest == ChargePayStatus.IN_PROGRESS ? "Inprogress" : "Unpaid");
     }
 
     private String dayHeader(LocalDate day) {

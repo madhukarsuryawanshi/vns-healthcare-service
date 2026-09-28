@@ -70,23 +70,19 @@ public class EmployeeController {
         log.info("Listing employees with query [{}], status [{}], sort [{}], dir [{}], page [{}], size [{}]", query, status, sort, dir, page, size);
 
         int safePage = Math.max(page, 0);
-        int safeSize = Math.max(size, 1);
-        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by("createdAt").descending());
-
-        if (sort != null && !sort.trim().isEmpty()) {
-            String sortField = normalizeSortField(sort);
-            Sort.Direction direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
-            pageable = PageRequest.of(safePage, safeSize, Sort.by(direction, sortField));
-        }
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        String normalizedSort = normalizeSortField(sort);
+        Sort.Direction direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(direction, normalizedSort));
 
         java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> todayMap = employeeService.todayAttendanceStatusMap();
         Page<Employee> employeePage;
-        java.util.List<String> employeeSuggestions = employeeService.listPage(PageRequest.of(0, 50, Sort.by("createdAt").descending())).getContent().stream()
+        java.util.List<String> employeeSuggestions = employeeService.search("", PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
                 .flatMap(e -> java.util.stream.Stream.of(
-                        e.getFullName(),
-                        e.getMobileNo(),
-                        e.getEmpCode(),
-                        e.getAadharNumber()))
+                       e.getFullName(),
+                       e.getMobileNo(),
+                       e.getEmpCode(),
+                       e.getAadharNumber()))
                 .filter(v -> v != null && !v.trim().isEmpty())
                 .distinct()
                 .sorted()
@@ -178,6 +174,8 @@ public class EmployeeController {
                 return "status";
             case "onboarded":
                 return "onboarded";
+            case "createdAt":
+                return "createdAt";
             case "empCode":
             default:
                 return "empCode";

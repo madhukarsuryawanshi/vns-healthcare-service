@@ -102,16 +102,12 @@ public class CustomerController {
         log.info("Listing customers with query [{}], status [{}], sort [{}], dir [{}], page [{}], size [{}]", query, status, sort, dir, page, size);
         LocalDate today = LocalDate.now();
         int safePage = Math.max(page, 0);
-        int safeSize = Math.max(size, 1);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        String normalizedSort = normalizeSortField(sort);
+        Sort.Direction sortDirection = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(sortDirection, normalizedSort));
+
         Page<Customer> customerPage;
-        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by("createdAt").descending());
-
-        if (sort != null && !sort.trim().isEmpty()) {
-            String sortField = normalizeSortField(sort);
-            Sort.Direction sortDirection = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
-            pageable = PageRequest.of(safePage, safeSize, Sort.by(sortDirection, sortField));
-        }
-
         if (status != null && !status.trim().isEmpty()) {
             CustomerStatus normalizedStatus = CustomerStatus.valueOf(status.trim().toUpperCase());
             if (query != null && !query.trim().isEmpty()) {
@@ -125,7 +121,7 @@ public class CustomerController {
             customerPage = customerService.listPage(pageable);
         }
 
-        java.util.List<String> customerSuggestions = customerService.listPage(PageRequest.of(0, 50, Sort.by("createdAt").descending())).getContent().stream()
+        java.util.List<String> customerSuggestions = customerService.search("", PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
                 .flatMap(c -> java.util.stream.Stream.of(
                        c.getFullName(),
                        c.getMobileNo(),
@@ -145,8 +141,8 @@ public class CustomerController {
         model.addAttribute("pageSize", safeSize);
         model.addAttribute("q", query == null ? "" : query);
         model.addAttribute("status", status == null ? "" : status);
-        model.addAttribute("sort", sort);
-        model.addAttribute("dir", dir);
+        model.addAttribute("sort", normalizedSort);
+        model.addAttribute("dir", sortDirection.name().toLowerCase());
         model.addAttribute("statuses", CustomerStatus.values());
         model.addAttribute("reportFrom", today.withDayOfMonth(1));
         model.addAttribute("reportTo", today);
@@ -173,6 +169,8 @@ public class CustomerController {
                 return "billedAmount";
             case "assignedEmployee":
                 return "assignedEmployee.fullName";
+            case "createdAt":
+                return "createdAt";
             case "custCode":
             default:
                 return "custCode";

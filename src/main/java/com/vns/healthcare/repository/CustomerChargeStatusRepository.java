@@ -11,4 +11,6 @@ public interface CustomerChargeStatusRepository extends JpaRepository<CustomerCh
     Optional<CustomerChargeStatus> findByCustomerIdAndPayYearAndPayMonth(Long customerId, int payYear, int payMonth);
 
     List<CustomerChargeStatus> findByCustomerIdAndPayYearOrderByPayMonthAsc(Long customerId, int payYear);
+
+    List<CustomerChargeStatus> findByCustomerIdAndPayYearBetweenOrderByPayYearAscPayMonthAsc(Long customerId, int startYear, int endYear);
 }

@@ -1,5 +1,6 @@
 package com.vns.healthcare.repository;
 
+import com.vns.healthcare.domain.Designation;
 import com.vns.healthcare.domain.EmployeeStatus;
 import com.vns.healthcare.entity.Employee;
 import org.springframework.data.domain.Page;
@@ -15,7 +16,6 @@ import java.util.Optional;
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     List<Employee> findTop5ByOrderByCreatedAtDesc();
-
 
     Optional<Employee> findByEmpCode(String empCode);
 
@@ -37,38 +37,49 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("SELECT e FROM Employee e WHERE e.status = :status")
     Page<Employee> findActivePage(@Param("status") EmployeeStatus status, Pageable pageable);
 
-    @Query("SELECT e FROM Employee e WHERE " +
-            "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
-            "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))")
-    List<Employee> search(@Param("q") String query);
+    @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status) " +
+            "AND (:designation IS NULL OR e.designation = :designation) " +
+            "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR LOWER(e.fullName) LIKE LOWER(:prefix))")
+    Page<Employee> searchPage(@Param("status") EmployeeStatus status,
+                              @Param("designation") Designation designation,
+                              @Param("search") String search,
+                              @Param("prefix") String prefix,
+                              Pageable pageable);
 
-    @Query(value = "SELECT e FROM Employee e WHERE " +
-            "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
-            "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))",
-            countQuery = "SELECT count(e) FROM Employee e WHERE " +
-            "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
-            "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))")
-    Page<Employee> search(@Param("q") String query, Pageable pageable);
+    @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status)")
+    Page<Employee> findByStatusPage(@Param("status") EmployeeStatus status, Pageable pageable);
 
-    @Query(value = "SELECT e FROM Employee e WHERE e.status = :status",
-            countQuery = "SELECT count(e) FROM Employee e WHERE e.status = :status")
-    Page<Employee> findByStatus(@Param("status") EmployeeStatus status, Pageable pageable);
+    @Query("SELECT e FROM Employee e WHERE (:designation IS NULL OR e.designation = :designation)")
+    Page<Employee> findByDesignationPage(@Param("designation") Designation designation, Pageable pageable);
 
-    @Query(value = "SELECT e FROM Employee e WHERE " +
-            "(LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
-            "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND e.status = :status",
-            countQuery = "SELECT count(e) FROM Employee e WHERE " +
-            "(LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "e.mobileNo LIKE CONCAT('%', :q, '%') OR " +
-            "e.aadharNumber LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND e.status = :status")
-    Page<Employee> searchByStatus(@Param("q") String query, @Param("status") EmployeeStatus status, Pageable pageable);
+    @Query("SELECT e FROM Employee e WHERE e.status = :status ORDER BY e.fullName ASC")
+    List<Employee> findActiveStaff(@Param("status") EmployeeStatus status, Pageable pageable);
+
+    @Query("SELECT e FROM Employee e WHERE e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR LOWER(e.fullName) LIKE LOWER(:prefix) ORDER BY e.createdAt DESC")
+    List<Employee> findSuggestions(@Param("prefix") String prefix, Pageable pageable);
+
+    @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status) AND (:designation IS NULL OR e.designation = :designation) AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR LOWER(e.fullName) LIKE LOWER(:prefix))")
+    long countFiltered(@Param("status") EmployeeStatus status,
+                       @Param("designation") Designation designation,
+                       @Param("search") String search,
+                       @Param("prefix") String prefix);
+
+    default Page<Employee> search(String query, Pageable pageable) {
+        String search = query == null ? "" : query.trim();
+        return searchPage(null, null, search, buildPrefix(search), pageable);
+    }
+
+    default Page<Employee> searchByStatus(String query, EmployeeStatus status, Pageable pageable) {
+        String search = query == null ? "" : query.trim();
+        return searchPage(status, null, search, buildPrefix(search), pageable);
+    }
+
+    default Page<Employee> findByStatus(EmployeeStatus status, Pageable pageable) {
+        return findByStatusPage(status, pageable);
+    }
+
+    static String buildPrefix(String value) {
+        String normalized = value == null ? "" : value.trim();
+        return normalized.isEmpty() ? "%" : normalized + "%";
+    }
 }

@@ -1,10 +1,13 @@
 package com.vns.healthcare.service;
 
 import com.vns.healthcare.domain.AttendanceStatus;
+import com.vns.healthcare.domain.SalaryPayStatus;
 import com.vns.healthcare.entity.Attendance;
 import com.vns.healthcare.entity.Employee;
+import com.vns.healthcare.entity.SalaryPayment;
 import com.vns.healthcare.exception.BusinessException;
 import com.vns.healthcare.repository.AttendanceRepository;
+import com.vns.healthcare.repository.SalaryPaymentRepository;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -39,10 +42,13 @@ public class AttendanceReportService {
 
     private final AttendanceRepository attendanceRepository;
     private final EmployeeService employeeService;
+    private final SalaryPaymentRepository salaryPaymentRepository;
 
-    public AttendanceReportService(AttendanceRepository attendanceRepository, EmployeeService employeeService) {
+    public AttendanceReportService(AttendanceRepository attendanceRepository, EmployeeService employeeService,
+                                  SalaryPaymentRepository salaryPaymentRepository) {
         this.attendanceRepository = attendanceRepository;
         this.employeeService = employeeService;
+        this.salaryPaymentRepository = salaryPaymentRepository;
     }
 
     @Transactional(readOnly = true)
@@ -60,11 +66,12 @@ public class AttendanceReportService {
         List<LocalDate> days = daysInRange(from, to);
         List<Employee> staff = employeeService.activeStaff();
         Map<String, Attendance> marks = indexMarks(from, to);
+        Map<Long, Map<Integer, SalaryPayStatus>> salaryStatusByEmployee = loadSalaryStatus(staff, from, to);
         int daysForRate = payDaysDivisor(from, to, days.size());
 
         try {
             Workbook workbook = new XSSFWorkbook();
-            writeMatrixSheet(workbook, from, to, days, staff, marks, daysForRate);
+            writeMatrixSheet(workbook, from, to, days, staff, marks, salaryStatusByEmployee, daysForRate);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
             workbook.close();
@@ -84,7 +91,8 @@ public class AttendanceReportService {
     }
 
     private void writeMatrixSheet(Workbook workbook, LocalDate from, LocalDate to, List<LocalDate> days,
-                                  List<Employee> staff, Map<String, Attendance> marks, int daysForRate) {
+                                  List<Employee> staff, Map<String, Attendance> marks,
+                                  Map<Long, Map<Integer, SalaryPayStatus>> salaryStatusByEmployee, int daysForRate) {
         Sheet sheet = workbook.createSheet("Attendance");
         CellStyle titleStyle = titleStyle(workbook);
         CellStyle headerStyle = headerStyle(workbook);
@@ -92,7 +100,7 @@ public class AttendanceReportService {
         CellStyle centerStyle = centerStyle(workbook);
         CellStyle moneyStyle = moneyStyle(workbook);
 
-        int totalPresentCol = 5 + days.size();
+        int totalPresentCol = 6 + days.size();
         int inHandCol = totalPresentCol + 1;
         int r = 0;
 
@@ -111,14 +119,14 @@ public class AttendanceReportService {
 
         r++;
         Row header = sheet.createRow(r++);
-        String[] fixed = {"Emp ID", "Name", "Mobile", "Onboarded", "Salary"};
+        String[] fixed = {"Emp ID", "Name", "Mobile", "Onboarded", "Salary", "Salary Paid status"};
         for (int i = 0; i < fixed.length; i++) {
             Cell cell = header.createCell(i);
             cell.setCellValue(fixed[i]);
             cell.setCellStyle(headerStyle);
         }
         for (int i = 0; i < days.size(); i++) {
-            Cell cell = header.createCell(5 + i);
+            Cell cell = header.createCell(6 + i);
             cell.setCellValue(dayHeader(days.get(i)));
             cell.setCellStyle(headerStyle);
         }
@@ -138,13 +146,14 @@ public class AttendanceReportService {
 
             BigDecimal salary = emp.getSalary() == null ? BigDecimal.ZERO : emp.getSalary();
             writeMoney(excelRow, 4, salary, moneyStyle);
+            write(excelRow, 5, salaryStatusLabel(salaryStatusByEmployee.get(emp.getId())), centerStyle);
 
             BigDecimal paidUnits = BigDecimal.ZERO;
             for (int i = 0; i < days.size(); i++) {
                 LocalDate day = days.get(i);
                 Attendance mark = marks.get(emp.getId() + "|" + day);
                 AttendanceStatus status = mark == null ? null : mark.getStatus();
-                write(excelRow, 5 + i, markLabel(status), centerStyle);
+                write(excelRow, 6 + i, markLabel(status), centerStyle);
                 paidUnits = paidUnits.add(paidUnit(status));
             }
             writeNumber(excelRow, totalPresentCol, paidUnits, centerStyle);
@@ -162,12 +171,60 @@ public class AttendanceReportService {
         sheet.setColumnWidth(2, 14 * 256);
         sheet.setColumnWidth(3, 12 * 256);
         sheet.setColumnWidth(4, 12 * 256);
+        sheet.setColumnWidth(5, 16 * 256);
         for (int i = 0; i < days.size(); i++) {
-            sheet.setColumnWidth(5 + i, 11 * 256);
+            sheet.setColumnWidth(6 + i, 11 * 256);
         }
         sheet.setColumnWidth(totalPresentCol, 14 * 256);
         sheet.setColumnWidth(inHandCol, 16 * 256);
-        sheet.createFreezePane(5, 4);
+        sheet.createFreezePane(6, 4);
+    }
+
+    private Map<Long, Map<Integer, SalaryPayStatus>> loadSalaryStatus(List<Employee> staff, LocalDate from, LocalDate to) {
+        Map<Long, Map<Integer, SalaryPayStatus>> result = new LinkedHashMap<>();
+        if (staff == null || staff.isEmpty()) {
+            return result;
+        }
+        int fromYear = from.getYear();
+        int toYear = to.getYear();
+        for (Employee employee : staff) {
+            if (employee == null || employee.getId() == null) {
+                continue;
+            }
+            Map<Integer, SalaryPayStatus> statuses = new LinkedHashMap<>();
+            for (SalaryPayment payment : salaryPaymentRepository.findByEmployeeIdAndPayYearBetweenOrderByPayYearAscPayMonthAsc(employee.getId(), fromYear, toYear)) {
+                if (payment == null || payment.getStatus() == null) {
+                    continue;
+                }
+                statuses.put(payment.getPayYear() * 100 + payment.getPayMonth(), payment.getStatus());
+            }
+            result.put(employee.getId(), statuses);
+        }
+        return result;
+    }
+
+    private String salaryStatusLabel(Map<Integer, SalaryPayStatus> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return "Unpaid";
+        }
+        SalaryPayStatus latest = null;
+        int latestKey = Integer.MIN_VALUE;
+        for (Map.Entry<Integer, SalaryPayStatus> entry : statuses.entrySet()) {
+            if (entry.getKey() > latestKey) {
+                latestKey = entry.getKey();
+                latest = entry.getValue();
+            }
+        }
+        if (latest == null) {
+            return "Unpaid";
+        }
+        if (latest == SalaryPayStatus.PAID) {
+            return "Paid";
+        }
+        if (latest == SalaryPayStatus.IN_PROGRESS) {
+            return "In progress";
+        }
+        return "Unpaid";
     }
 
     private String dayHeader(LocalDate day) {

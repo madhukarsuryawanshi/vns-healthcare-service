@@ -59,7 +59,7 @@
                 <td th:text="${c.serviceType == T(com.vns.healthcare.domain.ServiceType).HOURS_24} ? '24 hrs' : '12 hrs'">24 hrs</td>
                 <td th:text="${c.charges != null} ? ${#numbers.formatDecimal(c.charges, 1, 'COMMA', 2, 'POINT')} : '—'">25,000.00</td>
                 <td>
-                    <span th:if="${c.assignedEmployee != null}" th:text="${c.assignedEmployee.empCode} + ' · ' + ${c.assignedEmployee.fullName}">EMP</span>
+                    <span th:if="${c.assignedEmployee != null}" th:text="${c.assignedEmployee != null ? (c.assignedEmployee.empCode + ' · ' + c.assignedEmployee.fullName) : 'Unassigned'}">EMP</span>
                     <span class="badge muted" th:if="${c.assignedEmployee == null}">Unassigned</span>
                 </td>
                 <td><span class="badge" th:classappend="${c.closed} ? ' muted'" th:text="${c.status}">NEW</span></td>

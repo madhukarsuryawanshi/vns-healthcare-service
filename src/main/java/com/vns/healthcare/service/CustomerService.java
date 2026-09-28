@@ -13,6 +13,7 @@ import com.vns.healthcare.web.CustomerForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,30 +51,32 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public List<Customer> list(String query) {
-        if (query == null || query.trim().isEmpty()) {
+        String search = query == null ? "" : query.trim();
+        if (search.isEmpty()) {
             return customerRepository.findAllWithEmployee();
         }
-        return customerRepository.search(query.trim());
+        return customerRepository.findSuggestions(CustomerRepository.buildPrefix(search), PageRequest.of(0, 20));
     }
 
     @Transactional(readOnly = true)
     public Page<Customer> listPage(Pageable pageable) {
-        return customerRepository.findAllWithEmployee(pageable);
+        return customerRepository.findAllWithEmployeePage(pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Customer> search(String query, Pageable pageable) {
-        return customerRepository.search(query.trim(), pageable);
+        return customerRepository.search(query == null ? "" : query.trim(), pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Customer> findByStatus(CustomerStatus status, Pageable pageable) {
-        return customerRepository.findByStatus(status, pageable);
+        return customerRepository.findByStatusPage(status, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Customer> searchByStatus(String query, CustomerStatus status, Pageable pageable) {
-        return customerRepository.searchByStatus(query.trim(), status, pageable);
+        String search = query == null ? "" : query.trim();
+        return customerRepository.searchByStatus(CustomerRepository.buildPrefix(search), status, pageable);
     }
 
     @Transactional(readOnly = true)

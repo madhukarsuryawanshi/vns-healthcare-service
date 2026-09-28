@@ -31,47 +31,51 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Customer> findTop5WithEmployee();
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e")
-    Page<Customer> findAllWithEmployee(Pageable pageable);
+    @Query("SELECT c FROM Customer c")
+    Page<Customer> findAllWithEmployeePage(Pageable pageable);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query(value = "SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE c.status = :status",
-            countQuery = "SELECT count(c) FROM Customer c WHERE c.status = :status")
-    Page<Customer> findByStatus(@Param("status") CustomerStatus status, Pageable pageable);
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR c.custCode LIKE :prefix OR c.mobileNo LIKE :prefix OR LOWER(c.fullName) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix))")
+    Page<Customer> searchPage(@Param("status") CustomerStatus status,
+                             @Param("search") String search,
+                             @Param("prefix") String prefix,
+                             Pageable pageable);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query(value = "SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE " +
-            "LOWER(c.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "c.mobileNo LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(c.patientName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "LOWER(c.custCode) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))",
-            countQuery = "SELECT count(c) FROM Customer c LEFT JOIN c.assignedEmployee e WHERE " +
-                    "LOWER(c.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-                    "c.mobileNo LIKE CONCAT('%', :q, '%') OR " +
-                    "LOWER(c.patientName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-                    "LOWER(c.custCode) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-                    "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-                    "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))")
-    Page<Customer> search(@Param("q") String query, Pageable pageable);
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status)")
+    Page<Customer> findByStatusPage(@Param("status") CustomerStatus status, Pageable pageable);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query(value = "SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE " +
-            "(LOWER(c.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "c.mobileNo LIKE CONCAT('%', :q, '%') OR " +
-            "LOWER(c.patientName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "LOWER(c.custCode) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-            "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND c.status = :status",
-            countQuery = "SELECT count(c) FROM Customer c LEFT JOIN c.assignedEmployee e WHERE " +
-                    "(LOWER(c.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-                    "c.mobileNo LIKE CONCAT('%', :q, '%') OR " +
-                    "LOWER(c.patientName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-                    "LOWER(c.custCode) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-                    "LOWER(e.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-                    "LOWER(e.empCode) LIKE LOWER(CONCAT('%', :q, '%'))) AND c.status = :status")
-    Page<Customer> searchByStatus(@Param("q") String query, @Param("status") CustomerStatus status, Pageable pageable);
+    @Query("SELECT c FROM Customer c WHERE c.assignedEmployee.id = :employeeId ORDER BY c.createdAt DESC")
+    List<Customer> findByAssignedEmployee(@Param("employeeId") Long employeeId);
+
+    @EntityGraph(attributePaths = {"assignedEmployee"})
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE c.custCode LIKE :prefix OR c.mobileNo LIKE :prefix OR LOWER(c.fullName) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix) ORDER BY c.createdAt DESC")
+    List<Customer> findSuggestions(@Param("prefix") String prefix, Pageable pageable);
+
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR c.custCode LIKE :prefix OR c.mobileNo LIKE :prefix OR LOWER(c.fullName) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix))")
+    long countFiltered(@Param("status") CustomerStatus status,
+                       @Param("search") String search,
+                       @Param("prefix") String prefix);
+
+    default Page<Customer> search(String query, Pageable pageable) {
+        String search = query == null ? "" : query.trim();
+        return searchPage(null, search, buildPrefix(search), pageable);
+    }
+
+    default Page<Customer> searchByStatus(String query, CustomerStatus status, Pageable pageable) {
+        String search = query == null ? "" : query.trim();
+        return searchPage(status, search, buildPrefix(search), pageable);
+    }
+
+    default Page<Customer> findByStatus(CustomerStatus status, Pageable pageable) {
+        return findByStatusPage(status, pageable);
+    }
+
+    static String buildPrefix(String value) {
+        String normalized = value == null ? "" : value.trim();
+        return normalized.isEmpty() ? "%" : normalized + "%";
+    }
 
     @Query("SELECT c FROM Customer c LEFT JOIN FETCH c.assignedEmployee WHERE " +
             "LOWER(c.fullName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +

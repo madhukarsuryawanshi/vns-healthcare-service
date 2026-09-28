@@ -68,10 +68,12 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<Employee> list(String query) {
-        if (query == null || query.trim().isEmpty()) {
+        String search = query == null ? "" : query.trim();
+        if (search.isEmpty()) {
             return employeeRepository.findTop5ByOrderByCreatedAtDesc();
         }
-        return employeeRepository.search(query.trim());
+        String prefix = EmployeeRepository.buildPrefix(search);
+        return employeeRepository.findSuggestions(prefix, PageRequest.of(0, 20));
     }
 
     @Transactional(readOnly = true)
@@ -81,17 +83,17 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public Page<Employee> search(String query, Pageable pageable) {
-        return employeeRepository.search(query.trim(), pageable);
+        return employeeRepository.search(query == null ? "" : query.trim(), pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Employee> findByStatus(EmployeeStatus status, Pageable pageable) {
-        return employeeRepository.findByStatus(status, pageable);
+        return employeeRepository.findByStatusPage(status, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Employee> searchByStatus(String query, EmployeeStatus status, Pageable pageable) {
-        return employeeRepository.searchByStatus(query.trim(), status, pageable);
+        return employeeRepository.searchByStatus(query == null ? "" : query.trim(), status, pageable);
     }
 
     @Transactional(readOnly = true)

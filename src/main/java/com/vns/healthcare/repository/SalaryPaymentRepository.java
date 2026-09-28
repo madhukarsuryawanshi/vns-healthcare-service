@@ -16,6 +16,8 @@ public interface SalaryPaymentRepository extends JpaRepository<SalaryPayment, Lo
 
     List<SalaryPayment> findByEmployeeIdAndPayYearOrderByPayMonthAsc(Long employeeId, int payYear);
 
+    List<SalaryPayment> findByEmployeeIdAndPayYearBetweenOrderByPayYearAscPayMonthAsc(Long employeeId, int startYear, int endYear);
+
     @Query("SELECT p FROM SalaryPayment p JOIN FETCH p.employee WHERE p.payYear = :year")
     List<SalaryPayment> findByYearWithEmployee(@Param("year") int year);
 }
