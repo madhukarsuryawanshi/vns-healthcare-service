@@ -25,8 +25,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.time.LocalDate;
 
 @Controller
 @RequestMapping("/admin")
@@ -105,8 +108,17 @@ public class AdminController {
         int safePage = Math.max(page, 0);
         int safeSize = Math.max(size, 1);
         org.springframework.data.domain.Page<UserActivityLog> activityPage = userActivityService.recentPage(safePage, safeSize);
+        Map<LocalDate, List<UserActivityLog>> grouped = new LinkedHashMap<>();
+        for (UserActivityLog activity : activityPage.getContent()) {
+            if (activity == null || activity.getCreatedAt() == null) {
+                continue;
+            }
+            LocalDate date = activity.getCreatedAt().toLocalDate();
+            grouped.computeIfAbsent(date, key -> new ArrayList<>()).add(activity);
+        }
         model.addAttribute("page", "admin");
         model.addAttribute("activities", activityPage.getContent());
+        model.addAttribute("groupedActivities", grouped.entrySet());
         model.addAttribute("pagination", activityPage);
         model.addAttribute("currentPage", safePage);
         model.addAttribute("pageSize", safeSize);
