@@ -23,7 +23,7 @@
         </div>
 
         <div th:if="${!#lists.isEmpty(groupedActivities)}" style="display:flex; flex-direction:column; gap:12px;">
-            <details th:each="entry : ${groupedActivities}" style="border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff;" open>
+            <details th:each="entry : ${groupedActivities}" style="border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff;" th:attr="open=${entry.key == currentDate ? 'open' : null}">
                 <summary style="cursor:pointer; list-style:none; padding:12px 14px; background:#f8fafc; font-weight:600; border-bottom:1px solid var(--line);">
                     <span th:text="${#temporals.format(entry.key, 'dd MMM yyyy')}">29 Sep 2026</span>
                 </summary>

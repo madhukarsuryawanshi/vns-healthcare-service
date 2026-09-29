@@ -119,6 +119,7 @@ public class AdminController {
         model.addAttribute("page", "admin");
         model.addAttribute("activities", activityPage.getContent());
         model.addAttribute("groupedActivities", grouped.entrySet());
+        model.addAttribute("currentDate", LocalDate.now());
         model.addAttribute("pagination", activityPage);
         model.addAttribute("currentPage", safePage);
         model.addAttribute("pageSize", safeSize);
