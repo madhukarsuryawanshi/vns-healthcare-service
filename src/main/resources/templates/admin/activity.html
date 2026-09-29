@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('User activity', ~{::section})">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Audit</p>
+            <h2 class="page-title">User activity</h2>
+            <p class="sub">Track login/logout times and record changes across the application.</p>
+        </div>
+        <div class="row-actions compact">
+            <a class="btn ghost" th:href="@{/admin/users}">Back to users</a>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="topbar" style="margin-bottom:8px;">
+            <div></div>
+            <div class="row-actions compact">
+                <a class="btn ghost small" th:if="${pagination != null and pagination.hasPrevious()}" th:href="@{/admin/activity(page=${currentPage - 1}, size=${pageSize})}">Previous</a>
+                <span class="sub" th:if="${pagination != null}" th:text="${'Page ' + (currentPage + 1) + ' of ' + pagination.totalPages}">Page 1</span>
+                <a class="btn ghost small" th:if="${pagination != null and pagination.hasNext()}" th:href="@{/admin/activity(page=${currentPage + 1}, size=${pageSize})}">Next</a>
+            </div>
+        </div>
+
+        <table th:if="${!activities.isEmpty()}">
+            <thead>
+            <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Entity</th>
+                <th>Details</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="activity : ${activities}">
+                <td th:text="${#temporals.format(activity.createdAt, 'dd MMM yyyy HH:mm')}">01 Jan 2026</td>
+                <td th:text="${activity.username}">admin</td>
+                <td>
+                    <span class="badge ok" th:if="${activity.activityType == 'LOGIN'}">LOGIN</span>
+                    <span class="badge coral" th:if="${activity.activityType == 'LOGOUT'}">LOGOUT</span>
+                    <span class="badge" th:if="${activity.activityType == 'CREATE'}">CREATE</span>
+                    <span class="badge warn" th:if="${activity.activityType == 'UPDATE'}">UPDATE</span>
+                    <span class="badge muted" th:if="${activity.activityType == 'DELETE'}">DELETE</span>
+                    <span class="badge" th:unless="${activity.activityType == 'LOGIN' or activity.activityType == 'LOGOUT' or activity.activityType == 'CREATE' or activity.activityType == 'UPDATE' or activity.activityType == 'DELETE'}" th:text="${activity.activityType}">ACTION</span>
+                </td>
+                <td th:text="${activity.entityType != null ? activity.entityType : '—'}">Employee</td>
+                <td th:text="${activity.description != null and !#strings.isEmpty(activity.description) ? activity.description : '—'}">Updated employee profile</td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${activities.isEmpty()}">No user activity found yet.</p>
+    </div>
+</section>
+</html>

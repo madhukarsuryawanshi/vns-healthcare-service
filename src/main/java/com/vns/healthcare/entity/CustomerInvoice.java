@@ -51,6 +51,9 @@ public class CustomerInvoice extends AuditableEntity {
     @Column(name = "discount_amount", precision = 12, scale = 2)
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
+    @Column(name = "advance_amount", precision = 12, scale = 2)
+    private BigDecimal advanceAmount = BigDecimal.ZERO;
+
     @Column(name = "net_amount", precision = 12, scale = 2, nullable = false)
     private BigDecimal netAmount = BigDecimal.ZERO;
 
@@ -182,6 +185,14 @@ public class CustomerInvoice extends AuditableEntity {
 
     public void setDiscountAmount(BigDecimal discountAmount) {
         this.discountAmount = discountAmount;
+    }
+
+    public BigDecimal getAdvanceAmount() {
+        return advanceAmount;
+    }
+
+    public void setAdvanceAmount(BigDecimal advanceAmount) {
+        this.advanceAmount = advanceAmount;
     }
 
     public BigDecimal getNetAmount() {

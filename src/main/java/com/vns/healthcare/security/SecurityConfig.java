@@ -23,10 +23,14 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final NoCacheFilter noCacheFilter;
+    private final UserActivityService userActivityService;
 
-    public SecurityConfig(UserDetailsServiceImpl userDetailsService, NoCacheFilter noCacheFilter) {
+    public SecurityConfig(UserDetailsServiceImpl userDetailsService,
+                          NoCacheFilter noCacheFilter,
+                          UserActivityService userActivityService) {
         this.userDetailsService = userDetailsService;
         this.noCacheFilter = noCacheFilter;
+        this.userActivityService = userActivityService;
     }
 
     @Bean
@@ -72,11 +76,21 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                     .and()
                 .formLogin()
                     .loginPage("/login")
-                    .defaultSuccessUrl("/", true)
+                    .successHandler((request, response, authentication) -> {
+                        userActivityService.log(authentication.getName(), "LOGIN", "SESSION", null,
+                                "User logged in to the system", request.getRemoteAddr());
+                        response.sendRedirect(request.getContextPath() + "/");
+                    })
                     .permitAll()
                     .and()
                 .logout()
-                    .logoutSuccessUrl("/login?logout")
+                    .logoutSuccessHandler((request, response, authentication) -> {
+                        if (authentication != null) {
+                            userActivityService.log(authentication.getName(), "LOGOUT", "SESSION", null,
+                                    "User logged out of the system", request.getRemoteAddr());
+                        }
+                        response.sendRedirect(request.getContextPath() + "/login?logout");
+                    })
                     .invalidateHttpSession(true)
                     .clearAuthentication(true)
                     .deleteCookies("JSESSIONID")

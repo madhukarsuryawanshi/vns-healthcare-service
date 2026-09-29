@@ -15,6 +15,19 @@ CREATE TABLE IF NOT EXISTS app_sequence (
     updated_by  VARCHAR(100) NULL
 );
 
+CREATE TABLE IF NOT EXISTS user_activity_logs (
+    id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    username     VARCHAR(80)  NOT NULL,
+    activity_type VARCHAR(30) NOT NULL,
+    entity_type  VARCHAR(60)  NULL,
+    entity_id    BIGINT       NULL,
+    description  VARCHAR(1000) NULL,
+    ip_address   VARCHAR(50)  NULL,
+    created_at   DATETIME     NOT NULL,
+    INDEX idx_activity_user_time (username, created_at),
+    INDEX idx_activity_time (created_at)
+);
+
 -- Care staff (nurses / attendants)
 CREATE TABLE IF NOT EXISTS employees (
     id                 BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,

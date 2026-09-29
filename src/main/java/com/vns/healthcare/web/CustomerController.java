@@ -70,6 +70,7 @@ public class CustomerController {
     private final CustomerInvoiceRepository customerInvoiceRepository;
     private final AppSequenceRepository appSequenceRepository;
     private final CustomerChargeStatusService chargeStatusService;
+    private final com.vns.healthcare.security.UserActivityService userActivityService;
 
     public CustomerController(CustomerService customerService,
                               EmployeeService employeeService,
@@ -79,7 +80,8 @@ public class CustomerController {
                               BusinessBankAccountRepository businessBankAccountRepository,
                               CustomerInvoiceRepository customerInvoiceRepository,
                               AppSequenceRepository appSequenceRepository,
-                              CustomerChargeStatusService chargeStatusService) {
+                              CustomerChargeStatusService chargeStatusService,
+                              com.vns.healthcare.security.UserActivityService userActivityService) {
         this.customerService = customerService;
         this.employeeService = employeeService;
         this.dutyService = dutyService;
@@ -89,6 +91,7 @@ public class CustomerController {
         this.customerInvoiceRepository = customerInvoiceRepository;
         this.appSequenceRepository = appSequenceRepository;
         this.chargeStatusService = chargeStatusService;
+        this.userActivityService = userActivityService;
     }
 
     @GetMapping
@@ -261,6 +264,8 @@ public class CustomerController {
         }
         try {
             Customer saved = customerService.create(form, documents);
+            userActivityService.logCurrentUser("CREATE", "CUSTOMER", saved.getId(),
+                    "Created customer " + saved.getCustCode() + " - " + saved.getPatientName());
             log.info("Created customer [{}] with code [{}]", form.getPatientName(), saved.getCustCode());
             redirectAttributes.addFlashAttribute("success", "Lead " + saved.getCustCode() + " created.");
             return "redirect:/customers/" + saved.getId();
@@ -347,6 +352,7 @@ public class CustomerController {
             result.put("toDate", invoice.getToDate() == null ? "" : invoice.getToDate().toString());
             result.put("totalAmount", invoice.getTotalAmount() == null ? 0 : invoice.getTotalAmount());
             result.put("discountAmount", invoice.getDiscountAmount() == null ? 0 : invoice.getDiscountAmount());
+            result.put("advanceAmount", invoice.getAdvanceAmount() == null ? 0 : invoice.getAdvanceAmount());
             result.put("netAmount", invoice.getNetAmount() == null ? 0 : invoice.getNetAmount());
             result.put("rows", rows);
             result.put("bankAccountId", invoice.getBankAccountId());
@@ -403,6 +409,8 @@ public class CustomerController {
                 throw new BusinessException("Invoice does not belong to this customer");
             }
             customerInvoiceRepository.delete(invoice);
+            userActivityService.logCurrentUser("DELETE", "CUSTOMER_INVOICE", invoiceId,
+                    "Deleted invoice " + invoice.getInvoiceNumber() + " for customer " + customer.getCustCode());
             Map<String, Object> result = new LinkedHashMap<String, Object>();
             result.put("success", true);
             result.put("message", "Invoice deleted successfully.");
@@ -435,6 +443,8 @@ public class CustomerController {
            BigDecimal totalAmount = parseBigDecimal(payload.get("totalAmount"));
            BigDecimal discountAmount = parseBigDecimal(payload.get("discountAmount"));
            BigDecimal netAmount = parseBigDecimal(payload.get("netAmount"));
+           boolean applyAdvance = "true".equalsIgnoreCase(String.valueOf(payload.getOrDefault("applyAdvance", false))) || Boolean.TRUE.equals(payload.get("applyAdvance"));
+           BigDecimal advanceAmount = parseBigDecimal(payload.get("advanceAmount"));
            String breakdown = new ObjectMapper().writeValueAsString(payload.get("rows"));
            LocalDate fromDate = LocalDate.parse(fromDateString);
            LocalDate toDate = LocalDate.parse(toDateString);
@@ -450,6 +460,17 @@ public class CustomerController {
                invoice = new CustomerInvoice();
                invoice.setCustomer(customer);
            }
+           BigDecimal advanceDeduction = BigDecimal.ZERO;
+           if (applyAdvance) {
+               BigDecimal availableAdvance = customer.getAdvancePayment() == null ? BigDecimal.ZERO : customer.getAdvancePayment();
+               advanceDeduction = advanceAmount.max(BigDecimal.ZERO).min(availableAdvance);
+               if (advanceDeduction.compareTo(BigDecimal.ZERO) > 0) {
+                   customer = customerService.applyAdvancePayment(id, advanceDeduction);
+               }
+               netAmount = totalAmount.subtract(discountAmount).subtract(advanceDeduction).max(BigDecimal.ZERO);
+           } else {
+               netAmount = totalAmount.subtract(discountAmount).max(BigDecimal.ZERO);
+           }
            invoice.setInvoiceNumber(invoiceNumber.isEmpty() ? (invoice.getInvoiceNumber() == null ? buildInvoiceNumber(customer, toDate) : invoice.getInvoiceNumber()) : invoiceNumber);
            invoice.setFromDate(fromDate);
            invoice.setToDate(toDate);
@@ -457,6 +478,7 @@ public class CustomerController {
            invoice.setInvoiceYear(toDate.getYear());
            invoice.setTotalAmount(totalAmount);
            invoice.setDiscountAmount(discountAmount);
+           invoice.setAdvanceAmount(advanceDeduction);
            invoice.setNetAmount(netAmount);
            invoice.setBreakdown(breakdown);
 
@@ -475,11 +497,16 @@ public class CustomerController {
            invoice.setGpayPhonepe(safeString(payload.get("gpayPhonepe")));
 
            CustomerInvoice saved = customerInvoiceRepository.save(invoice);
+           userActivityService.logCurrentUser("UPDATE", "CUSTOMER_INVOICE", saved.getId(),
+                   "Saved invoice " + saved.getInvoiceNumber() + " for customer " + customer.getCustCode());
            Map<String, Object> result = new LinkedHashMap<String, Object>();
            result.put("success", true);
            result.put("message", "Invoice saved successfully.");
            result.put("invoiceId", saved.getId());
            result.put("invoiceNumber", saved.getInvoiceNumber());
+           result.put("discountAmount", saved.getDiscountAmount() == null ? 0 : saved.getDiscountAmount());
+           result.put("advanceAmount", saved.getAdvanceAmount() == null ? 0 : saved.getAdvanceAmount());
+           result.put("netAmount", saved.getNetAmount() == null ? 0 : saved.getNetAmount());
            return ResponseEntity.ok(result);
         } catch (Exception ex) {
             log.error("Failed to save invoice for customer [{}]", id, ex);

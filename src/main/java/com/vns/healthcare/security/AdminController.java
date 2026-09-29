@@ -49,17 +49,20 @@ public class AdminController {
     private final BusinessBankAccountRepository businessBankAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final com.vns.healthcare.service.EmployeeService employeeService;
+    private final UserActivityService userActivityService;
 
     public AdminController(RoleRepository roleRepository,
                           UserRepository userRepository,
                           BusinessBankAccountRepository businessBankAccountRepository,
                           PasswordEncoder passwordEncoder,
-                          com.vns.healthcare.service.EmployeeService employeeService) {
+                          com.vns.healthcare.service.EmployeeService employeeService,
+                          UserActivityService userActivityService) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.businessBankAccountRepository = businessBankAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.employeeService = employeeService;
+        this.userActivityService = userActivityService;
     }
 
     @GetMapping({"", "/users"})
@@ -93,6 +96,21 @@ public class AdminController {
         model.addAttribute("sort", sort);
         model.addAttribute("dir", dir);
         return "admin/roles";
+    }
+
+    @GetMapping("/activity")
+    public String activity(@RequestParam(value = "page", required = false, defaultValue = "0") int page,
+                           @RequestParam(value = "size", required = false, defaultValue = "20") int size,
+                           Model model) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+        org.springframework.data.domain.Page<UserActivityLog> activityPage = userActivityService.recentPage(safePage, safeSize);
+        model.addAttribute("page", "admin");
+        model.addAttribute("activities", activityPage.getContent());
+        model.addAttribute("pagination", activityPage);
+        model.addAttribute("currentPage", safePage);
+        model.addAttribute("pageSize", safeSize);
+        return "admin/activity";
     }
 
     @GetMapping("/bank-accounts")
@@ -146,7 +164,9 @@ public class AdminController {
                 return "redirect:/admin/bank-accounts/new";
             }
         }
-        businessBankAccountRepository.save(account);
+        BusinessBankAccount saved = businessBankAccountRepository.save(account);
+        userActivityService.logCurrentUser("CREATE", "BANK_ACCOUNT", saved.getId(),
+                "Created bank account " + saved.getAccountName());
 
         redirectAttributes.addFlashAttribute("success", "Bank account saved successfully.");
         return "redirect:/admin/bank-accounts";
@@ -199,7 +219,9 @@ public class AdminController {
                 return "redirect:/admin/bank-accounts/" + id + "/edit";
             }
         }
-        businessBankAccountRepository.save(account);
+        BusinessBankAccount saved = businessBankAccountRepository.save(account);
+        userActivityService.logCurrentUser("UPDATE", "BANK_ACCOUNT", saved.getId(),
+                "Updated bank account " + saved.getAccountName());
 
         redirectAttributes.addFlashAttribute("success", "Bank account updated successfully.");
         return "redirect:/admin/bank-accounts";
@@ -210,6 +232,8 @@ public class AdminController {
         BusinessBankAccount account = businessBankAccountRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Bank account not found"));
         businessBankAccountRepository.delete(account);
+        userActivityService.logCurrentUser("DELETE", "BANK_ACCOUNT", id,
+                "Deleted bank account " + account.getAccountName());
         redirectAttributes.addFlashAttribute("success", "Bank account deleted successfully.");
         return "redirect:/admin/bank-accounts";
     }
@@ -321,7 +345,9 @@ public class AdminController {
         List<Role> roles = roleRepository.findAllById(form.getRoleIds());
         appUser.setRoles(new HashSet<Role>(roles));
         appUser.setPermissions(new HashSet<String>(buildPermissions(form)));
-        userRepository.save(appUser);
+        AppUser saved = userRepository.save(appUser);
+        userActivityService.logCurrentUser("CREATE", "USER", saved.getId(),
+                "Created user " + saved.getUsername());
         log.info("Created user [{}] with roles [{}] and permissions [{}]", username, roles.size(), appUser.getPermissions());
 
         redirectAttributes.addFlashAttribute("success", "User created successfully.");
@@ -348,7 +374,9 @@ public class AdminController {
         }
         user.setRoles(new HashSet<Role>(roleRepository.findAllById(form.getRoleIds())));
         user.setPermissions(new HashSet<String>(buildPermissions(form)));
-        userRepository.save(user);
+        AppUser saved = userRepository.save(user);
+        userActivityService.logCurrentUser("UPDATE", "USER", saved.getId(),
+                "Updated user " + saved.getUsername());
         log.info("Updated user [{}]", user.getUsername());
 
         redirectAttributes.addFlashAttribute("success", "User updated successfully.");
@@ -364,6 +392,8 @@ public class AdminController {
             return "redirect:/admin/users";
         }
         userRepository.delete(user);
+        userActivityService.logCurrentUser("DELETE", "USER", id,
+                "Deleted user " + user.getUsername());
         log.info("Deleted user [{}]", user.getUsername());
         redirectAttributes.addFlashAttribute("success", "User deleted successfully.");
         return "redirect:/admin/users";
@@ -402,7 +432,9 @@ public class AdminController {
             }
         }
         existing.setPermissions(permissions);
-        roleRepository.save(existing);
+        Role saved = roleRepository.save(existing);
+        userActivityService.logCurrentUser("CREATE", "ROLE", saved.getId(),
+                "Saved role " + saved.getName());
         log.info("Saved role [{}] with {} permissions", existing.getName(), permissions.size());
 
         redirectAttributes.addFlashAttribute("success", "Role saved successfully.");

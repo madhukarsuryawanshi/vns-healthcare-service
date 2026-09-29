@@ -48,13 +48,16 @@ public class EmployeeController {
     private final EmployeeService employeeService;
     private final FileStorageService fileStorageService;
     private final SalaryPaymentService salaryPaymentService;
+    private final com.vns.healthcare.security.UserActivityService userActivityService;
 
     public EmployeeController(EmployeeService employeeService,
                               FileStorageService fileStorageService,
-                              SalaryPaymentService salaryPaymentService) {
+                              SalaryPaymentService salaryPaymentService,
+                              com.vns.healthcare.security.UserActivityService userActivityService) {
         this.employeeService = employeeService;
         this.fileStorageService = fileStorageService;
         this.salaryPaymentService = salaryPaymentService;
+        this.userActivityService = userActivityService;
     }
 
     @GetMapping
@@ -252,6 +255,8 @@ public class EmployeeController {
         }
         try {
             Employee saved = employeeService.create(form, documents);
+            userActivityService.logCurrentUser("CREATE", "EMPLOYEE", saved.getId(),
+                    "Created employee " + saved.getEmpCode() + " - " + saved.getFullName());
             log.info("Created employee [{}] with employee code [{}]", form.getFullName(), saved.getEmpCode());
             redirectAttributes.addFlashAttribute("success", "Employee " + saved.getEmpCode() + " added.");
             return "redirect:/employees/" + saved.getId();
@@ -315,7 +320,9 @@ public class EmployeeController {
             return "employees/form";
         }
         try {
-            employeeService.update(id, form);
+            Employee updated = employeeService.update(id, form);
+            userActivityService.logCurrentUser("UPDATE", "EMPLOYEE", updated.getId(),
+                    "Updated employee " + updated.getEmpCode() + " - " + updated.getFullName());
             redirectAttributes.addFlashAttribute("success", "Employee details updated.");
             return "redirect:/employees/" + id;
         } catch (BusinessException ex) {
@@ -330,8 +337,11 @@ public class EmployeeController {
     @PreAuthorize("hasAuthority('employees:write') or hasRole('ADMIN')")
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        Employee employee = employeeService.get(id);
         log.info("Deleting employee with id [{}]", id);
         employeeService.delete(id);
+        userActivityService.logCurrentUser("DELETE", "EMPLOYEE", id,
+                "Deleted employee " + employee.getEmpCode() + " - " + employee.getFullName());
         redirectAttributes.addFlashAttribute("success", "Employee removed.");
         return "redirect:/employees";
     }
@@ -378,6 +388,9 @@ public class EmployeeController {
                              RedirectAttributes redirectAttributes) {
         try {
             salaryPaymentService.mark(id, year, month, status, paidOn, notes);
+            Employee employee = employeeService.get(id);
+            userActivityService.logCurrentUser("UPDATE", "SALARY", id,
+                    "Updated salary status for " + employee.getEmpCode() + " - " + employee.getFullName() + " for " + year + "/" + month + " to " + status);
             redirectAttributes.addFlashAttribute("success", "Salary status saved.");
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
@@ -397,6 +410,8 @@ public class EmployeeController {
         log.info("Uploading employee documents for id [{}], count [{}]", id, documents == null ? 0 : documents.length);
         try {
             employeeService.addDocuments(id, documents);
+            userActivityService.logCurrentUser("CREATE", "EMPLOYEE_DOCUMENTS", id,
+                    "Uploaded employee documents for " + id + " (" + (documents == null ? 0 : documents.length) + " file(s))");
             redirectAttributes.addFlashAttribute("success", "Documents uploaded.");
         } catch (BusinessException ex) {
             log.error("Employee document upload failed for id [{}]", id, ex);
@@ -412,6 +427,8 @@ public class EmployeeController {
                             RedirectAttributes redirectAttributes) {
         try {
             employeeService.addPassportPhoto(id, photo);
+            userActivityService.logCurrentUser("CREATE", "EMPLOYEE_PHOTO", id,
+                    "Uploaded passport photo for employee " + id);
             redirectAttributes.addFlashAttribute("success", "Passport photo uploaded.");
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());

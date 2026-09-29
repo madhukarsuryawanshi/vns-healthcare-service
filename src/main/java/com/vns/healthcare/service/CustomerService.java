@@ -221,6 +221,23 @@ public class CustomerService {
 
     @Transactional
     @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
+    public Customer applyAdvancePayment(Long customerId, java.math.BigDecimal amountUsed) {
+        Customer customer = get(customerId);
+        java.math.BigDecimal current = customer.getAdvancePayment() == null ? java.math.BigDecimal.ZERO : customer.getAdvancePayment();
+        java.math.BigDecimal used = amountUsed == null ? java.math.BigDecimal.ZERO : amountUsed;
+        if (used.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            return customer;
+        }
+        used = used.min(current);
+        java.math.BigDecimal remaining = current.subtract(used);
+        customer.setAdvancePayment(remaining.max(java.math.BigDecimal.ZERO));
+        Customer saved = customerRepository.save(customer);
+        log.info("Applied advance payment of [{}] for customer [{}]. Remaining advance [{}]", used, customerId, saved.getAdvancePayment());
+        return saved;
+    }
+
+    @Transactional
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
     public Customer recalculateBilledAmount(Long id, CustomerDutyService dutyService) {
         Customer customer = get(id);
         log.info("Recalculating billed amount for customer id [{}]", id);

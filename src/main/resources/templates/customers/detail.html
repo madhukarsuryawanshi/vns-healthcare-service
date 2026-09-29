@@ -46,6 +46,12 @@
                 <dd th:text="${customer.serviceType == T(com.vns.healthcare.domain.ServiceType).HOURS_24} ? '24 hours' : '12 hours'">24 hours</dd>
                 <dt>Monthly charges</dt>
                 <dd th:text="${customer.charges != null} ? ${#numbers.formatDecimal(customer.charges, 1, 'COMMA', 2, 'POINT')} : '—'">25,000.00</dd>
+                <dt>Advance balance</dt>
+                <dd>
+                    <strong id="customer-advance-balance" th:attr="data-customer-advance-balance=${customer.advancePayment != null ? customer.advancePayment : 0}" th:text="${customer.advancePayment != null} ? ${#numbers.formatDecimal(customer.advancePayment, 1, 'COMMA', 2, 'POINT')} : '0.00'">0.00</strong>
+                    <span class="sub" th:if="${customer.advancePayment != null and customer.advancePayment > 0}">₹ remaining</span>
+                    <span class="sub" th:unless="${customer.advancePayment != null and customer.advancePayment > 0}">₹ available</span>
+                </dd>
                 <dt>Charges this month</dt>
                 <dd>
                     <span th:text="${#numbers.formatDecimal(runningTotal, 1, 'COMMA', 2, 'POINT')}">0.00</span>
@@ -189,6 +195,17 @@
                         <span class="sub">₹</span>
                     </div>
                 </div>
+                <div>
+                    <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);">
+                        <input type="checkbox" id="apply-advance"/>
+                        Deduct advance amount
+                    </label>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input id="invoice-advance-amount" type="number" min="0" step="0.01" value="0" th:disabled="${customer.advancePayment == null or customer.advancePayment <= 0}" th:attr="data-advance-balance=${customer.advancePayment != null ? customer.advancePayment : 0}" style="max-width:150px;" placeholder="0.00"/>
+                        <span class="sub">₹</span>
+                    </div>
+                    <small id="invoice-advance-remaining" class="sub" th:if="${customer.advancePayment != null and customer.advancePayment > 0}" th:text="'Available advance: ' + ${#numbers.formatDecimal(customer.advancePayment, 1, 'COMMA', 2, 'POINT')} + ' ₹'">Available advance: 0.00 ₹</small>
+                </div>
             </div>
 
             <hr style="margin:12px 0; border-color: var(--line);"/>
@@ -216,6 +233,7 @@
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Invoice</th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Total</th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Discount</th>
+                    <th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Advance</th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Net</th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">View</th>
                     <th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">Edit</th>
@@ -232,6 +250,7 @@
                     <td style="padding:8px 10px; border:1px solid var(--line);" th:text="${invoice.invoiceNumber}">INV-1001</td>
                     <td style="padding:8px 10px; border:1px solid var(--line); text-align:right;" th:text="${#numbers.formatDecimal(invoice.totalAmount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
                     <td style="padding:8px 10px; border:1px solid var(--line); text-align:right;" th:text="${#numbers.formatDecimal(invoice.discountAmount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+                    <td style="padding:8px 10px; border:1px solid var(--line); text-align:right;" th:text="${#numbers.formatDecimal(invoice.advanceAmount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
                     <td style="padding:8px 10px; border:1px solid var(--line); text-align:right;" th:text="${#numbers.formatDecimal(invoice.netAmount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
                     <td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">
                         <button type="button" class="btn ghost small view-invoice-btn" th:attr="data-invoice-id=${invoice.id}">View</button>
@@ -416,6 +435,9 @@
             var serviceDays = Number(panel.dataset.serviceDays || 0);
             var checkbox = document.getElementById('apply-discount');
             var discountInput = document.getElementById('invoice-discount');
+            var advanceCheckbox = document.getElementById('apply-advance');
+            var advanceInput = document.getElementById('invoice-advance-amount');
+            var advanceRemaining = document.getElementById('invoice-advance-remaining');
             var netAmount = document.getElementById('invoice-net-amount');
             var totalCharges = document.getElementById('invoice-total-raw');
             var dailyRateEl = document.getElementById('invoice-daily-rate');
@@ -580,6 +602,53 @@
                 return Math.max(0, discountValue);
             }
 
+            function currentAdvanceDeductionValue() {
+                var checked = advanceCheckbox && advanceCheckbox.checked;
+                var amount = checked && advanceInput ? parseFloat(advanceInput.value || '0') : 0;
+                if (!Number.isFinite(amount)) {
+                    amount = 0;
+                }
+                var balance = parseFloat((advanceInput && advanceInput.getAttribute('data-advance-balance')) || document.getElementById('customer-advance-balance')?.getAttribute('data-customer-advance-balance') || '0');
+                if (Number.isFinite(balance) && balance > 0) {
+                    amount = Math.min(Math.max(0, amount), balance);
+                }
+                return Math.max(0, amount);
+            }
+
+            function updateAdvanceRemainingLabel() {
+                if (!advanceInput || !advanceRemaining) {
+                    return;
+                }
+                var balance = parseFloat((advanceInput && advanceInput.getAttribute('data-advance-balance')) || document.getElementById('customer-advance-balance')?.getAttribute('data-customer-advance-balance') || '0');
+                if (!Number.isFinite(balance)) {
+                    var customerBalanceEl = document.getElementById('customer-advance-balance');
+                    if (customerBalanceEl) {
+                        balance = parseFloat(customerBalanceEl.textContent.replace(/[^0-9.-]/g, '') || '0');
+                    }
+                }
+                if (!Number.isFinite(balance)) {
+                    balance = 0;
+                }
+                var entered = currentAdvanceDeductionValue();
+                var remaining = Math.max(0, balance - entered);
+                var numberFormat = new Intl.NumberFormat('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                advanceRemaining.textContent = 'Available advance: ' + numberFormat.format(remaining) + ' ₹';
+
+                var customerAdvanceBalanceEl = document.getElementById('customer-advance-balance');
+                if (customerAdvanceBalanceEl) {
+                    customerAdvanceBalanceEl.textContent = numberFormat.format(balance);
+                    if (advanceCheckbox && advanceCheckbox.checked && entered > 0) {
+                        customerAdvanceBalanceEl.textContent = numberFormat.format(remaining);
+                    }
+                }
+                if (advanceInput) {
+                    advanceInput.setAttribute('data-advance-balance', String(balance));
+                }
+            }
+
             function readInvoiceRows() {
                 if (!invoiceTableBody) {
                     return [];
@@ -711,11 +780,14 @@
                 var total = rows.reduce(function (sum, row) {
                     return sum + row.amount;
                 }, 0);
+                var discountValue = currentDiscountValue();
+                var advanceValue = currentAdvanceDeductionValue();
+                var finalNet = Math.max(0, total - discountValue - advanceValue);
                 if (totalCharges) {
                     totalCharges.textContent = formatter.format(total);
                 }
                 if (netAmount) {
-                    netAmount.textContent = formatter.format(Math.max(0, total - currentDiscountValue()));
+                    netAmount.textContent = formatter.format(finalNet);
                 }
             }
 
@@ -727,6 +799,16 @@
                         discountInput.value = '0';
                     }
                 }
+                if (advanceCheckbox) {
+                    var hasAdvance = advanceCheckbox.checked;
+                    if (advanceInput) {
+                        advanceInput.disabled = !hasAdvance;
+                        if (!hasAdvance) {
+                            advanceInput.value = '0';
+                        }
+                    }
+                }
+                updateAdvanceRemainingLabel();
                 updateInvoiceTotal();
             }
 
@@ -851,12 +933,28 @@
                 return '<span style="display:inline-block;max-width:120px; width:120px; height:120px; margin-left:12px;vertical-align:top;border:1px solid #e5e7eb;border-radius:10px;padding:8px;background:#f8fafc;display:flex;align-items:center;justify-content:center;">QR image attached</span>';
             }
 
-            function buildBreakdownTableMarkup() {
-                var rows = readInvoiceRows();
+            function getInvoiceDisplayValues(previewData) {
+                var rows = Array.isArray(previewData && previewData.rows) && previewData.rows.length ? previewData.rows : readInvoiceRows();
                 var total = rows.reduce(function (sum, row) {
-                    return sum + row.amount;
+                    return sum + Number(row.amount || 0);
                 }, 0);
-                var discountValue = currentDiscountValue();
+                var discountValue = Number(previewData && previewData.discountAmount != null ? previewData.discountAmount : currentDiscountValue());
+                var advanceValue = Number(previewData && previewData.advanceAmount != null ? previewData.advanceAmount : currentAdvanceDeductionValue());
+                return {
+                    rows: rows,
+                    total: total,
+                    discountValue: discountValue,
+                    advanceValue: advanceValue,
+                    netAmount: Math.max(0, total - discountValue - advanceValue)
+                };
+            }
+
+            function buildBreakdownTableMarkup(previewData) {
+                var invoiceState = getInvoiceDisplayValues(previewData);
+                var rows = invoiceState.rows;
+                var total = invoiceState.total;
+                var discountValue = invoiceState.discountValue;
+                var advanceValue = invoiceState.advanceValue;
                 var html = '<table style="width:100%; border-collapse:collapse; margin-top:18px; font-family:Arial,sans-serif; border-radius:12px; overflow:hidden; box-shadow:0 10px 18px rgba(15,23,42,0.04);">' +
                     '<thead><tr><th style="padding:12px 10px; background:linear-gradient(135deg,#1b5c54,#214e4a); color:#fff; text-align:center; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(255,255,255,0.14);">No.</th>' +
                     '<th style="padding:12px 10px; background:linear-gradient(135deg,#1b5c54,#214e4a); color:#fff; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(255,255,255,0.14);">Description</th>' +
@@ -872,6 +970,10 @@
                     html += '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff7f7; color:#b91c1c;">Discount</td>' +
                         '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#fff7f7; color:#b91c1c;">-' + formatter.format(discountValue) + '</td></tr>';
                 }
+                if (advanceValue > 0) {
+                    html += '<tr><td colspan="2" style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#ecfeff; color:#0f766e;">Advance deduction</td>' +
+                        '<td style="padding:12px 10px; border:1px solid #e5e7eb; text-align:right; font-weight:700; background:#ecfeff; color:#0f766e;">-' + formatter.format(advanceValue) + '</td></tr>';
+                }
                 html += '</tbody></table>';
                 return html;
             }
@@ -882,12 +984,12 @@
                 var serviceValue = document.getElementById('invoice-service-days');
                 var rateValue = document.getElementById('invoice-daily-rate');
                 var previewData = currentInvoicePreviewData || {};
-                var rows = Array.isArray(previewData.rows) && previewData.rows.length ? previewData.rows : readInvoiceRows();
-                var total = Number(previewData.totalAmount != null ? previewData.totalAmount : rows.reduce(function (sum, row) {
-                    return sum + Number(row.amount || 0);
-                }, 0));
-                var discountValue = Number(previewData.discountAmount != null ? previewData.discountAmount : currentDiscountValue());
-                var finalAmount = Math.max(0, total - discountValue);
+                var invoiceState = getInvoiceDisplayValues(previewData);
+                var rows = invoiceState.rows;
+                var total = invoiceState.total;
+                var discountValue = invoiceState.discountValue;
+                var advanceValue = invoiceState.advanceValue;
+                var finalAmount = invoiceState.netAmount;
                 var patientName = (previewData.patientName && String(previewData.patientName).trim()) || (patient ? patient.textContent.trim() : 'N/A');
                 var customerText = (previewData.customerCode && String(previewData.customerCode).trim()) || (customerCode ? customerCode.textContent.trim() : 'N/A');
                 var invoiceIdText = (previewData.invoiceNumber && String(previewData.invoiceNumber).trim()) || (lastSavedInvoiceId && String(lastSavedInvoiceId).trim()) || 'Draft';
@@ -952,7 +1054,7 @@
                     '<div class="meta-item"><span class="label">Per day service</span><span class="value">' + (rateValue ? rateValue.textContent.trim() : formatter.format(dailyRate)) + '</span></div>' +
                     '</div></div>' +
                     accountLines +
-                    buildBreakdownTableMarkup() +
+                    buildBreakdownTableMarkup(previewData) +
                     '<div class="summary-row total"><span>Net amount</span><span class="total-pill">' + formatter.format(finalAmount) + '</span></div></div></body></html>';
             }
 
@@ -970,7 +1072,8 @@
                     rows: readInvoiceRows(),
                     totalAmount: readInvoiceRows().reduce(function (sum, row) { return sum + row.amount; }, 0),
                     discountAmount: currentDiscountValue(),
-                    netAmount: Math.max(0, readInvoiceRows().reduce(function (sum, row) { return sum + row.amount; }, 0) - currentDiscountValue()),
+                    advanceAmount: currentAdvanceDeductionValue(),
+                    netAmount: Math.max(0, readInvoiceRows().reduce(function (sum, row) { return sum + row.amount; }, 0) - currentDiscountValue() - currentAdvanceDeductionValue()),
                     patientName: patientNameValue ? patientNameValue.textContent.trim() : '',
                     customerCode: customerCodeValue ? customerCodeValue.textContent.trim() : '',
                     bankAccountId: accountSelect && accountSelect.value ? accountSelect.value : '',
@@ -1058,6 +1161,7 @@
                     '<td style="padding:8px 10px; border:1px solid var(--line);">' + record.invoiceNumber + '</td>' +
                     '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(record.totalAmount || 0) + '</td>' +
                     '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(record.discountAmount || 0) + '</td>' +
+                    '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(record.advanceAmount || 0) + '</td>' +
                     '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(record.netAmount || 0) + '</td>' +
                     '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">' +
                     '<button type="button" class="btn ghost small view-invoice-btn" data-invoice-id="' + (record.invoiceId || '') + '">View</button>' +
@@ -1266,6 +1370,7 @@
                     rows: Array.isArray(invoice && invoice.rows) ? invoice.rows : [],
                     totalAmount: Number(invoice && invoice.totalAmount != null ? invoice.totalAmount : 0),
                     discountAmount: Number(invoice && invoice.discountAmount != null ? invoice.discountAmount : 0),
+                    advanceAmount: Number(invoice && invoice.advanceAmount != null ? invoice.advanceAmount : 0),
                     netAmount: Number(invoice && invoice.netAmount != null ? invoice.netAmount : 0),
                     bankAccountId: invoice && invoice.bankAccountId ? invoice.bankAccountId : '',
                     bankAccountName: invoice && invoice.bankAccountName ? invoice.bankAccountName : '',
@@ -1306,13 +1411,16 @@
                     return sum + row.amount;
                 }, 0);
                 var discountValue = currentDiscountValue();
+                var advanceValue = currentAdvanceDeductionValue();
                 var payload = {
                     invoiceId: lastSavedInvoiceId || '',
                     fromDate: invoiceDateFrom ? invoiceDateFrom.value : '',
                     toDate: invoiceDateTo ? invoiceDateTo.value : '',
                     totalAmount: total,
                     discountAmount: discountValue,
-                    netAmount: Math.max(0, total - discountValue),
+                    advanceAmount: advanceValue,
+                    applyAdvance: !!(advanceCheckbox && advanceCheckbox.checked),
+                    netAmount: Math.max(0, total - discountValue - advanceValue),
                     rows: rows,
                     accountId: accountSelect ? accountSelect.value : '',
                     accountName: accountSelect && accountSelect.value ? (accountSelect.options[accountSelect.selectedIndex].dataset.accountName || '') : '',
@@ -1350,8 +1458,20 @@
                         invoiceNumber: data.invoiceNumber || payload.invoiceNumber,
                         totalAmount: payload.totalAmount || 0,
                         discountAmount: payload.discountAmount || 0,
+                        advanceAmount: payload.advanceAmount || 0,
                         netAmount: payload.netAmount || 0
                     };
+                    if (payload.applyAdvance && Number(payload.advanceAmount || 0) > 0 && advanceInput) {
+                        var baseBalance = parseFloat((advanceInput.getAttribute('data-advance-balance') || '0')) || 0;
+                        var remainingAfterSave = Math.max(0, baseBalance - Number(payload.advanceAmount || 0));
+                        advanceInput.setAttribute('data-advance-balance', String(remainingAfterSave));
+                        var customerAdvanceBalanceEl = document.getElementById('customer-advance-balance');
+                        if (customerAdvanceBalanceEl) {
+                            customerAdvanceBalanceEl.setAttribute('data-customer-advance-balance', String(remainingAfterSave));
+                            customerAdvanceBalanceEl.textContent = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(remainingAfterSave);
+                        }
+                        advanceRemaining.textContent = 'Available advance: ' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(remainingAfterSave) + ' ₹';
+                    }
                     if (lastSavedInvoiceId) {
                         var existingRow = document.querySelector('#customer-invoice-history-body tr[data-invoice-id="' + lastSavedInvoiceId + '"]');
                         if (existingRow) {
@@ -1362,6 +1482,7 @@
                                 '<td style="padding:8px 10px; border:1px solid var(--line);">' + invoiceRecord.invoiceNumber + '</td>' +
                                 '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(invoiceRecord.totalAmount || 0) + '</td>' +
                                 '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(invoiceRecord.discountAmount || 0) + '</td>' +
+                                '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(invoiceRecord.advanceAmount || 0) + '</td>' +
                                 '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;">' + formatter.format(invoiceRecord.netAmount || 0) + '</td>' +
                                 '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center; vertical-align:top;">' +
                                 '<button type="button" class="btn ghost small view-invoice-btn" data-invoice-id="' + lastSavedInvoiceId + '">View</button>' +
@@ -1390,7 +1511,8 @@
                         rows: rows,
                         totalAmount: total,
                         discountAmount: discountValue,
-                        netAmount: Math.max(0, total - discountValue),
+                        advanceAmount: advanceValue,
+                        netAmount: Math.max(0, total - discountValue - advanceValue),
                         patientName: document.querySelector('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]') ? document.querySelector('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]').textContent.trim() : '',
                         customerCode: document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1] ? document.querySelectorAll('#invoice-panel [style*="font-size:1.02rem; font-weight:600;"]')[1].textContent.trim() : '',
                         bankAccountId: payload.accountId || '',
@@ -1472,6 +1594,12 @@
             }
             if (discountInput) {
                 discountInput.addEventListener('input', updateInvoice);
+            }
+            if (advanceCheckbox) {
+                advanceCheckbox.addEventListener('change', updateInvoice);
+            }
+            if (advanceInput) {
+                advanceInput.addEventListener('input', updateInvoice);
             }
             if (shareBtn) {
                 shareBtn.addEventListener('click', function () {
@@ -1580,6 +1708,8 @@
                     if (invoiceDateTo) { invoiceDateTo.value = ''; }
                     if (checkbox) { checkbox.checked = false; }
                     if (discountInput) { discountInput.value = '0'; discountInput.disabled = true; }
+                    if (advanceCheckbox) { advanceCheckbox.checked = false; }
+                    if (advanceInput) { advanceInput.value = '0'; advanceInput.disabled = true; }
                     if (accountSelect) { accountSelect.selectedIndex = 0; }
                     if (panel) {
                         panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1601,6 +1731,8 @@
                     addInvoiceRow('', baseTotal, true);
                     if (checkbox) { checkbox.checked = false; }
                     if (discountInput) { discountInput.value = '0'; discountInput.disabled = true; }
+                    if (advanceCheckbox) { advanceCheckbox.checked = false; }
+                    if (advanceInput) { advanceInput.value = '0'; advanceInput.disabled = true; }
                     if (accountSelect) { accountSelect.selectedIndex = 0; }
                     if (panel) {
                         panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
