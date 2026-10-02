@@ -17,8 +17,10 @@ public class AppCacheConfig {
                 "employee-pages",
                 "employee-active",
                 "employee-active-pages",
+                "employeeById",
                 "customer-lists",
-                "customer-pages"
+                "customer-pages",
+                "customerById"
         );
         return cacheManager;
     }
