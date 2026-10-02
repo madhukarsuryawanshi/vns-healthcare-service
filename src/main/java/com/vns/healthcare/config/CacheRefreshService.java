@@ -36,11 +36,11 @@ public class CacheRefreshService {
     }
 
     public void clearEmployeeCaches() {
-        clearCaches("employee-lists", "employee-pages", "employee-active", "employee-active-pages");
+        clearCaches("employee-lists", "employee-pages", "employee-active", "employee-active-pages", "employeeById");
     }
 
     public void clearCustomerCaches() {
-        clearCaches("customer-lists", "customer-pages");
+        clearCaches("customer-lists", "customer-pages", "customerById");
     }
 
     @Transactional(readOnly = true)

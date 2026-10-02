@@ -23,6 +23,11 @@ public class RequestTimingInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                                 Object handler, Exception ex) {
+        String uri = request.getRequestURI();
+        if (uri == null || uri.startsWith("/css") || uri.startsWith("/js") || uri.startsWith("/images") || uri.startsWith("/favicon") || uri.startsWith("/webjars")) {
+            return;
+        }
+
         Object startTime = request.getAttribute("requestStartTime");
         if (startTime instanceof Long) {
             long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - (Long) startTime);

@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -210,13 +211,24 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "employeeById", key = "#id")
     public Employee get(Long id) {
-        return employeeRepository.findWithDocuments(id)
+        Cache cache = cacheManager.getCache("employeeById");
+        if (cache != null && cache.get(id, Employee.class) != null) {
+            log.info("CACHE HIT employeeById key=[{}]", id);
+        } else {
+            log.info("CACHE MISS employeeById key=[{}] -> querying DB", id);
+        }
+        Employee employee = employeeRepository.findWithDocuments(id)
                 .orElseThrow(() -> new BusinessException("Employee not found"));
+        if (cache != null) {
+            cache.put(id, employee);
+        }
+        return employee;
     }
 
     @Transactional
-    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public Employee create(EmployeeForm form, MultipartFile[] documents) {
         log.info("Creating employee with Aadhar [{}] and name [{}]", form.getAadharNumber(), form.getFullName());
         if (employeeRepository.existsByAadharNumber(form.getAadharNumber())) {
@@ -234,7 +246,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public Employee update(Long id, EmployeeForm form) {
         Employee employee = get(id);
         log.info("Updating employee id [{}] with Aadhar [{}]", id, form.getAadharNumber());
@@ -250,7 +262,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public void delete(Long id) {
         Employee employee = get(id);
         log.info("Deleting employee id [{}] [{}]", id, employee.getFullName());
@@ -294,7 +306,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public void updateTraining(Long id, TrainingStatus status, String notes) {
         Employee employee = get(id);
         log.info("Updating training for employee id [{}] to status [{}]", id, status);
@@ -305,7 +317,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public void onboard(Long id, LocalDate salaryStartDate) {
         Employee employee = get(id);
         log.info("Onboarding employee id [{}] with salary start date [{}]", id, salaryStartDate);
@@ -316,7 +328,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active"}, allEntries = true)
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public void resign(Long id) {
         Employee employee = get(id);
         log.info("Resigning employee id [{}] [{}]", id, employee.getFullName());
@@ -348,6 +360,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public void addDocuments(Long id, MultipartFile[] files) {
         if (files == null || files.length == 0) {
             log.warn("Employee document upload rejected for id [{}]: no files", id);
@@ -373,6 +386,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public void addPassportPhoto(Long id, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("Choose a passport size photo to upload");
@@ -420,6 +434,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public void deleteDocument(Long employeeId, Long documentId) {
         EmployeeDocument document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new BusinessException("Document not found"));

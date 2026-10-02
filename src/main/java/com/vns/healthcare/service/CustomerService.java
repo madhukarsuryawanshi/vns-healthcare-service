@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -122,9 +123,20 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "customerById", key = "#id")
     public Customer get(Long id) {
-        return customerRepository.findWithEmployee(id)
+        Cache cache = cacheManager.getCache("customerById");
+        if (cache != null && cache.get(id, Customer.class) != null) {
+            log.info("CACHE HIT customerById key=[{}]", id);
+        } else {
+            log.info("CACHE MISS customerById key=[{}] -> querying DB", id);
+        }
+        Customer customer = customerRepository.findWithEmployee(id)
                 .orElseThrow(() -> new BusinessException("Customer not found"));
+        if (cache != null) {
+            cache.put(id, customer);
+        }
+        return customer;
     }
 
     @Transactional
@@ -133,7 +145,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
     public Customer create(CustomerForm form, MultipartFile[] documents) {
         log.info("Creating customer with patient name [{}] and phone [{}]", form.getPatientName(), form.getMobileNo());
         Customer customer = new Customer();
@@ -147,7 +159,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
     public Customer update(Long id, CustomerForm form) {
         Customer customer = get(id);
         log.info("Updating customer id [{}] [{}]", id, customer.getPatientName());
@@ -160,7 +172,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
     public void delete(Long id) {
         Customer customer = get(id);
         log.info("Deleting customer id [{}] [{}]", id, customer.getPatientName());
@@ -170,6 +182,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
     public void addDocuments(Long id, MultipartFile[] files) {
         if (files == null || files.length == 0) {
             log.warn("Customer document upload rejected for id [{}]: no files", id);
@@ -205,6 +218,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
     public void deleteDocument(Long customerId, Long documentId) {
         CustomerDocument document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new BusinessException("Document not found"));
@@ -221,7 +235,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
     public void assignEmployee(Long customerId, Long employeeId) {
         Customer customer = get(customerId);
         log.info("Processing employee assignment for customer [{}] with employee [{}]", customerId, employeeId);
@@ -245,7 +259,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
     public Customer closeService(Long id, CustomerDutyService dutyService) {
         Customer customer = get(id);
         log.info("Closing service for customer id [{}]", id);
@@ -263,7 +277,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
     public Customer applyAdvancePayment(Long customerId, java.math.BigDecimal amountUsed) {
         Customer customer = get(customerId);
         java.math.BigDecimal current = customer.getAdvancePayment() == null ? java.math.BigDecimal.ZERO : customer.getAdvancePayment();
@@ -280,7 +294,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
     public Customer recalculateBilledAmount(Long id, CustomerDutyService dutyService) {
         Customer customer = get(id);
         log.info("Recalculating billed amount for customer id [{}]", id);
