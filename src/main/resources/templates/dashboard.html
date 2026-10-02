@@ -40,37 +40,11 @@
     <div class="grid-2">
         <div class="panel">
             <h3>Recent staff</h3>
-            <table th:if="${!recentEmployees.isEmpty()}">
-                <thead>
-                <tr><th>ID</th><th>Name</th><th>Training</th><th></th></tr>
-                </thead>
-                <tbody>
-                <tr th:each="e : ${recentEmployees}">
-                    <td th:text="${e.empCode}">EMP-1001</td>
-                    <td th:text="${e.fullName}">Name</td>
-                    <td><span class="badge" th:text="${e.trainingStatus}">NOT_STARTED</span></td>
-                    <td><a th:href="@{/employees/{id}(id=${e.id})}">Open</a></td>
-                </tr>
-                </tbody>
-            </table>
-            <p class="empty" th:if="${recentEmployees.isEmpty()}">No employees yet.</p>
+            <p class="empty">Recent staff is disabled.</p>
         </div>
         <div class="panel">
             <h3>Recent leads</h3>
-            <table th:if="${!recentCustomers.isEmpty()}">
-                <thead>
-                <tr><th>ID</th><th>Patient</th><th>Service</th><th></th></tr>
-                </thead>
-                <tbody>
-                <tr th:each="c : ${recentCustomers}">
-                    <td th:text="${c.custCode}">CUS-1001</td>
-                    <td th:text="${c.patientName}">Patient</td>
-                    <td th:text="${c.serviceType == T(com.vns.healthcare.domain.ServiceType).HOURS_24} ? '24 hrs' : '12 hrs'">24 hrs</td>
-                    <td><a th:href="@{/customers/{id}(id=${c.id})}">Open</a></td>
-                </tr>
-                </tbody>
-            </table>
-            <p class="empty" th:if="${recentCustomers.isEmpty()}">No leads yet.</p>
+            <p class="empty">Recent leads is disabled.</p>
         </div>
     </div>
 </section>

@@ -22,10 +22,7 @@ from openpyxl import load_workbook
 
 
 DEFAULT_FILES = [
-    r"C:\Users\Madhukar\Downloads\Client payments.xlsx",
-    r"C:\Users\Madhukar\Downloads\Employee attendence.xlsx",
-    r"C:\Users\Madhukar\Downloads\Ongoing case details.xlsx",
-    r"C:\Users\Madhukar\Downloads\Employee salary sheet (1).xlsx",
+    r"C:\Users\Madhukar\Downloads\data employee.xlsx"
 ]
 
 
@@ -43,11 +40,29 @@ def normalize_name(value):
     return text.title() if text else ""
 
 
+def is_valid_human_name(value):
+    text = normalize_name(value)
+    if not text:
+        return False
+    if re.fullmatch(r"[\d\s\-+/()]+", text):
+        return False
+    return bool(re.search(r"[A-Za-z]", text))
+
+
 def normalize_phone(value):
     digits = re.sub(r"\D", "", to_text(value))
     if len(digits) >= 10:
         return digits[-10:]
     return digits
+
+
+def normalize_gender(value):
+    text = to_text(value).upper()
+    if text in {"M", "MALE", "MAN"}:
+        return "MALE"
+    if text in {"F", "FEMALE", "WOMAN"}:
+        return "FEMALE"
+    return "MALE"
 
 
 def parse_date(value):
@@ -222,6 +237,12 @@ def generate_customer_code(candidate):
     return text[:20]
 
 
+def generate_employee_code(cursor):
+    row = fetch_one(cursor, "SELECT COUNT(*) FROM employees")
+    count = int(row[0]) if row and row[0] is not None else 0
+    return f"EMP-{1000 + count + 1}"
+
+
 def connect_db(args):
     conn = mysql.connector.connect(
         host=args.host,
@@ -287,6 +308,8 @@ def get_or_create_employee(cursor, name, phone, joining_date=None):
     address = "Imported from spreadsheet"
     aadhar = generate_aadhar(mobile or full_name)
 
+    emp_code = generate_employee_code(cursor)
+
     cursor.execute(
         """
         INSERT INTO employees (
@@ -296,7 +319,7 @@ def get_or_create_employee(cursor, name, phone, joining_date=None):
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
         """,
         (
-            "EMP-" + str(hashlib.md5((full_name + "|" + mobile).encode("utf-8")).hexdigest()[:8]).upper(),
+            emp_code,
             full_name,
             mobile or "0000000000",
             joining_date,
@@ -314,6 +337,186 @@ def get_or_create_employee(cursor, name, phone, joining_date=None):
         ),
     )
     return cursor.lastrowid
+
+
+def update_employee_fields(cursor, employee_id, row, header_map):
+    if employee_id is None:
+        return
+
+    assignments = []
+    params = []
+
+    def assign_value(column, value):
+        if value is not None:
+            assignments.append(f"{column} = %s")
+            params.append(value)
+
+    name = None
+    if "name" in header_map and header_map["name"] < len(row):
+        name = normalize_name(row[header_map["name"]])
+    if name:
+        assign_value("full_name", name)
+
+    mobile = None
+    if "mobile" in header_map and header_map["mobile"] < len(row):
+        mobile = normalize_phone(row[header_map["mobile"]])
+    if mobile:
+        assign_value("mobile_no", mobile)
+
+    joining_date = None
+    if "joining_date" in header_map and header_map["joining_date"] < len(row):
+        joining_date = parse_date(row[header_map["joining_date"]])
+    if joining_date:
+        assign_value("joining_date", joining_date)
+
+    dob = None
+    if "date_of_birth" in header_map and header_map["date_of_birth"] < len(row):
+        dob = parse_date(row[header_map["date_of_birth"]])
+    if dob:
+        assign_value("date_of_birth", dob)
+
+    gender = None
+    if "gender" in header_map and header_map["gender"] < len(row):
+        gender = normalize_gender(row[header_map["gender"]])
+    if gender:
+        assign_value("gender", gender)
+
+    address = None
+    if "address" in header_map and header_map["address"] < len(row):
+        address = to_text(row[header_map["address"]])
+    if address:
+        assign_value("full_address", address)
+
+    aadhar = None
+    if "aadhar" in header_map and header_map["aadhar"] < len(row):
+        aadhar = to_text(row[header_map["aadhar"]])
+    if aadhar:
+        assign_value("aadhar_number", re.sub(r"\D", "", aadhar)[:12])
+
+    salary = None
+    if "salary" in header_map and header_map["salary"] < len(row):
+        salary = parse_decimal(row[header_map["salary"]])
+    if salary is not None:
+        assign_value("salary", salary)
+
+    experience = None
+    if "experience" in header_map and header_map["experience"] < len(row):
+        experience = parse_decimal(row[header_map["experience"]])
+    if experience is not None:
+        assign_value("no_of_experience", experience)
+
+    designation = None
+    if "designation" in header_map and header_map["designation"] < len(row):
+        designation = to_text(row[header_map["designation"]]).upper().replace(" ", "_")
+    if designation:
+        assign_value("designation", designation)
+
+    email = None
+    if "email" in header_map and header_map["email"] < len(row):
+        email = to_text(row[header_map["email"]])
+    if email:
+        assign_value("email", email)
+
+    marital = None
+    if "marital_status" in header_map and header_map["marital_status"] < len(row):
+        marital = to_text(row[header_map["marital_status"]])
+    if marital:
+        assign_value("marital_status", marital)
+
+    referred = None
+    if "referred_by" in header_map and header_map["referred_by"] < len(row):
+        referred = to_text(row[header_map["referred_by"]])
+    if referred:
+        assign_value("referred_by", referred)
+
+    if not assignments:
+        return
+
+    sql = "UPDATE employees SET " + ", ".join(assignments) + ", updated_at = NOW() WHERE id = %s"
+    cursor.execute(sql, params + [employee_id])
+
+
+def import_employee_sheet(conn, excel_path):
+    wb = load_workbook(excel_path, data_only=True, read_only=True)
+    cursor = conn.cursor()
+    total = 0
+
+    for ws in wb.worksheets:
+        rows = list(ws.iter_rows(values_only=True))
+        header_row_index = None
+        header_row = None
+        for idx, row in enumerate(rows):
+            cells = [to_text(v).lower() for v in row]
+            haystack = " ".join(cells)
+            if any(token in haystack for token in ["name", "mobile", "phone", "aadhar", "joining", "dob", "date of birth"]):
+                header_row_index = idx
+                header_row = row
+                break
+        if header_row_index is None:
+            continue
+
+        header_map = {}
+        for idx, cell in enumerate(header_row):
+            key = re.sub(r"[^a-z0-9]+", "_", to_text(cell).lower()).strip("_")
+            if not key:
+                continue
+            normalized = key.replace("__", "_")
+            header_map[normalized] = idx
+
+            name_tokens = {"name", "employee_name", "emp_name", "full_name"}
+            if normalized in name_tokens or ("name" in normalized and "employee" in normalized) or ("name" in normalized and "full" in normalized):
+                header_map["name"] = idx
+            if "mobile" in normalized or "phone" in normalized:
+                header_map["mobile"] = idx
+            if "aadhaar" in normalized or "aadhar" in normalized or "adhar" in normalized:
+                header_map["aadhar"] = idx
+            if "join" in normalized or "joining" in normalized:
+                header_map["joining_date"] = idx
+            if "dob" in normalized or ("date" in normalized and "birth" in normalized):
+                header_map["date_of_birth"] = idx
+            if "gender" in normalized:
+                header_map["gender"] = idx
+            if "address" in normalized or "location" in normalized:
+                header_map["address"] = idx
+            if "salary" in normalized:
+                header_map["salary"] = idx
+            if "exp" in normalized:
+                header_map["experience"] = idx
+            if "designation" in normalized:
+                header_map["designation"] = idx
+            if "email" in normalized:
+                header_map["email"] = idx
+            if "marital" in normalized:
+                header_map["marital_status"] = idx
+            if "referred" in normalized:
+                header_map["referred_by"] = idx
+
+        for row in rows[header_row_index + 1:]:
+            if not row or all(v is None or to_text(v) == "" for v in row):
+                continue
+            name_idx = header_map.get("name")
+            mobile_idx = header_map.get("mobile")
+            raw_name = row[name_idx] if name_idx is not None and name_idx < len(row) else None
+            name = normalize_name(raw_name)
+            if name and not is_valid_human_name(name):
+                name = ""
+            phone = normalize_phone(row[mobile_idx] if mobile_idx is not None and mobile_idx < len(row) else None)
+            if not name and not phone:
+                continue
+
+            joining_date = None
+            if "joining_date" in header_map and header_map["joining_date"] < len(row):
+                joining_date = parse_date(row[header_map["joining_date"]])
+
+            employee_id = get_or_create_employee(cursor, name or phone, phone or name, joining_date)
+            if employee_id is None:
+                continue
+
+            update_employee_fields(cursor, employee_id, row, header_map)
+            total += 1
+
+    cursor.close()
+    return total
 
 
 def get_customer_id(cursor, full_name, mobile_no=None, code=None):
@@ -731,6 +934,10 @@ def main():
             if not path.exists():
                 print(f"Missing: {path}")
                 continue
+            name_lower = path.name.lower()
+            if "employee" in name_lower:
+                stats["employees"] += 1
+                continue
             wb = load_workbook(path, data_only=True, read_only=True)
             for ws in wb.worksheets:
                 rows = list(ws.iter_rows(values_only=True))
@@ -749,7 +956,7 @@ def main():
     conn = connect_db(args)
     try:
         cursor = conn.cursor()
-        cursor.execute("USE `vns_healthcare`")
+        cursor.execute(f"USE `{args.database}`")
         cursor.close()
 
         files = [Path(f) for f in args.files]
@@ -759,7 +966,10 @@ def main():
                 continue
             print(f"Processing: {path}")
             name = path.name.lower()
-            if "salary" in name:
+            if "employee" in name:
+                count = import_employee_sheet(conn, str(path))
+                print(f" employees imported: {count}")
+            elif "salary" in name:
                 count = import_salary_sheet(conn, str(path))
                 print(f" salary_payments imported: {count}")
             elif "attend" in name:

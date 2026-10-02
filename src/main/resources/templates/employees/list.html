@@ -10,8 +10,8 @@
         <a class="btn" th:if="${canWriteEmployees}" th:href="@{/employees/new}">Add employee</a>
     </div>
 
-    <form class="search" method="get" th:action="@{/employees}">
-        <input type="text" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" list="employeeSuggestionsList" autocomplete="off"/>
+    <form id="employee-search-form" class="search" method="get" th:action="@{/employees}">
+        <input id="employee-search-input" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" list="employeeSuggestionsList" autocomplete="off"/>
         <button class="btn" type="submit">Search</button>
         <a class="btn ghost" th:href="@{/employees}">Clear</a>
     </form>
@@ -19,7 +19,64 @@
         <option th:each="s : ${employeeSuggestions}" th:value="${s}"></option>
     </datalist>
 
-    <div class="panel">
+    <script>
+        (function () {
+            const form = document.getElementById('employee-search-form');
+            const input = document.getElementById('employee-search-input');
+            const results = document.getElementById('employee-results');
+            if (!form || !input || !results) return;
+
+            let timer = null;
+
+            const fetchResults = function (term) {
+                const params = new URLSearchParams();
+                if (term && term.trim()) {
+                    params.set('q', term.trim());
+                }
+
+                const url = '/employees' + (params.toString() ? '?' + params.toString() : '');
+
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Request failed');
+                    }
+                    return response.text();
+                })
+                .then(function (html) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const nextResults = doc.getElementById('employee-results');
+                    if (nextResults) {
+                        results.innerHTML = nextResults.innerHTML;
+                    }
+                })
+                .catch(function () {
+                    form.submit();
+                });
+            };
+
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                clearTimeout(timer);
+                fetchResults(input.value);
+            });
+
+            input.addEventListener('input', function () {
+                clearTimeout(timer);
+                timer = setTimeout(function () {
+                    fetchResults(input.value);
+                }, 250);
+            });
+        })();
+    </script>
+
+    <div id="employee-results" class="panel">
         <table th:if="${!employees.isEmpty()}">
             <thead>
             <tr>

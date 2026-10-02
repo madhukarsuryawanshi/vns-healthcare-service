@@ -242,7 +242,7 @@ public class CustomerController {
         model.addAttribute("page", "customers");
         model.addAttribute("form", new CustomerForm());
         model.addAttribute("mode", "create");
-        model.addAttribute("staff", employeeService.activeCareStaff());
+        model.addAttribute("staff", employeeService.activeCareStaffAvailable(null));
         model.addAttribute("statuses", CustomerStatus.values());
         return "customers/form";
     }
@@ -258,7 +258,7 @@ public class CustomerController {
             log.warn("Customer create validation failed for form [{}]", form.getPatientName());
             model.addAttribute("page", "customers");
             model.addAttribute("mode", "create");
-            model.addAttribute("staff", employeeService.activeCareStaff());
+            model.addAttribute("staff", employeeService.activeCareStaffAvailable(null));
             model.addAttribute("statuses", CustomerStatus.values());
             return "customers/form";
         }
@@ -273,7 +273,7 @@ public class CustomerController {
             log.error("Failed to create customer [{}]", form.getPatientName(), ex);
             model.addAttribute("page", "customers");
             model.addAttribute("mode", "create");
-            model.addAttribute("staff", employeeService.activeCareStaff());
+            model.addAttribute("staff", employeeService.activeCareStaffAvailable(null));
             model.addAttribute("statuses", CustomerStatus.values());
             model.addAttribute("error", ex.getMessage());
             return "customers/form";
@@ -311,7 +311,7 @@ public class CustomerController {
 
         model.addAttribute("page", "customers");
         model.addAttribute("customer", customer);
-        model.addAttribute("staff", employeeService.activeCareStaff());
+        model.addAttribute("staff", employeeService.activeCareStaffAvailable(customer.getId()));
         model.addAttribute("month", yearMonth.toString());
         model.addAttribute("monthLabel", yearMonth);
         model.addAttribute("dayRows", dayRows);
