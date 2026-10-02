@@ -11,69 +11,78 @@
     </div>
 
     <form id="employee-search-form" class="search" method="get" th:action="@{/employees}">
-        <input id="employee-search-input" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" list="employeeSuggestionsList" autocomplete="off"/>
+        <input id="employee-search-input" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" autocomplete="off"/>
         <button class="btn" type="submit">Search</button>
         <a class="btn ghost" th:href="@{/employees}">Clear</a>
     </form>
-    <datalist id="employeeSuggestionsList" th:if="${!employeeSuggestions.isEmpty()}">
-        <option th:each="s : ${employeeSuggestions}" th:value="${s}"></option>
-    </datalist>
 
     <script>
-        (function () {
+        document.addEventListener('DOMContentLoaded', function () {
             const form = document.getElementById('employee-search-form');
             const input = document.getElementById('employee-search-input');
-            const results = document.getElementById('employee-results');
-            if (!form || !input || !results) return;
+            const resultsPanel = document.getElementById('employee-results');
+            const table = resultsPanel ? resultsPanel.querySelector('table') : null;
+            const noResultsText = resultsPanel ? resultsPanel.querySelector('.empty') : null;
+            if (!form || !input || !resultsPanel || !table) return;
 
-            let timer = null;
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
 
-            const fetchResults = function (term) {
-                const params = new URLSearchParams();
-                if (term && term.trim()) {
-                    params.set('q', term.trim());
-                }
+            function escapeHtml(value) {
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
 
-                const url = '/employees' + (params.toString() ? '?' + params.toString() : '');
+            function highlightMatch(text, query) {
+                if (!query) return escapeHtml(text || '');
+                const safeText = escapeHtml(text || '');
+                const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp('(' + safeQuery + ')', 'ig');
+                return safeText.replace(regex, '<mark>$1</mark>');
+            }
 
-                fetch(url, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'text/html'
-                    }
-                })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Request failed');
-                    }
-                    return response.text();
-                })
-                .then(function (html) {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const nextResults = doc.getElementById('employee-results');
-                    if (nextResults) {
-                        results.innerHTML = nextResults.innerHTML;
-                    }
-                })
-                .catch(function () {
-                    form.submit();
+            const applyClientFilter = function () {
+                const value = (input.value || '').trim().toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(function (row) {
+                    const rowText = (row.textContent || '').toLowerCase();
+                    const matches = !value || rowText.indexOf(value) !== -1;
+                    row.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach(function (cell) {
+                        if (cell.querySelector('a, button, form')) {
+                            return;
+                        }
+                        const original = cell.textContent || '';
+                        if (!cell.dataset.originalText) {
+                            cell.dataset.originalText = original;
+                        }
+                        const savedText = cell.dataset.originalText || original;
+                        if (!value) {
+                            cell.innerHTML = escapeHtml(savedText);
+                            return;
+                        }
+                        cell.innerHTML = highlightMatch(savedText, value);
+                    });
                 });
+
+                if (noResultsText) {
+                    noResultsText.style.display = visibleCount === 0 ? 'block' : 'none';
+                }
             };
 
-            form.addEventListener('submit', function (event) {
-                event.preventDefault();
-                clearTimeout(timer);
-                fetchResults(input.value);
+            input.addEventListener('input', function () {
+                applyClientFilter();
             });
 
-            input.addEventListener('input', function () {
-                clearTimeout(timer);
-                timer = setTimeout(function () {
-                    fetchResults(input.value);
-                }, 250);
-            });
-        })();
+            applyClientFilter();
+        });
     </script>
 
     <div id="employee-results" class="panel">

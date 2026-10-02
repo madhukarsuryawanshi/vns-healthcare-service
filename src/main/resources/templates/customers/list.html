@@ -10,8 +10,8 @@
         <a class="btn" th:if="${canWriteCustomers}" th:href="@{/customers/new}">Add customer</a>
     </div>
 
-    <form class="search" method="get" th:action="@{/customers}">
-        <input type="text" name="q" th:value="${q}" placeholder="Name / Mobile / Patient / Cust ID / Employee" list="customerSuggestionsList" autocomplete="off"/>
+    <form id="customer-search-form" class="search" method="get" th:action="@{/customers}">
+        <input id="customer-search-input" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Patient / Cust ID / Employee" autocomplete="off"/>
         <select name="status" style="max-width:180px">
             <option value="">All status</option>
             <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${status == s.name()}">NEW</option>
@@ -19,9 +19,75 @@
         <button class="btn" type="submit">Search</button>
         <a class="btn ghost" th:href="@{/customers}">Clear</a>
     </form>
-    <datalist id="customerSuggestionsList" th:if="${!customerSuggestions.isEmpty()}">
-        <option th:each="s : ${customerSuggestions}" th:value="${s}"></option>
-    </datalist>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('customer-search-form');
+            const input = document.getElementById('customer-search-input');
+            const resultsPanel = document.querySelector('#customer-results');
+            const table = resultsPanel ? resultsPanel.querySelector('table') : null;
+            const noResultsText = resultsPanel ? resultsPanel.querySelector('.empty') : null;
+            if (!form || !input || !resultsPanel || !table) return;
+
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+            function escapeHtml(value) {
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function highlightMatch(text, query) {
+                if (!query) return escapeHtml(text || '');
+                const safeText = escapeHtml(text || '');
+                const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp('(' + safeQuery + ')', 'ig');
+                return safeText.replace(regex, '<mark>$1</mark>');
+            }
+
+            function applyClientFilter() {
+                const value = (input.value || '').trim().toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(function (row) {
+                    const rowText = (row.textContent || '').toLowerCase();
+                    const matches = !value || rowText.indexOf(value) !== -1;
+                    row.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach(function (cell) {
+                        if (cell.querySelector('a, button, form')) {
+                            return;
+                        }
+                        const original = cell.textContent || '';
+                        if (!cell.dataset.originalText) {
+                            cell.dataset.originalText = original;
+                        }
+                        const savedText = cell.dataset.originalText || original;
+                        if (!value) {
+                            cell.innerHTML = escapeHtml(savedText);
+                            return;
+                        }
+                        cell.innerHTML = highlightMatch(savedText, value);
+                    });
+                });
+
+                if (noResultsText) {
+                    noResultsText.style.display = visibleCount === 0 ? 'block' : 'none';
+                }
+            }
+
+            input.addEventListener('input', function () {
+                applyClientFilter();
+            });
+
+            applyClientFilter();
+        });
+    </script>
 
     <div class="panel">
         <h3>Download report</h3>
@@ -33,28 +99,27 @@
         <p class="sub" style="margin:10px 0 0">Day columns show the assigned employee. Hold days are shown as Hold and are not added to Total.</p>
     </div>
 
-    <div class="panel">
+    <div id="customer-results" class="panel">
         <table th:if="${!customers.isEmpty()}">
             <thead>
             <tr>
                 <th><a th:href="@{/customers(q=${q}, status=${status}, sort='custCode', dir=${sort == 'custCode' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Cust ID <span th:if="${sort == 'custCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Customer <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='patientName', dir=${sort == 'patientName' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Patient <span th:if="${sort == 'patientName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='serviceType', dir=${sort == 'serviceType' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Service <span th:if="${sort == 'serviceType'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='charges', dir=${sort == 'charges' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Charges <span th:if="${sort == 'charges'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='assignedEmployee', dir=${sort == 'assignedEmployee' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Assigned staff <span th:if="${sort == 'assignedEmployee'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='status', dir=${sort == 'status' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Status <span th:if="${sort == 'status'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='billedAmount', dir=${sort == 'billedAmount' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Billed <span th:if="${sort == 'billedAmount'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Customer name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='mobileNo', dir=${sort == 'mobileNo' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Contact number <span th:if="${sort == 'mobileNo'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='patientName', dir=${sort == 'patientName' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Patient <span th:if="${sort == 'patientName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='serviceType', dir=${sort == 'serviceType' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Service <span th:if="${sort == 'serviceType'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='charges', dir=${sort == 'charges' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Charges <span th:if="${sort == 'charges'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='assignedEmployee', dir=${sort == 'assignedEmployee' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Assigned staff <span th:if="${sort == 'assignedEmployee'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='status', dir=${sort == 'status' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Status <span th:if="${sort == 'status'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='billedAmount', dir=${sort == 'billedAmount' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Billed <span th:if="${sort == 'billedAmount'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th></th>
             </tr>
             </thead>
             <tbody>
             <tr th:each="c : ${customers}" th:classappend="${c.closed} ? 'closed'">
                 <td th:text="${c.custCode}">CUS-1001</td>
-                <td>
-                    <div th:text="${c.fullName}">Name</div>
-                    <div class="sub" th:text="${c.mobileNo}">999</div>
-                </td>
+                <td th:text="${c.fullName}">Name</td>
+                <td th:text="${c.mobileNo}">999</td>
                 <td th:text="${c.patientName}">Patient</td>
                 <td th:text="${c.serviceType == T(com.vns.healthcare.domain.ServiceType).HOURS_24} ? '24 hrs' : '12 hrs'">24 hrs</td>
                 <td th:text="${c.charges != null} ? ${#numbers.formatDecimal(c.charges, 1, 'COMMA', 2, 'POINT')} : '—'">25,000.00</td>
