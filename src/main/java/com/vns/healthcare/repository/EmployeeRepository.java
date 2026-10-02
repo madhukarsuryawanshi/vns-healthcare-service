@@ -39,7 +39,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status) " +
             "AND (:designation IS NULL OR e.designation = :designation) " +
-            "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR LOWER(e.fullName) LIKE LOWER(:prefix))")
+            "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR e.fullName LIKE :prefix)")
     Page<Employee> findFilteredPage(@Param("status") EmployeeStatus status,
                                   @Param("designation") Designation designation,
                                   @Param("search") String search,
@@ -47,7 +47,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
                                   Pageable pageable);
 
     @Query("SELECT e FROM Employee e WHERE e.status = :status " +
-            "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR LOWER(e.fullName) LIKE LOWER(:prefix))")
+            "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR e.fullName LIKE :prefix)")
     Page<Employee> findFilteredByStatusPage(@Param("status") EmployeeStatus status,
                                           @Param("search") String search,
                                           @Param("prefix") String prefix,
@@ -59,10 +59,10 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("SELECT e FROM Employee e WHERE e.status = :status ORDER BY e.fullName ASC")
     List<Employee> findActiveStaff(@Param("status") EmployeeStatus status, Pageable pageable);
 
-    @Query("SELECT e FROM Employee e WHERE e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR LOWER(e.fullName) LIKE LOWER(:prefix) ORDER BY e.createdAt DESC")
+    @Query("SELECT e FROM Employee e WHERE e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR e.fullName LIKE :prefix ORDER BY e.createdAt DESC")
     List<Employee> findSuggestions(@Param("prefix") String prefix, Pageable pageable);
 
-    @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status) AND (:designation IS NULL OR e.designation = :designation) AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR LOWER(e.fullName) LIKE LOWER(:prefix))")
+    @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status) AND (:designation IS NULL OR e.designation = :designation) AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR e.fullName LIKE :prefix)")
     long countFiltered(@Param("status") EmployeeStatus status,
                        @Param("designation") Designation designation,
                        @Param("search") String search,

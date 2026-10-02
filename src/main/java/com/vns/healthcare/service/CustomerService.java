@@ -1,5 +1,6 @@
 package com.vns.healthcare.service;
 
+import com.vns.healthcare.config.CacheRefreshService;
 import com.vns.healthcare.domain.CustomerStatus;
 import com.vns.healthcare.domain.Gender;
 import com.vns.healthcare.domain.ServiceType;
@@ -12,8 +13,9 @@ import com.vns.healthcare.repository.CustomerRepository;
 import com.vns.healthcare.web.CustomerForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -38,33 +40,69 @@ public class CustomerService {
     private final EmployeeService employeeService;
     private final CodeGeneratorService codeGeneratorService;
     private final FileStorageService fileStorageService;
+    private final CacheManager cacheManager;
+    private final CacheRefreshService cacheRefreshService;
 
     public CustomerService(CustomerRepository customerRepository,
                           CustomerDocumentRepository documentRepository,
                           EmployeeService employeeService,
                           CodeGeneratorService codeGeneratorService,
-                          FileStorageService fileStorageService) {
+                          FileStorageService fileStorageService,
+                          CacheManager cacheManager,
+                          CacheRefreshService cacheRefreshService) {
         this.customerRepository = customerRepository;
         this.documentRepository = documentRepository;
         this.employeeService = employeeService;
         this.codeGeneratorService = codeGeneratorService;
         this.fileStorageService = fileStorageService;
+        this.cacheManager = cacheManager;
+        this.cacheRefreshService = cacheRefreshService;
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "customer-lists", key = "#query == null ? 'all' : #query.trim()")
     public List<Customer> list(String query) {
         String search = query == null ? "" : query.trim();
-        if (search.isEmpty()) {
-            return customerRepository.findPage(PageRequest.of(0, 20)).getContent();
+        String cacheKey = search.isEmpty() ? "all" : search;
+        Cache cache = cacheManager.getCache("customer-lists");
+        if (cache != null) {
+            List<Customer> cached = cache.get(cacheKey, List.class);
+            if (cached != null) {
+                log.info("CACHE HIT customer-lists key=[{}] records={}", cacheKey, cached.size());
+                return cached;
+            }
         }
-        return customerRepository.findSuggestions(CustomerRepository.buildPrefix(search), PageRequest.of(0, 20));
+        log.info("CACHE MISS customer-lists key=[{}] -> querying DB", cacheKey);
+        List<Customer> result;
+        if (search.isEmpty()) {
+            result = customerRepository.findPage(PageRequest.of(0, 20)).getContent();
+        } else {
+            result = customerRepository.findSuggestions(CustomerRepository.buildPrefix(search), PageRequest.of(0, 20));
+        }
+        if (cache != null) {
+            cache.put(cacheKey, result);
+        }
+        log.info("LOADED {} customer records into customer-lists cache key=[{}]", result.size(), cacheKey);
+        return result;
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "customer-pages", key = "T(java.util.Objects).hash(#pageable.getPageNumber(), #pageable.getPageSize(), #pageable.getSort())")
     public Page<Customer> listPage(Pageable pageable) {
-        return customerRepository.findPage(pageable);
+        String cacheKey = pageable.getPageNumber() + ":" + pageable.getPageSize() + ":" + pageable.getSort();
+        Cache cache = cacheManager.getCache("customer-pages");
+        if (cache != null) {
+            Page<Customer> cached = cache.get(cacheKey, Page.class);
+            if (cached != null) {
+                log.info("CACHE HIT customer-pages key=[{}] records={}", cacheKey, cached.getNumberOfElements());
+                return cached;
+            }
+        }
+        log.info("CACHE MISS customer-pages key=[{}] -> querying DB", cacheKey);
+        Page<Customer> result = customerRepository.findPage(pageable);
+        if (cache != null) {
+            cache.put(cacheKey, result);
+        }
+        log.info("LOADED {} customer records into customer-pages cache key=[{}]", result.getNumberOfElements(), cacheKey);
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -103,6 +141,7 @@ public class CustomerService {
         applyForm(customer, form);
         customer = customerRepository.save(customer);
         storeDocumentsIfPresent(customer, documents);
+        cacheRefreshService.refreshCustomerCaches();
         log.info("Customer created successfully with id [{}] and code [{}]", customer.getId(), customer.getCustCode());
         return customer;
     }
@@ -115,6 +154,7 @@ public class CustomerService {
         assertOpen(customer);
         applyForm(customer, form);
         Customer saved = customerRepository.save(customer);
+        cacheRefreshService.refreshCustomerCaches();
         log.info("Customer id [{}] updated successfully", saved.getId());
         return saved;
     }
@@ -125,6 +165,7 @@ public class CustomerService {
         Customer customer = get(id);
         log.info("Deleting customer id [{}] [{}]", id, customer.getPatientName());
         customerRepository.delete(customer);
+        cacheRefreshService.refreshCustomerCaches();
         log.info("Customer id [{}] deleted successfully", id);
     }
 
@@ -199,6 +240,7 @@ public class CustomerService {
             }
         }
         customerRepository.save(customer);
+        cacheRefreshService.refreshCustomerCaches();
         log.info("Employee assignment saved for customer [{}]", customerId);
     }
 
@@ -215,6 +257,7 @@ public class CustomerService {
         customer.setAssignedEmployee(null);
         customer.setStatus(CustomerStatus.CLOSED);
         Customer saved = customerRepository.save(customer);
+        cacheRefreshService.refreshCustomerCaches();
         log.info("Service closed for customer id [{}] and employee assignment released with billed amount [{}]", id, saved.getBilledAmount());
         return saved;
     }

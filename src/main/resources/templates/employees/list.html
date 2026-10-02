@@ -10,16 +10,82 @@
         <a class="btn" th:if="${canWriteEmployees}" th:href="@{/employees/new}">Add employee</a>
     </div>
 
-    <form class="search" method="get" th:action="@{/employees}">
-        <input type="text" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" list="employeeSuggestionsList" autocomplete="off"/>
+    <form id="employee-search-form" class="search" method="get" th:action="@{/employees}">
+        <input id="employee-search-input" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" autocomplete="off"/>
         <button class="btn" type="submit">Search</button>
         <a class="btn ghost" th:href="@{/employees}">Clear</a>
     </form>
-    <datalist id="employeeSuggestionsList" th:if="${!employeeSuggestions.isEmpty()}">
-        <option th:each="s : ${employeeSuggestions}" th:value="${s}"></option>
-    </datalist>
 
-    <div class="panel">
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('employee-search-form');
+            const input = document.getElementById('employee-search-input');
+            const resultsPanel = document.getElementById('employee-results');
+            const table = resultsPanel ? resultsPanel.querySelector('table') : null;
+            const noResultsText = resultsPanel ? resultsPanel.querySelector('.empty') : null;
+            if (!form || !input || !resultsPanel || !table) return;
+
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+            function escapeHtml(value) {
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function highlightMatch(text, query) {
+                if (!query) return escapeHtml(text || '');
+                const safeText = escapeHtml(text || '');
+                const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp('(' + safeQuery + ')', 'ig');
+                return safeText.replace(regex, '<mark>$1</mark>');
+            }
+
+            const applyClientFilter = function () {
+                const value = (input.value || '').trim().toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(function (row) {
+                    const rowText = (row.textContent || '').toLowerCase();
+                    const matches = !value || rowText.indexOf(value) !== -1;
+                    row.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach(function (cell) {
+                        if (cell.querySelector('a, button, form')) {
+                            return;
+                        }
+                        const original = cell.textContent || '';
+                        if (!cell.dataset.originalText) {
+                            cell.dataset.originalText = original;
+                        }
+                        const savedText = cell.dataset.originalText || original;
+                        if (!value) {
+                            cell.innerHTML = escapeHtml(savedText);
+                            return;
+                        }
+                        cell.innerHTML = highlightMatch(savedText, value);
+                    });
+                });
+
+                if (noResultsText) {
+                    noResultsText.style.display = visibleCount === 0 ? 'block' : 'none';
+                }
+            };
+
+            input.addEventListener('input', function () {
+                applyClientFilter();
+            });
+
+            applyClientFilter();
+        });
+    </script>
+
+    <div id="employee-results" class="panel">
         <table th:if="${!employees.isEmpty()}">
             <thead>
             <tr>

@@ -351,11 +351,16 @@ public class EmployeeController {
     public String training(@PathVariable Long id,
                            @RequestParam TrainingStatus trainingStatus,
                            @RequestParam(required = false) String trainingNotes,
+                           @RequestParam(required = false) String anchor,
                            RedirectAttributes redirectAttributes) {
         log.info("Updating training for employee id [{}] to [{}]", id, trainingStatus);
         employeeService.updateTraining(id, trainingStatus, trainingNotes);
         redirectAttributes.addFlashAttribute("success", "Training record saved.");
-        return "redirect:/employees/" + id;
+        String redirect = "redirect:/employees/" + id;
+        if (anchor != null && !anchor.trim().isEmpty()) {
+            redirect += "#" + anchor.trim();
+        }
+        return redirect;
     }
 
     @PreAuthorize("hasAuthority('employees:write') or hasRole('ADMIN')")
