@@ -40,7 +40,7 @@ public class CacheRefreshService {
     }
 
     public void clearCustomerCaches() {
-        clearCaches("customer-lists", "customer-pages", "customerById");
+        clearCaches("customer-lists", "customer-pages", "customer-active", "customerById");
     }
 
     @Transactional(readOnly = true)

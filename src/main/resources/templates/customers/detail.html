@@ -443,22 +443,40 @@
         document.addEventListener('DOMContentLoaded', function () {
             var tabButtons = document.querySelectorAll('.customer-tab');
             var tabSections = document.querySelectorAll('.customer-section-panel');
+            var params = new URLSearchParams(window.location.search);
+            var requestedTab = params.get('tab');
+            if (requestedTab === 'duty') {
+                requestedTab = 'duty-tab';
+            }
+
+            function activateTab(targetId) {
+                tabButtons.forEach(function (tab) {
+                    var isActive = tab.getAttribute('data-target') === targetId;
+                    tab.classList.toggle('active', isActive);
+                    tab.style.background = isActive ? '#0f766e' : 'transparent';
+                    tab.style.color = isActive ? '#fff' : 'var(--ink)';
+                    tab.style.boxShadow = isActive ? '0 2px 8px rgba(15,118,110,0.22)' : 'none';
+                    tab.style.fontWeight = isActive ? '700' : '600';
+                });
+                tabSections.forEach(function (section) {
+                    section.style.display = section.id === targetId ? 'block' : 'none';
+                });
+            }
+
             tabButtons.forEach(function (button) {
                 button.addEventListener('click', function () {
-                    var targetId = button.getAttribute('data-target');
-                    tabButtons.forEach(function (tab) {
-                        var isActive = tab === button;
-                        tab.classList.toggle('active', isActive);
-                        tab.style.background = isActive ? '#0f766e' : 'transparent';
-                        tab.style.color = isActive ? '#fff' : 'var(--ink)';
-                        tab.style.boxShadow = isActive ? '0 2px 8px rgba(15,118,110,0.22)' : 'none';
-                        tab.style.fontWeight = isActive ? '700' : '600';
-                    });
-                    tabSections.forEach(function (section) {
-                        section.style.display = section.id === targetId ? 'block' : 'none';
-                    });
+                    activateTab(button.getAttribute('data-target'));
                 });
             });
+
+            if (requestedTab) {
+                var existingTarget = document.getElementById(requestedTab);
+                if (existingTarget) {
+                    activateTab(requestedTab);
+                }
+            } else {
+                activateTab('case-details-tab');
+            }
 
             var panel = document.getElementById('invoice-panel');
             if (!panel) {
@@ -1179,8 +1197,47 @@
                 printWindow.print();
             }
 
+            function ensureInvoiceHistoryTable() {
+                var existingBody = document.getElementById('customer-invoice-history-body');
+                if (existingBody) {
+                    return existingBody;
+                }
+                var historyHeader = Array.prototype.slice.call(document.querySelectorAll('#invoice-panel h4')).find(function (heading) {
+                    return (heading.textContent || '').trim().indexOf('Invoice history') !== -1;
+                });
+                var historyContainer = historyHeader ? historyHeader.parentElement && historyHeader.parentElement.parentElement : null;
+                if (!historyContainer) {
+                    return null;
+                }
+                var emptyMessage = historyContainer.querySelector('p.sub');
+                if (emptyMessage) {
+                    emptyMessage.style.display = 'none';
+                }
+                var table = document.createElement('table');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.innerHTML = '<thead><tr><th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:40px;">' +
+                    '<input type="checkbox" id="select-all-invoices" aria-label="Select all invoices"/>' +
+                    '</th><th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Period</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Invoice</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Total</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Discount</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Advance</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Net</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">View</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">Edit</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">Delete</th></tr></thead>' +
+                    '<tbody id="customer-invoice-history-body"></tbody>';
+                historyContainer.appendChild(table);
+                var createdBody = table.querySelector('#customer-invoice-history-body');
+                if (createdBody) {
+                    createdBody.dataset.createdOnFly = 'true';
+                }
+                return createdBody;
+            }
+
             function appendInvoiceHistoryRow(record) {
-                var historyBody = document.getElementById('customer-invoice-history-body');
+                var historyBody = ensureInvoiceHistoryTable();
                 if (!historyBody) {
                     return;
                 }

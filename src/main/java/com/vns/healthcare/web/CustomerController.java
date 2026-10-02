@@ -657,7 +657,13 @@ public class CustomerController {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
         }
         String month = from == null ? "" : from.getYear() + "-" + String.format("%02d", from.getMonthValue());
-        return "redirect:/customers/" + id + (month.isEmpty() ? "" : "?month=" + month);
+        StringBuilder redirect = new StringBuilder("redirect:/customers/").append(id);
+        if (month.isEmpty()) {
+            redirect.append("?tab=duty-tab");
+        } else {
+            redirect.append("?month=").append(month).append("&tab=duty-tab");
+        }
+        return redirect.toString();
     }
 
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
