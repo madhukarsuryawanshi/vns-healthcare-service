@@ -20,8 +20,7 @@
     </style>
     <form id="employee-search-form" class="search" method="get" th:action="@{/employees}">
         <input type="hidden" name="page" value="0"/>
-        <input id="employee-search-input" list="employeeSuggestionsList" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" autocomplete="off"/>
-        <datalist id="employeeSuggestionsList"></datalist>
+        <input id="employee-search-input" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" autocomplete="off"/>
         <button class="btn" type="submit">Search</button>
         <a class="btn ghost" th:href="@{/employees}">Clear</a>
         <span id="employee-search-status" class="sub" style="display:none; font-size:12px; color:var(--muted);">Searching...</span>
@@ -29,9 +28,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const input = document.getElementById('employee-search-input');
-            const list = document.getElementById('employeeSuggestionsList');
             const status = document.getElementById('employee-search-status');
-            if (!input || !list) return;
+            if (!input) return;
 
             let debounceTimer = null;
             let lastSubmittedValue = (input.value || '').trim();
@@ -42,28 +40,7 @@
             }
 
             function fillSuggestions(query) {
-                const value = (query || '').trim();
-                if (!value) {
-                    list.innerHTML = '';
-                    return;
-                }
-                const url = /*[[ @{/employees/suggestions} ]]*/ '/employees/suggestions';
-                fetch(url + '?q=' + encodeURIComponent(value) + '&limit=10', {
-                    headers: { 'Accept': 'application/json' }
-                })
-                    .then(function (response) { return response.json(); })
-                    .then(function (items) {
-                        list.innerHTML = '';
-                        (items || []).forEach(function (item) {
-                            if (!item) return;
-                            const option = document.createElement('option');
-                            option.value = item;
-                            list.appendChild(option);
-                        });
-                    })
-                    .catch(function () {
-                        list.innerHTML = '';
-                    });
+                return;
             }
 
             function escapeRegExp(value) {

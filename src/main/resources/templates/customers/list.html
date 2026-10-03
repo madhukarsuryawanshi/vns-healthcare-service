@@ -20,8 +20,7 @@
     </style>
     <form id="customer-search-form" class="search" method="get" th:action="@{/customers}">
         <input type="hidden" name="page" value="0"/>
-        <input id="customer-search-input" list="customerSuggestionsList" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Patient / Cust ID / Employee" autocomplete="off"/>
-        <datalist id="customerSuggestionsList"></datalist>
+        <input id="customer-search-input" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Patient / Cust ID / Employee" autocomplete="off"/>
         <select name="status" style="max-width:180px">
             <option value="">All status</option>
             <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${status == s.name()}">NEW</option>
@@ -33,9 +32,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const input = document.getElementById('customer-search-input');
-            const list = document.getElementById('customerSuggestionsList');
             const status = document.getElementById('customer-search-status');
-            if (!input || !list) return;
+            if (!input) return;
 
             let debounceTimer = null;
             let lastSubmittedValue = (input.value || '').trim();
@@ -46,28 +44,7 @@
             }
 
             function fillSuggestions(query) {
-                const value = (query || '').trim();
-                if (!value) {
-                    list.innerHTML = '';
-                    return;
-                }
-                const url = /*[[ @{/customers/suggestions} ]]*/ '/customers/suggestions';
-                fetch(url + '?q=' + encodeURIComponent(value) + '&limit=10', {
-                    headers: { 'Accept': 'application/json' }
-                })
-                    .then(function (response) { return response.json(); })
-                    .then(function (items) {
-                        list.innerHTML = '';
-                        (items || []).forEach(function (item) {
-                            if (!item) return;
-                            const option = document.createElement('option');
-                            option.value = item;
-                            list.appendChild(option);
-                        });
-                    })
-                    .catch(function () {
-                        list.innerHTML = '';
-                    });
+                return;
             }
 
             function escapeRegExp(value) {
