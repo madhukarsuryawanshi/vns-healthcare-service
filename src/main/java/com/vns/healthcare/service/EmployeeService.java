@@ -81,7 +81,7 @@ public class EmployeeService {
     public List<Employee> list(String query) {
         String search = query == null ? "" : query.trim();
         String cacheKey = search.isEmpty() ? "all" : search;
-        Cache cache = cacheManager.getCache("employee-lists");
+        Cache cache = cache("employee-lists");
         if (cache != null) {
             List<Employee> cached = cache.get(cacheKey, List.class);
             if (cached != null) {
@@ -106,8 +106,11 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public Page<Employee> listPage(Pageable pageable) {
+        if (pageable == null || pageable.isUnpaged()) {
+            pageable = PageRequest.of(0, Integer.MAX_VALUE);
+        }
         String cacheKey = pageable.getPageNumber() + ":" + pageable.getPageSize() + ":" + pageable.getSort();
-        Cache cache = cacheManager.getCache("employee-pages");
+        Cache cache = cache("employee-pages");
         if (cache != null) {
             Page<Employee> cached = cache.get(cacheKey, Page.class);
             if (cached != null) {
@@ -153,7 +156,7 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<Employee> activeStaff() {
-        Cache cache = cacheManager.getCache("employee-active");
+        Cache cache = cache("employee-active");
         String cacheKey = "all";
         if (cache != null) {
             List<Employee> cached = cache.get(cacheKey, List.class);
@@ -193,7 +196,7 @@ public class EmployeeService {
     public Page<Employee> activeStaffPage(int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1));
         String cacheKey = page + ":" + size;
-        Cache cache = cacheManager.getCache("employee-active-pages");
+        Cache cache = cache("employee-active-pages");
         if (cache != null) {
             Page<Employee> cached = cache.get(cacheKey, Page.class);
             if (cached != null) {
@@ -213,7 +216,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     @Cacheable(value = "employeeById", key = "#id")
     public Employee get(Long id) {
-        Cache cache = cacheManager.getCache("employeeById");
+        Cache cache = cache("employeeById");
         if (cache != null && cache.get(id, Employee.class) != null) {
             log.info("CACHE HIT employeeById key=[{}]", id);
         } else {
@@ -240,7 +243,7 @@ public class EmployeeService {
         applyForm(employee, form);
         employee = employeeRepository.save(employee);
         storeDocumentsIfPresent(employee, documents);
-        cacheRefreshService.refreshEmployeeCaches();
+        refreshEmployeeCachesSafely();
         log.info("Employee created successfully with id [{}] and code [{}]", employee.getId(), employee.getEmpCode());
         return employee;
     }
@@ -256,7 +259,7 @@ public class EmployeeService {
         }
         applyForm(employee, form);
         Employee saved = employeeRepository.save(employee);
-        cacheRefreshService.refreshEmployeeCaches();
+        refreshEmployeeCachesSafely();
         log.info("Employee id [{}] updated successfully", saved.getId());
         return saved;
     }
@@ -301,7 +304,7 @@ public class EmployeeService {
         }
 
         employeeRepository.delete(employee);
-        cacheRefreshService.refreshEmployeeCaches();
+        refreshEmployeeCachesSafely();
         log.info("Employee id [{}] deleted successfully", id);
     }
 
@@ -313,7 +316,7 @@ public class EmployeeService {
         employee.setTrainingStatus(status);
         employee.setTrainingNotes(notes);
         employeeRepository.save(employee);
-        cacheRefreshService.refreshEmployeeCaches();
+        refreshEmployeeCachesSafely();
     }
 
     @Transactional
@@ -325,6 +328,7 @@ public class EmployeeService {
         employee.setSalaryStartDate(salaryStartDate == null ? LocalDate.now() : salaryStartDate);
         employee.setStatus(EmployeeStatus.ACTIVE);
         employeeRepository.save(employee);
+        refreshEmployeeCachesSafely();
     }
 
     @Transactional
@@ -356,6 +360,7 @@ public class EmployeeService {
 
         employee.setStatus(EmployeeStatus.RESIGNED);
         employeeRepository.save(employee);
+        refreshEmployeeCachesSafely();
         log.info("Employee id [{}] marked as resigned", id);
     }
 
@@ -596,6 +601,16 @@ public class EmployeeService {
                 log.error("Failed to store employee {} document for employee id [{}]", documentType.toLowerCase(), employee.getId(), ex);
                 throw new BusinessException("Could not store one of the uploaded documents");
             }
+        }
+    }
+
+    private Cache cache(String cacheName) {
+        return cacheManager == null ? null : cacheManager.getCache(cacheName);
+    }
+
+    private void refreshEmployeeCachesSafely() {
+        if (cacheRefreshService != null) {
+            cacheRefreshService.refreshEmployeeCaches();
         }
     }
 

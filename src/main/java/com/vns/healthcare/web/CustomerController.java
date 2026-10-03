@@ -54,6 +54,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Controller
 @RequestMapping("/customers")
@@ -64,6 +65,8 @@ public class CustomerController {
     private final CustomerService customerService;
     private final EmployeeService employeeService;
     private final CustomerDutyService dutyService;
+    private static final long SUGGESTION_CACHE_TTL_MS = 5000L;
+
     private final CustomerReportService reportService;
     private final FileStorageService fileStorageService;
     private final BusinessBankAccountRepository businessBankAccountRepository;
@@ -71,6 +74,7 @@ public class CustomerController {
     private final AppSequenceRepository appSequenceRepository;
     private final CustomerChargeStatusService chargeStatusService;
     private final com.vns.healthcare.security.UserActivityService userActivityService;
+    private final Map<String, SuggestionCacheEntry> suggestionCache = new ConcurrentHashMap<String, SuggestionCacheEntry>();
 
     public CustomerController(CustomerService customerService,
                               EmployeeService employeeService,
@@ -94,13 +98,48 @@ public class CustomerController {
         this.userActivityService = userActivityService;
     }
 
+    @GetMapping("/suggestions")
+    @ResponseBody
+    public List<String> suggestions(@RequestParam(value = "q", required = false) String query,
+                                  @RequestParam(value = "limit", required = false, defaultValue = "10") int limit) {
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        int maxLimit = Math.max(1, Math.min(limit, 20));
+        String cacheKey = (q + "|" + maxLimit).toLowerCase();
+        long now = System.currentTimeMillis();
+        SuggestionCacheEntry cached = suggestionCache.get(cacheKey);
+        if (cached != null && now - cached.cachedAt < SUGGESTION_CACHE_TTL_MS) {
+            return cached.values;
+        }
+
+        List<String> result = customerService.search(q, PageRequest.of(0, Math.max(1, Math.min(maxLimit, 20)), Sort.by(Sort.Direction.DESC, "createdAt")))
+                .getContent()
+                .stream()
+                .flatMap(c -> java.util.stream.Stream.of(
+                       c.getFullName(),
+                       c.getMobileNo(),
+                       c.getPatientName(),
+                       c.getCustCode(),
+                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
+                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
+                .filter(v -> v != null && !v.trim().isEmpty())
+                .distinct()
+                .sorted()
+                .limit(maxLimit)
+                .collect(java.util.stream.Collectors.toList());
+        suggestionCache.put(cacheKey, new SuggestionCacheEntry(result, now));
+        return result;
+    }
+
     @GetMapping
     public String list(@RequestParam(value = "q", required = false) String query,
                        @RequestParam(value = "status", required = false) String status,
                        @RequestParam(value = "sort", required = false, defaultValue = "custCode") String sort,
                        @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
                        @RequestParam(value = "page", required = false, defaultValue = "0") int page,
-                       @RequestParam(value = "size", required = false, defaultValue = "20") int size,
+                       @RequestParam(value = "size", required = false, defaultValue = "10") int size,
                        Model model) {
         log.info("Listing customers with query [{}], status [{}], sort [{}], dir [{}], page [{}], size [{}]", query, status, sort, dir, page, size);
         LocalDate today = LocalDate.now();
@@ -140,6 +179,8 @@ public class CustomerController {
         model.addAttribute("page", "customers");
         model.addAttribute("customers", customerPage.getContent());
         model.addAttribute("pagination", customerPage);
+        model.addAttribute("filteredRecordCount", customerPage.getTotalElements());
+        model.addAttribute("filterSummary", buildFilterSummary(query, status));
         model.addAttribute("currentPage", safePage);
         model.addAttribute("pageSize", safeSize);
         model.addAttribute("q", query == null ? "" : query);
@@ -151,6 +192,35 @@ public class CustomerController {
         model.addAttribute("reportTo", today);
         model.addAttribute("customerSuggestions", customerSuggestions);
         return "customers/list";
+    }
+
+    private String buildFilterSummary(String query, String status) {
+        if (status != null && !status.trim().isEmpty()) {
+            return formatFilterLabel(status) + " records";
+        }
+        if (query != null && !query.trim().isEmpty()) {
+            return "Search results";
+        }
+        return "Total records";
+    }
+
+    private String formatFilterLabel(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "Total";
+        }
+        String normalized = value.trim().replace('_', ' ');
+        String[] parts = normalized.split("\\s+");
+        StringBuilder formatted = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                continue;
+            }
+            if (formatted.length() > 0) {
+                formatted.append(' ');
+            }
+            formatted.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1).toLowerCase());
+        }
+        return formatted.length() == 0 ? "Total" : formatted.toString();
     }
 
     private String normalizeSortField(String sort) {
@@ -177,6 +247,16 @@ public class CustomerController {
             case "custCode":
             default:
                 return "custCode";
+        }
+    }
+
+    private static class SuggestionCacheEntry {
+        private final List<String> values;
+        private final long cachedAt;
+
+        private SuggestionCacheEntry(List<String> values, long cachedAt) {
+            this.values = values == null ? java.util.Collections.emptyList() : new ArrayList<String>(values);
+            this.cachedAt = cachedAt;
         }
     }
 

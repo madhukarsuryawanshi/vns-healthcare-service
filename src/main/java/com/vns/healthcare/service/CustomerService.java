@@ -64,7 +64,7 @@ public class CustomerService {
     public List<Customer> list(String query) {
         String search = query == null ? "" : query.trim();
         String cacheKey = search.isEmpty() ? "all" : search;
-        Cache cache = cacheManager.getCache("customer-lists");
+        Cache cache = cache("customer-lists");
         if (cache != null) {
             List<Customer> cached = cache.get(cacheKey, List.class);
             if (cached != null) {
@@ -89,7 +89,7 @@ public class CustomerService {
     @Transactional(readOnly = true)
     public Page<Customer> listPage(Pageable pageable) {
         String cacheKey = pageable.getPageNumber() + ":" + pageable.getPageSize() + ":" + pageable.getSort();
-        Cache cache = cacheManager.getCache("customer-pages");
+        Cache cache = cache("customer-pages");
         if (cache != null) {
             Page<Customer> cached = cache.get(cacheKey, Page.class);
             if (cached != null) {
@@ -125,7 +125,7 @@ public class CustomerService {
     @Transactional(readOnly = true)
     @Cacheable(value = "customerById", key = "#id")
     public Customer get(Long id) {
-        Cache cache = cacheManager.getCache("customerById");
+        Cache cache = cache("customerById");
         if (cache != null && cache.get(id, Customer.class) != null) {
             log.info("CACHE HIT customerById key=[{}]", id);
         } else {
@@ -145,7 +145,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public Customer create(CustomerForm form, MultipartFile[] documents) {
         log.info("Creating customer with patient name [{}] and phone [{}]", form.getPatientName(), form.getMobileNo());
         Customer customer = new Customer();
@@ -153,36 +153,36 @@ public class CustomerService {
         applyForm(customer, form);
         customer = customerRepository.save(customer);
         storeDocumentsIfPresent(customer, documents);
-        cacheRefreshService.refreshCustomerCaches();
+        refreshCustomerCachesSafely();
         log.info("Customer created successfully with id [{}] and code [{}]", customer.getId(), customer.getCustCode());
         return customer;
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public Customer update(Long id, CustomerForm form) {
         Customer customer = get(id);
         log.info("Updating customer id [{}] [{}]", id, customer.getPatientName());
         assertOpen(customer);
         applyForm(customer, form);
         Customer saved = customerRepository.save(customer);
-        cacheRefreshService.refreshCustomerCaches();
+        refreshCustomerCachesSafely();
         log.info("Customer id [{}] updated successfully", saved.getId());
         return saved;
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public void delete(Long id) {
         Customer customer = get(id);
         log.info("Deleting customer id [{}] [{}]", id, customer.getPatientName());
         customerRepository.delete(customer);
-        cacheRefreshService.refreshCustomerCaches();
+        refreshCustomerCachesSafely();
         log.info("Customer id [{}] deleted successfully", id);
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public void addDocuments(Long id, MultipartFile[] files) {
         if (files == null || files.length == 0) {
             log.warn("Customer document upload rejected for id [{}]: no files", id);
@@ -218,7 +218,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public void deleteDocument(Long customerId, Long documentId) {
         CustomerDocument document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new BusinessException("Document not found"));
@@ -235,7 +235,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public void assignEmployee(Long customerId, Long employeeId) {
         Customer customer = get(customerId);
         log.info("Processing employee assignment for customer [{}] with employee [{}]", customerId, employeeId);
@@ -254,12 +254,12 @@ public class CustomerService {
             }
         }
         customerRepository.save(customer);
-        cacheRefreshService.refreshCustomerCaches();
+        refreshCustomerCachesSafely();
         log.info("Employee assignment saved for customer [{}]", customerId);
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public Customer closeService(Long id, CustomerDutyService dutyService) {
         Customer customer = get(id);
         log.info("Closing service for customer id [{}]", id);
@@ -271,13 +271,13 @@ public class CustomerService {
         customer.setAssignedEmployee(null);
         customer.setStatus(CustomerStatus.CLOSED);
         Customer saved = customerRepository.save(customer);
-        cacheRefreshService.refreshCustomerCaches();
+        refreshCustomerCachesSafely();
         log.info("Service closed for customer id [{}] and employee assignment released with billed amount [{}]", id, saved.getBilledAmount());
         return saved;
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public Customer applyAdvancePayment(Long customerId, java.math.BigDecimal amountUsed) {
         Customer customer = get(customerId);
         java.math.BigDecimal current = customer.getAdvancePayment() == null ? java.math.BigDecimal.ZERO : customer.getAdvancePayment();
@@ -294,7 +294,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customer-active", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public Customer recalculateBilledAmount(Long id, CustomerDutyService dutyService) {
         Customer customer = get(id);
         log.info("Recalculating billed amount for customer id [{}]", id);
@@ -393,6 +393,16 @@ public class CustomerService {
                 log.error("Failed to store customer document for customer id [{}]", customer.getId(), ex);
                 throw new BusinessException("Could not store one of the uploaded documents");
             }
+        }
+    }
+
+    private Cache cache(String cacheName) {
+        return cacheManager == null ? null : cacheManager.getCache(cacheName);
+    }
+
+    private void refreshCustomerCachesSafely() {
+        if (cacheRefreshService != null) {
+            cacheRefreshService.refreshCustomerCaches();
         }
     }
 
