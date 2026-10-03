@@ -20,7 +20,6 @@ public class AppCacheConfig {
                 "employeeById",
                 "customer-lists",
                 "customer-pages",
-                "customer-active",
                 "customerById"
         );
         return cacheManager;

@@ -73,6 +73,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     static String buildPrefix(String value) {
         String normalized = value == null ? "" : value.trim();
-        return normalized.isEmpty() ? "%" : normalized + "%";
+        return normalized.isEmpty() ? "%" : "%" + normalized + "%";
     }
 }

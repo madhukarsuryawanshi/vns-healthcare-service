@@ -39,7 +39,18 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status) " +
             "AND (:designation IS NULL OR e.designation = :designation) " +
-            "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR e.fullName LIKE :prefix)")
+            "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR e.fullName LIKE :prefix) " +
+            "AND (:afterId IS NULL OR e.id > :afterId)")
+    Page<Employee> findFilteredPage(@Param("status") EmployeeStatus status,
+                                  @Param("designation") Designation designation,
+                                  @Param("search") String search,
+                                  @Param("prefix") String prefix,
+                                  @Param("afterId") Long afterId,
+                                  Pageable pageable);
+
+    @Query("SELECT e FROM Employee e WHERE (:status IS NULL OR e.status = :status) " +
+            "AND (:designation IS NULL OR e.designation = :designation) " +
+            "AND (:search IS NULL OR :search = '' OR e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR e.fullName LIKE :prefix) ")
     Page<Employee> findFilteredPage(@Param("status") EmployeeStatus status,
                                   @Param("designation") Designation designation,
                                   @Param("search") String search,
@@ -84,6 +95,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     static String buildPrefix(String value) {
         String normalized = value == null ? "" : value.trim();
-        return normalized.isEmpty() ? "%" : normalized + "%";
+        return normalized.isEmpty() ? "%" : "%" + normalized + "%";
     }
 }

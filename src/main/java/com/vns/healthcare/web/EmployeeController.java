@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -36,6 +38,8 @@ import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.time.LocalDate;
 import java.time.YearMonth;
 
@@ -45,10 +49,13 @@ public class EmployeeController {
 
     private static final Logger log = LoggerFactory.getLogger(EmployeeController.class);
 
+    private static final long SUGGESTION_CACHE_TTL_MS = 5000L;
+
     private final EmployeeService employeeService;
     private final FileStorageService fileStorageService;
     private final SalaryPaymentService salaryPaymentService;
     private final com.vns.healthcare.security.UserActivityService userActivityService;
+    private final Map<String, SuggestionCacheEntry> suggestionCache = new ConcurrentHashMap<String, SuggestionCacheEntry>();
 
     public EmployeeController(EmployeeService employeeService,
                               FileStorageService fileStorageService,
@@ -60,6 +67,26 @@ public class EmployeeController {
         this.userActivityService = userActivityService;
     }
 
+    @GetMapping("/suggestions")
+    @ResponseBody
+    public List<String> suggestions(@RequestParam(value = "q", required = false) String query,
+                                  @RequestParam(value = "limit", required = false, defaultValue = "10") int limit) {
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        int maxLimit = Math.max(1, Math.min(limit, 20));
+        String cacheKey = (q + "|" + maxLimit).toLowerCase();
+        long now = System.currentTimeMillis();
+        SuggestionCacheEntry cached = suggestionCache.get(cacheKey);
+        if (cached != null && now - cached.cachedAt < SUGGESTION_CACHE_TTL_MS) {
+            return cached.values;
+        }
+        List<String> result = employeeService.searchSuggestions(q, maxLimit);
+        suggestionCache.put(cacheKey, new SuggestionCacheEntry(result, now));
+        return result;
+    }
+
     @GetMapping
     public String list(@RequestParam(value = "q", required = false) String query,
                        @RequestParam(value = "status", required = false) String status,
@@ -68,12 +95,12 @@ public class EmployeeController {
                        @RequestParam(value = "sort", required = false, defaultValue = "empCode") String sort,
                        @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
                        @RequestParam(value = "page", required = false, defaultValue = "0") int page,
-                       @RequestParam(value = "size", required = false, defaultValue = "25") int size,
+                       @RequestParam(value = "size", required = false, defaultValue = "10") int size,
                        Model model) {
         log.info("Listing employees with query [{}], status [{}], sort [{}], dir [{}], page [{}], size [{}]", query, status, sort, dir, page, size);
 
         int safePage = Math.max(page, 0);
-        int safeSize = Math.min(Math.max(size, 10), 50);
+        int safeSize = Math.min(Math.max(size, 10), 100);
         String normalizedSort = normalizeSortField(sort);
         Sort.Direction direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(direction, normalizedSort));
@@ -92,40 +119,30 @@ public class EmployeeController {
         }
 
         List<Employee> employees = new ArrayList<Employee>(employeePage.getContent());
-        if (designation != null && !designation.trim().isEmpty()) {
-            final String dnorm = designation.trim();
-            employees.removeIf(e -> e.getDesignation() == null || !e.getDesignation().name().equalsIgnoreCase(dnorm));
-        }
-
         if (attendance != null && !attendance.trim().isEmpty()) {
-            final String anorm = attendance.trim().toUpperCase();
-            switch (anorm) {
-                case "PRESENT":
-                    employees.removeIf(e -> {
-                       com.vns.healthcare.domain.AttendanceStatus s = todayMap.get(e.getId());
-                       return !(s == com.vns.healthcare.domain.AttendanceStatus.PRESENT || s == com.vns.healthcare.domain.AttendanceStatus.HALF_DAY);
-                    });
-                    break;
-                case "ABSENT":
-                    employees.removeIf(e -> {
-                       com.vns.healthcare.domain.AttendanceStatus s = todayMap.get(e.getId());
-                       return s != null && s != com.vns.healthcare.domain.AttendanceStatus.ABSENT;
-                    });
-                    break;
-                case "LEAVE":
-                    employees.removeIf(e -> todayMap.get(e.getId()) != com.vns.healthcare.domain.AttendanceStatus.LEAVE);
-                    break;
-                case "HALF_DAY":
-                    employees.removeIf(e -> todayMap.get(e.getId()) != com.vns.healthcare.domain.AttendanceStatus.HALF_DAY);
-                    break;
-                default:
-                    break;
+            List<Employee> allMatches = new ArrayList<Employee>();
+            Pageable fullPage = PageRequest.of(0, Math.max(1, Integer.MAX_VALUE / 10));
+            if (normalizedStatus != null || normalizedDesignation != null || (query != null && !query.trim().isEmpty())) {
+                allMatches = employeeService.filterPage(normalizedStatus, normalizedDesignation, query, fullPage).getContent();
+            } else {
+                allMatches = employeeService.listPage(fullPage).getContent();
             }
+            List<Employee> attendanceFiltered = filterEmployeesByAttendance(allMatches, attendance.trim().toUpperCase(), todayMap);
+            int fromIndex = safePage * safeSize;
+            int toIndex = Math.min(fromIndex + safeSize, attendanceFiltered.size());
+            if (fromIndex >= attendanceFiltered.size()) {
+                employees = new ArrayList<Employee>();
+            } else {
+                employees = new ArrayList<Employee>(attendanceFiltered.subList(fromIndex, toIndex));
+            }
+            employeePage = new PageImpl<Employee>(employees, PageRequest.of(safePage, safeSize, Sort.by(direction, normalizedSort)), attendanceFiltered.size());
         }
 
         model.addAttribute("page", "employees");
         model.addAttribute("employees", employees);
         model.addAttribute("pagination", employeePage);
+        model.addAttribute("filteredRecordCount", employeePage.getTotalElements());
+        model.addAttribute("filterSummary", buildFilterSummary(query, status, designation, attendance));
         model.addAttribute("currentPage", safePage);
         model.addAttribute("pageSize", safeSize);
         model.addAttribute("q", query == null ? "" : query);
@@ -141,6 +158,89 @@ public class EmployeeController {
         model.addAttribute("presentTodayIds", employeeService.presentTodayEmployeeIds(todayMap));
         model.addAttribute("todayAttendance", todayMap);
         return "employees/list";
+    }
+
+    private static class SuggestionCacheEntry {
+        private final List<String> values;
+        private final long cachedAt;
+
+        private SuggestionCacheEntry(List<String> values, long cachedAt) {
+            this.values = values == null ? java.util.Collections.emptyList() : new ArrayList<String>(values);
+            this.cachedAt = cachedAt;
+        }
+    }
+
+    private List<Employee> filterEmployeesByAttendance(List<Employee> employees,
+                                                      String attendanceValue,
+                                                      java.util.Map<Long, com.vns.healthcare.domain.AttendanceStatus> todayMap) {
+        if (employees == null || employees.isEmpty() || attendanceValue == null || attendanceValue.trim().isEmpty()) {
+            return employees == null ? new ArrayList<Employee>() : new ArrayList<Employee>(employees);
+        }
+        List<Employee> filtered = new ArrayList<Employee>();
+        for (Employee employee : employees) {
+            com.vns.healthcare.domain.AttendanceStatus status = todayMap == null ? null : todayMap.get(employee.getId());
+            switch (attendanceValue.trim().toUpperCase()) {
+                case "PRESENT":
+                    if (status == com.vns.healthcare.domain.AttendanceStatus.PRESENT || status == com.vns.healthcare.domain.AttendanceStatus.HALF_DAY) {
+                        filtered.add(employee);
+                    }
+                    break;
+                case "ABSENT":
+                    if (status == com.vns.healthcare.domain.AttendanceStatus.ABSENT) {
+                        filtered.add(employee);
+                    }
+                    break;
+                case "LEAVE":
+                    if (status == com.vns.healthcare.domain.AttendanceStatus.LEAVE) {
+                        filtered.add(employee);
+                    }
+                    break;
+                case "HALF_DAY":
+                    if (status == com.vns.healthcare.domain.AttendanceStatus.HALF_DAY) {
+                        filtered.add(employee);
+                    }
+                    break;
+                default:
+                    filtered.add(employee);
+                    break;
+            }
+        }
+        return filtered;
+    }
+
+    private String buildFilterSummary(String query, String status, String designation, String attendance) {
+        if (status != null && !status.trim().isEmpty()) {
+            return formatFilterLabel(status) + " records";
+        }
+        if (designation != null && !designation.trim().isEmpty()) {
+            return formatFilterLabel(designation) + " records";
+        }
+        if (attendance != null && !attendance.trim().isEmpty()) {
+            return formatFilterLabel(attendance) + " records";
+        }
+        if (query != null && !query.trim().isEmpty()) {
+            return "Search results";
+        }
+        return "Total records";
+    }
+
+    private String formatFilterLabel(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "Total";
+        }
+        String normalized = value.trim().replace('_', ' ');
+        String[] parts = normalized.split("\\s+");
+        StringBuilder formatted = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                continue;
+            }
+            if (formatted.length() > 0) {
+                formatted.append(' ');
+            }
+            formatted.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1).toLowerCase());
+        }
+        return formatted.length() == 0 ? "Total" : formatted.toString();
     }
 
     private String normalizeSortField(String sort) {

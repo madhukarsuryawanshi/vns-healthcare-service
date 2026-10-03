@@ -685,9 +685,12 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
                 if (table.dataset.paginationBound === 'true' || table.closest('.data-table-shell') || table.classList.contains('attendance-table')) {
                     return;
                 }
-                if (!table.tBodies || !table.tBodies[0] || !table.tBodies[0].rows.length) {
+               if (table.dataset.serverPaginated === 'true' || table.closest('[data-server-paginated="true"]')) {
                     return;
                 }
+               if (!table.tBodies || !table.tBodies[0] || !table.tBodies[0].rows.length) {
+                   return;
+               }
 
                 const rows = Array.from(table.tBodies[0].rows);
                 const pageSize = 10;

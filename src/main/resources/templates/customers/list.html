@@ -10,82 +10,174 @@
         <a class="btn" th:if="${canWriteCustomers}" th:href="@{/customers/new}">Add customer</a>
     </div>
 
+    <style>
+        #customer-results mark {
+            background: #fff3a0;
+            color: inherit;
+            border-radius: 3px;
+            padding: 0 2px;
+        }
+    </style>
     <form id="customer-search-form" class="search" method="get" th:action="@{/customers}">
-        <input id="customer-search-input" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Patient / Cust ID / Employee" autocomplete="off"/>
+        <input type="hidden" name="page" value="0"/>
+        <input id="customer-search-input" list="customerSuggestionsList" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Patient / Cust ID / Employee" autocomplete="off"/>
+        <datalist id="customerSuggestionsList"></datalist>
         <select name="status" style="max-width:180px">
             <option value="">All status</option>
             <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${status == s.name()}">NEW</option>
         </select>
         <button class="btn" type="submit">Search</button>
         <a class="btn ghost" th:href="@{/customers}">Clear</a>
+        <span id="customer-search-status" class="sub" style="display:none; font-size:12px; color:var(--muted);">Searching...</span>
     </form>
-
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const form = document.getElementById('customer-search-form');
             const input = document.getElementById('customer-search-input');
-            const resultsPanel = document.querySelector('#customer-results');
-            const table = resultsPanel ? resultsPanel.querySelector('table') : null;
-            const noResultsText = resultsPanel ? resultsPanel.querySelector('.empty') : null;
-            if (!form || !input || !resultsPanel || !table) return;
+            const list = document.getElementById('customerSuggestionsList');
+            const status = document.getElementById('customer-search-status');
+            if (!input || !list) return;
 
-            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            let debounceTimer = null;
+            let lastSubmittedValue = (input.value || '').trim();
 
-            function escapeHtml(value) {
-                return String(value)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/\"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
+            function setStatus(show) {
+                if (!status) return;
+                status.style.display = show ? 'inline' : 'none';
             }
 
-            function highlightMatch(text, query) {
-                if (!query) return escapeHtml(text || '');
-                const safeText = escapeHtml(text || '');
-                const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp('(' + safeQuery + ')', 'ig');
-                return safeText.replace(regex, '<mark>$1</mark>');
+            function fillSuggestions(query) {
+                const value = (query || '').trim();
+                if (!value) {
+                    list.innerHTML = '';
+                    return;
+                }
+                const url = /*[[ @{/customers/suggestions} ]]*/ '/customers/suggestions';
+                fetch(url + '?q=' + encodeURIComponent(value) + '&limit=10', {
+                    headers: { 'Accept': 'application/json' }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (items) {
+                        list.innerHTML = '';
+                        (items || []).forEach(function (item) {
+                            if (!item) return;
+                            const option = document.createElement('option');
+                            option.value = item;
+                            list.appendChild(option);
+                        });
+                    })
+                    .catch(function () {
+                        list.innerHTML = '';
+                    });
             }
 
-            function applyClientFilter() {
-                const value = (input.value || '').trim().toLowerCase();
-                let visibleCount = 0;
+            function escapeRegExp(value) {
+                return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
 
-                rows.forEach(function (row) {
-                    const rowText = (row.textContent || '').toLowerCase();
-                    const matches = !value || rowText.indexOf(value) !== -1;
-                    row.style.display = matches ? '' : 'none';
-                    if (matches) visibleCount++;
-
-                    const cells = row.querySelectorAll('td');
-                    cells.forEach(function (cell) {
-                        if (cell.querySelector('a, button, form')) {
-                            return;
+            function applyTextHighlight(root) {
+                if (!root) return;
+                const query = (input.value || '').trim();
+                if (!query) {
+                    root.querySelectorAll('mark').forEach(function (element) {
+                        const parent = element.parentNode;
+                        if (parent) {
+                            parent.replaceChild(document.createTextNode(element.textContent), element);
                         }
-                        const original = cell.textContent || '';
-                        if (!cell.dataset.originalText) {
-                            cell.dataset.originalText = original;
+                    });
+                    return;
+                }
+                const regex = new RegExp(escapeRegExp(query), 'ig');
+                root.querySelectorAll('tbody td').forEach(function (cell) {
+                    cell.childNodes.forEach(function (node) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            const text = node.textContent || '';
+                            if (!text || text.toLowerCase().indexOf(query.toLowerCase()) === -1) return;
+                            const fragment = document.createDocumentFragment();
+                            let lastIndex = 0;
+                            let match;
+                            while ((match = regex.exec(text)) !== null) {
+                                if (match.index > lastIndex) {
+                                    fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+                                }
+                                const mark = document.createElement('mark');
+                                mark.textContent = match[0];
+                                fragment.appendChild(mark);
+                                lastIndex = match.index + match[0].length;
+                            }
+                            if (lastIndex < text.length) {
+                                fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+                            }
+                            if (fragment.childNodes.length) {
+                                node.parentNode.replaceChild(fragment, node);
+                            }
                         }
-                        const savedText = cell.dataset.originalText || original;
-                        if (!value) {
-                            cell.innerHTML = escapeHtml(savedText);
-                            return;
-                        }
-                        cell.innerHTML = highlightMatch(savedText, value);
                     });
                 });
+            }
 
-                if (noResultsText) {
-                    noResultsText.style.display = visibleCount === 0 ? 'block' : 'none';
+            function updateTableWithHtml(htmlText) {
+                const container = document.getElementById('customer-results');
+                if (!container) return;
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlText, 'text/html');
+                const nextTable = doc.querySelector('#customer-results');
+                if (nextTable) {
+                    container.innerHTML = nextTable.innerHTML;
+                    applyTextHighlight(container);
+                    setStatus(false);
                 }
             }
 
+            function submitLiveSearch() {
+                const form = input.form;
+                if (!form) return;
+                const value = (input.value || '').trim();
+                if (value === lastSubmittedValue) {
+                    return;
+                }
+                lastSubmittedValue = value;
+                setStatus(true);
+
+                const formData = new URLSearchParams(new FormData(form));
+                formData.set('page', '0');
+                formData.set('q', value);
+                const params = formData.toString();
+                const url = form.action + (form.action.indexOf('?') === -1 ? '?' : '&') + params;
+
+                fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (response) { return response.text(); })
+                    .then(function (html) {
+                        updateTableWithHtml(html);
+                    })
+                    .catch(function () {
+                        setStatus(false);
+                        form.submit();
+                    });
+            }
+
             input.addEventListener('input', function () {
-                applyClientFilter();
+                const value = (input.value || '').trim();
+                window.clearTimeout(debounceTimer);
+                debounceTimer = window.setTimeout(function () {
+                    fillSuggestions(value);
+                    submitLiveSearch();
+                }, 450);
             });
 
-            applyClientFilter();
+            input.addEventListener('focus', function () {
+                const value = (input.value || '').trim();
+                window.clearTimeout(debounceTimer);
+                debounceTimer = window.setTimeout(function () {
+                    fillSuggestions(value);
+                }, 120);
+            });
+
+            const results = document.getElementById('customer-results');
+            if (results) {
+                applyTextHighlight(results);
+            }
         });
     </script>
 
@@ -100,7 +192,8 @@
     </div>
 
     <div id="customer-results" class="panel">
-        <table th:if="${!customers.isEmpty()}">
+        <div class="sub" style="margin-bottom:12px;" th:if="${filteredRecordCount != null}" th:text="${filterSummary} + ': ' + ${filteredRecordCount}">Active records: 10</div>
+        <table th:if="${!customers.isEmpty()}" data-server-paginated="true">
             <thead>
             <tr>
                 <th><a th:href="@{/customers(q=${q}, status=${status}, sort='custCode', dir=${sort == 'custCode' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Cust ID <span th:if="${sort == 'custCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
@@ -145,13 +238,14 @@
         <div class="panel" th:if="${pagination != null and pagination.totalPages > 1}" style="margin-top:16px; border-top:1px solid var(--line); padding-top:16px;">
             <div class="search" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                 <div class="sub" th:text="'Page ' + (${pagination.number + 1}) + ' of ' + ${pagination.totalPages}">Page 1 of 1</div>
-                <div class="actions" style="gap:8px;">
-                    <a class="btn ghost small"
-                       th:if="${!pagination.first}"
-                       th:href="@{/customers(q=${q}, status=${status}, sort=${sort}, dir=${dir}, page=${pagination.number - 1}, size=${pageSize})}">Previous</a>
-                    <a class="btn ghost small"
-                       th:if="${!pagination.last}"
-                       th:href="@{/customers(q=${q}, status=${status}, sort=${sort}, dir=${dir}, page=${pagination.number + 1}, size=${pageSize})}">Next</a>
+                <div class="actions" style="gap:8px; flex-wrap:wrap;">
+                    <a class="btn ghost small" th:if="${!pagination.first}" th:href="@{/customers(q=${q}, status=${status}, sort=${sort}, dir=${dir}, page=${pagination.number - 1}, size=${pageSize})}">Previous</a>
+                    <a class="btn small"
+                       th:each="p : ${#numbers.sequence(0, pagination.totalPages - 1)}"
+                       th:classappend="${p == pagination.number} ? ' secondary' : ' ghost'"
+                       th:href="@{/customers(q=${q}, status=${status}, sort=${sort}, dir=${dir}, page=${p}, size=${pageSize})}"
+                       th:text="${p + 1}">1</a>
+                    <a class="btn ghost small" th:if="${!pagination.last}" th:href="@{/customers(q=${q}, status=${status}, sort=${sort}, dir=${dir}, page=${pagination.number + 1}, size=${pageSize})}">Next</a>
                 </div>
             </div>
         </div>
