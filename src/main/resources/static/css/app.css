@@ -51,8 +51,8 @@
     width: 100%;
     max-width: 100%;
     display: block;
-    overflow-x: scroll !important;
-    overflow-y: hidden;
+    overflow: auto;
+    max-height: calc(100vh - 260px);
     padding-bottom: 6px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
@@ -85,6 +85,35 @@
 .attendance-table thead th {
     background: var(--panel-bg);
     font-weight: 600;
+}
+
+.attendance-table thead th:first-child,
+.attendance-table thead th:nth-child(2),
+.attendance-table tbody td:first-child,
+.attendance-table tbody td:nth-child(2) {
+    position: sticky;
+    background: var(--panel-bg);
+    z-index: 2;
+    box-shadow: 1px 0 0 var(--line);
+}
+
+.attendance-table thead th:first-child,
+.attendance-table tbody td:first-child {
+    left: 0;
+    z-index: 4;
+}
+
+.attendance-table thead th:nth-child(2),
+.attendance-table tbody td:nth-child(2) {
+    left: 92px;
+    z-index: 4;
+}
+
+.attendance-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--panel-bg);
+    z-index: 1;
 }
 
 .attendance-table td select,
