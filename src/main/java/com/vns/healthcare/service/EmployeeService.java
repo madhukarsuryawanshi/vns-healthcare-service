@@ -177,6 +177,9 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<String> searchSuggestions(String query, int limit) {
         String q = query == null ? "" : query.trim();
+        if (q.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
         String prefix = EmployeeRepository.buildPrefix(q);
         return employeeRepository.findSuggestions(prefix, PageRequest.of(0, Math.max(limit, 1)))
                 .stream()
@@ -214,6 +217,11 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
+    public long countActiveStaff() {
+        return employeeRepository.countByStatus(EmployeeStatus.ACTIVE);
+    }
+
+    @Transactional(readOnly = true)
     @Cacheable(value = "employeeById", key = "#id")
     public Employee get(Long id) {
         Cache cache = cache("employeeById");
@@ -231,7 +239,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employee-active-pages", "employeeById", "dashboard-stats", "attendance-summary", "salary-register"}, allEntries = true)
     public Employee create(EmployeeForm form, MultipartFile[] documents) {
         log.info("Creating employee with Aadhar [{}] and name [{}]", form.getAadharNumber(), form.getFullName());
         if (employeeRepository.existsByAadharNumber(form.getAadharNumber())) {
@@ -249,7 +257,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employee-active-pages", "employeeById", "dashboard-stats", "attendance-summary", "salary-register"}, allEntries = true)
     public Employee update(Long id, EmployeeForm form) {
         Employee employee = get(id);
         log.info("Updating employee id [{}] with Aadhar [{}]", id, form.getAadharNumber());
@@ -265,7 +273,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
+    @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employee-active-pages", "employeeById", "dashboard-stats", "attendance-summary", "salary-register"}, allEntries = true)
     public void delete(Long id) {
         Employee employee = get(id);
         log.info("Deleting employee id [{}] [{}]", id, employee.getFullName());

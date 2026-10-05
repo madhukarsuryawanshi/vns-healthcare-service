@@ -554,6 +554,35 @@
                 invoiceDateTo.value = formatInputDate(today);
             }
 
+            function calculateSelectedServiceDays() {
+                if (!invoiceDateFrom || !invoiceDateTo) {
+                    return Number(serviceDays || 0);
+                }
+                var startValue = invoiceDateFrom.value;
+                var endValue = invoiceDateTo.value;
+                if (!startValue || !endValue) {
+                    return Number(serviceDays || 0);
+                }
+                var startDate = new Date(startValue + 'T00:00:00');
+                var endDate = new Date(endValue + 'T00:00:00');
+                if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
+                    return Number(serviceDays || 0);
+                }
+                var diffDays = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+                return Math.max(0, diffDays);
+            }
+
+            function refreshServiceDayDisplay() {
+                var selectedServiceDays = calculateSelectedServiceDays();
+                if (document.getElementById('invoice-service-days')) {
+                    document.getElementById('invoice-service-days').textContent = selectedServiceDays;
+                }
+                var dailyRateValue = selectedServiceDays > 0 ? (baseTotal / selectedServiceDays) : 0;
+                if (dailyRateEl) {
+                    dailyRateEl.textContent = formatter.format(dailyRateValue);
+                }
+            }
+
             var dailyRate = serviceDays > 0 ? (baseTotal / serviceDays) : 0;
             if (dailyRateEl) {
                 dailyRateEl.textContent = formatter.format(dailyRate);
@@ -1642,8 +1671,10 @@
             }
 
             setDefaultInvoiceDates();
+            refreshServiceDayDisplay();
             if (invoiceDateFrom) {
                 invoiceDateFrom.addEventListener('change', function () {
+                    refreshServiceDayDisplay();
                     updateAutoDescriptions();
                     applyDateToFocusedRow();
                     updateInvoice();
@@ -1651,6 +1682,7 @@
             }
             if (invoiceDateTo) {
                 invoiceDateTo.addEventListener('change', function () {
+                    refreshServiceDayDisplay();
                     updateAutoDescriptions();
                     applyDateToFocusedRow();
                     updateInvoice();
