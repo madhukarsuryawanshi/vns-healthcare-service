@@ -145,7 +145,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById", "dashboard-stats"}, allEntries = true)
     public Customer create(CustomerForm form, MultipartFile[] documents) {
         log.info("Creating customer with patient name [{}] and phone [{}]", form.getPatientName(), form.getMobileNo());
         Customer customer = new Customer();
@@ -159,7 +159,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById", "dashboard-stats"}, allEntries = true)
     public Customer update(Long id, CustomerForm form) {
         Customer customer = get(id);
         log.info("Updating customer id [{}] [{}]", id, customer.getPatientName());
@@ -172,7 +172,7 @@ public class CustomerService {
     }
 
     @Transactional
-    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
+    @CacheEvict(value = {"customer-lists", "customer-pages", "customerById", "dashboard-stats"}, allEntries = true)
     public void delete(Long id) {
         Customer customer = get(id);
         log.info("Deleting customer id [{}] [{}]", id, customer.getPatientName());

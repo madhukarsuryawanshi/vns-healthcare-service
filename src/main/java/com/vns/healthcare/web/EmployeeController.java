@@ -120,22 +120,9 @@ public class EmployeeController {
 
         List<Employee> employees = new ArrayList<Employee>(employeePage.getContent());
         if (attendance != null && !attendance.trim().isEmpty()) {
-            List<Employee> allMatches = new ArrayList<Employee>();
-            Pageable fullPage = PageRequest.of(0, Math.max(1, Integer.MAX_VALUE / 10));
-            if (normalizedStatus != null || normalizedDesignation != null || (query != null && !query.trim().isEmpty())) {
-                allMatches = employeeService.filterPage(normalizedStatus, normalizedDesignation, query, fullPage).getContent();
-            } else {
-                allMatches = employeeService.listPage(fullPage).getContent();
-            }
-            List<Employee> attendanceFiltered = filterEmployeesByAttendance(allMatches, attendance.trim().toUpperCase(), todayMap);
-            int fromIndex = safePage * safeSize;
-            int toIndex = Math.min(fromIndex + safeSize, attendanceFiltered.size());
-            if (fromIndex >= attendanceFiltered.size()) {
-                employees = new ArrayList<Employee>();
-            } else {
-                employees = new ArrayList<Employee>(attendanceFiltered.subList(fromIndex, toIndex));
-            }
-            employeePage = new PageImpl<Employee>(employees, PageRequest.of(safePage, safeSize, Sort.by(direction, normalizedSort)), attendanceFiltered.size());
+            List<Employee> attendanceFiltered = filterEmployeesByAttendance(employees, attendance.trim().toUpperCase(), todayMap);
+            employeePage = new PageImpl<Employee>(attendanceFiltered, PageRequest.of(safePage, safeSize, Sort.by(direction, normalizedSort)), attendanceFiltered.size());
+            employees = new ArrayList<Employee>(attendanceFiltered);
         }
 
         model.addAttribute("page", "employees");

@@ -137,6 +137,28 @@ public class CustomerDutyService {
     }
 
     @Transactional(readOnly = true)
+    public Employee resolveCurrentAssignedEmployee(Customer customer) {
+        if (customer == null || customer.getId() == null) {
+            return null;
+        }
+        LocalDate from = customer.getServiceStartDate() != null ? customer.getServiceStartDate() : LocalDate.of(2000, 1, 1);
+        LocalDate to = customer.isClosed() && customer.getServiceClosedDate() != null
+                ? customer.getServiceClosedDate()
+                : LocalDate.now();
+        if (to.isBefore(from)) {
+            return customer.getAssignedEmployee();
+        }
+        List<CustomerDuty> duties = dutyRepository.findForCustomerInRange(customer.getId(), from, to);
+        for (int i = duties.size() - 1; i >= 0; i--) {
+            CustomerDuty duty = duties.get(i);
+            if (duty != null && !duty.isHold() && duty.getEmployee() != null) {
+                return duty.getEmployee();
+            }
+        }
+        return customer.getAssignedEmployee();
+    }
+
+    @Transactional(readOnly = true)
     public int countBillableDays(Customer customer, LocalDate from, LocalDate to) {
         if (customer == null || customer.getId() == null || from == null || to == null || from.isAfter(to)) {
             return 0;

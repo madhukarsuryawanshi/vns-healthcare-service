@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS employee_documents (
     created_by         VARCHAR(100) NULL,
     updated_by         VARCHAR(100) NULL,
     uploaded_at        DATETIME     NOT NULL,
+    INDEX idx_emp_doc_employee_type (employee_id, document_type),
     INDEX idx_emp_doc_type (document_type),
     CONSTRAINT fk_doc_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
 );

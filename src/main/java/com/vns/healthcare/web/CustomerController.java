@@ -163,18 +163,23 @@ public class CustomerController {
             customerPage = customerService.listPage(pageable);
         }
 
-        java.util.List<String> customerSuggestions = customerService.search("", PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
-                .flatMap(c -> java.util.stream.Stream.of(
-                       c.getFullName(),
-                       c.getMobileNo(),
-                       c.getPatientName(),
-                       c.getCustCode(),
-                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
-                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
-                .distinct()
-                .filter(v -> v != null && !v.trim().isEmpty())
-                .sorted()
-                .collect(java.util.stream.Collectors.toList());
+        refreshCurrentAssignedEmployees(customerPage.getContent());
+
+        java.util.List<String> customerSuggestions = java.util.Collections.emptyList();
+        if (query != null && !query.trim().isEmpty()) {
+            customerSuggestions = customerService.search(query.trim(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
+                    .flatMap(c -> java.util.stream.Stream.of(
+                           c.getFullName(),
+                           c.getMobileNo(),
+                           c.getPatientName(),
+                           c.getCustCode(),
+                           c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
+                           c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
+                    .distinct()
+                    .filter(v -> v != null && !v.trim().isEmpty())
+                    .sorted()
+                    .collect(java.util.stream.Collectors.toList());
+        }
 
         model.addAttribute("page", "customers");
         model.addAttribute("customers", customerPage.getContent());
@@ -192,6 +197,18 @@ public class CustomerController {
         model.addAttribute("reportTo", today);
         model.addAttribute("customerSuggestions", customerSuggestions);
         return "customers/list";
+    }
+
+    private void refreshCurrentAssignedEmployees(List<Customer> customers) {
+        if (customers == null || customers.isEmpty()) {
+            return;
+        }
+        for (Customer customer : customers) {
+            if (customer == null) {
+                continue;
+            }
+            customer.setAssignedEmployee(dutyService.resolveCurrentAssignedEmployee(customer));
+        }
     }
 
     private String buildFilterSummary(String query, String status) {
@@ -366,6 +383,7 @@ public class CustomerController {
                          @RequestParam(value = "chargeYear", required = false) Integer chargeYear,
                          Model model) {
         Customer customer = customerService.get(id);
+        customer.setAssignedEmployee(dutyService.resolveCurrentAssignedEmployee(customer));
         YearMonth yearMonth = parseMonth(month);
         int selectedChargeYear = chargeYear == null ? YearMonth.now().getYear() : chargeYear;
         LocalDate from = yearMonth.atDay(1);
@@ -381,7 +399,7 @@ public class CustomerController {
         LocalDate billTo = customer.isClosed() && customer.getServiceClosedDate() != null
                 ? customer.getServiceClosedDate()
                 : LocalDate.now();
-        LocalDate billFrom = billTo.withDayOfMonth(1);
+        LocalDate billFrom = resolveOpenChargesStart(customer, billTo);
         BigDecimal runningTotal = dutyService.calculateCharges(customer, billFrom, billTo);
         int serviceDays = dutyService.countBillableDays(customer, billFrom, billTo);
         BigDecimal invoiceDailyRate = BigDecimal.ZERO;
@@ -408,6 +426,27 @@ public class CustomerController {
         model.addAttribute("chargeStatusPrevYear", selectedChargeYear - 1);
         model.addAttribute("chargeStatusNextYear", selectedChargeYear + 1);
         return "customers/detail";
+    }
+
+    private LocalDate resolveOpenChargesStart(Customer customer, LocalDate billTo) {
+        YearMonth current = YearMonth.from(billTo);
+        YearMonth startMonth = customer.getServiceStartDate() == null
+                ? current
+                : YearMonth.from(customer.getServiceStartDate());
+        YearMonth cursor = current;
+        while (!cursor.isBefore(startMonth)) {
+            for (CustomerChargeMonthView monthView : chargeStatusService.monthsForCustomer(customer, cursor.getYear())) {
+                if (!monthView.getMonth().equals(cursor)) {
+                    continue;
+                }
+                if (monthView.getStatus() != null && monthView.getStatus() != com.vns.healthcare.domain.ChargePayStatus.PAID) {
+                    return cursor.atDay(1);
+                }
+                break;
+            }
+            cursor = cursor.minusMonths(1);
+        }
+        return current.atDay(1);
     }
 
     @GetMapping("/{id:\\d+}/invoices/{invoiceId:\\d+}")

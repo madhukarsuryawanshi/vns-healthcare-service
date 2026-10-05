@@ -6,6 +6,8 @@ import com.vns.healthcare.entity.Employee;
 import com.vns.healthcare.repository.AttendanceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +48,7 @@ public class AttendanceService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "attendance-monthly", key = "#monthStart.toString()")
     public Map<Long, Map<String, Attendance>> monthlyRoster(LocalDate monthStart) {
         log.debug("Loading monthly roster for month start [{}]", monthStart);
         LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
@@ -65,6 +68,7 @@ public class AttendanceService {
     }
 
     @Transactional
+    @CacheEvict(value = {"attendance-monthly", "attendance-summary", "dashboard-stats"}, allEntries = true)
     public void mark(Long employeeId, LocalDate date, AttendanceStatus status, LocalTime checkIn, String notes) {
         log.info("Marking attendance for employee [{}] on [{}] as [{}]", employeeId, date, status);
         Employee employee = employeeService.get(employeeId);
@@ -80,6 +84,7 @@ public class AttendanceService {
     }
 
     @Transactional
+    @CacheEvict(value = {"attendance-monthly", "attendance-summary", "dashboard-stats"}, allEntries = true)
     public void saveMonthlyRow(Long employeeId, LocalDate monthStart, Map<LocalDate, AttendanceStatus> statuses, String notes) {
         log.info("Saving monthly attendance batch for employee [{}] in month [{}], entries [{}]", employeeId, monthStart, statuses.size());
         Employee employee = employeeService.get(employeeId);
@@ -102,6 +107,7 @@ public class AttendanceService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "attendance-summary", key = "#date.toString()")
     public java.util.Map<String, Integer> summaryForDate(LocalDate date) {
         log.debug("Computing attendance summary for date [{}]", date);
         java.util.List<Attendance> marks = attendanceRepository.findByDateWithEmployee(date);
@@ -112,7 +118,7 @@ public class AttendanceService {
             else if (a.getStatus() == AttendanceStatus.ABSENT) absent++;
             else if (a.getStatus() == AttendanceStatus.LEAVE) leave++;
         }
-        int totalActive = employeeService.activeStaff().size();
+        int totalActive = (int) employeeService.countActiveStaff();
         int unmarked = totalActive - marks.size();
         java.util.Map<String, Integer> map = new java.util.LinkedHashMap<>();
         map.put("present", present);

@@ -6,6 +6,8 @@ import com.vns.healthcare.entity.SalaryPayment;
 import com.vns.healthcare.exception.BusinessException;
 import com.vns.healthcare.repository.SalaryPaymentRepository;
 import com.vns.healthcare.web.SalaryMonthView;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +46,7 @@ public class SalaryPaymentService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "salary-register", key = "#year")
     public Map<Employee, List<SalaryMonthView>> register(int year) {
         Map<Employee, List<SalaryMonthView>> rows = new LinkedHashMap<Employee, List<SalaryMonthView>>();
         for (Employee employee : employeeService.activeStaff()) {
@@ -53,6 +56,7 @@ public class SalaryPaymentService {
     }
 
     @Transactional
+    @CacheEvict(value = {"salary-register", "dashboard-stats"}, allEntries = true)
     public void mark(Long employeeId, int year, int month, SalaryPayStatus status, LocalDate paidOn, String notes) {
         if (month < 1 || month > 12) {
             throw new BusinessException("Invalid month");
