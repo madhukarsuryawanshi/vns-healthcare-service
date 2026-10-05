@@ -20,10 +20,13 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     List<Customer> findByAssignedEmployeeId(Long employeeId);
 
+    @Query("SELECT DISTINCT c.assignedEmployee.id FROM Customer c WHERE c.assignedEmployee IS NOT NULL")
+    List<Long> findAssignedEmployeeIds();
+
     long countByAssignedEmployeeIsNotNull();
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR c.custCode LIKE :prefix OR c.mobileNo LIKE :prefix OR LOWER(c.fullName) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix)) ORDER BY c.createdAt DESC")
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR c.custCode LIKE :prefix OR c.mobileNo LIKE :prefix OR c.fullName LIKE :prefix OR c.patientName LIKE :prefix OR e.fullName LIKE :prefix OR e.empCode LIKE :prefix) ORDER BY c.createdAt DESC")
     Page<Customer> searchPage(@Param("status") CustomerStatus status,
                              @Param("search") String search,
                              @Param("prefix") String prefix,
@@ -42,10 +45,10 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Customer> findByAssignedEmployee(@Param("employeeId") Long employeeId);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE c.custCode LIKE :prefix OR c.mobileNo LIKE :prefix OR LOWER(c.fullName) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix) ORDER BY c.createdAt DESC")
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE c.custCode LIKE :prefix OR c.mobileNo LIKE :prefix OR c.fullName LIKE :prefix OR c.patientName LIKE :prefix OR e.fullName LIKE :prefix OR e.empCode LIKE :prefix ORDER BY c.createdAt DESC")
     List<Customer> findSuggestions(@Param("prefix") String prefix, Pageable pageable);
 
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR c.custCode LIKE :prefix OR c.mobileNo LIKE :prefix OR LOWER(c.fullName) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix))")
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR c.custCode LIKE :prefix OR c.mobileNo LIKE :prefix OR c.fullName LIKE :prefix OR c.patientName LIKE :prefix OR e.fullName LIKE :prefix OR e.empCode LIKE :prefix)")
     long countFiltered(@Param("status") CustomerStatus status,
                        @Param("search") String search,
                        @Param("prefix") String prefix);
@@ -70,6 +73,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     static String buildPrefix(String value) {
         String normalized = value == null ? "" : value.trim();
-        return normalized.isEmpty() ? "%" : normalized + "%";
+        return normalized.isEmpty() ? "%" : "%" + normalized + "%";
     }
 }

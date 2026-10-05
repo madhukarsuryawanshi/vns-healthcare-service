@@ -32,6 +32,14 @@
         </form>
     </div>
 
+    <div class="customer-tabs" style="display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 14px; align-items:center; padding:6px; border:1px solid var(--line); border-radius:999px; background:#f8fafc; width:fit-content; max-width:100%;">
+        <button type="button" class="customer-tab active" data-target="case-details-tab" style="border:0; background:#0f766e; color:#fff; border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:700; letter-spacing:0.02em; cursor:pointer; box-shadow:0 2px 8px rgba(15,118,110,0.22);">Case details</button>
+        <button type="button" class="customer-tab" data-target="duty-tab" style="border:0; background:transparent; color:var(--ink); border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:600; cursor:pointer;">Duty roster</button>
+        <button type="button" class="customer-tab" data-target="billing-tab" style="border:0; background:transparent; color:var(--ink); border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:600; cursor:pointer;">Billing</button>
+        <button type="button" class="customer-tab" data-target="charges-tab" style="border:0; background:transparent; color:var(--ink); border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:600; cursor:pointer;">Charges paid status</button>
+    </div>
+
+    <div class="customer-section-panel" id="case-details-tab" style="display:block;">
     <div class="grid-2">
         <div class="panel">
             <h3>Case details</h3>
@@ -96,6 +104,37 @@
         </div>
     </div>
 
+    <div class="panel" style="margin-top:18px;">
+        <h3>Documents</h3>
+        <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents(id=${customer.id})}" method="post" enctype="multipart/form-data" class="search">
+            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+            <input type="file" name="documents" multiple/>
+            <button class="btn secondary" type="submit">Upload</button>
+        </form>
+        <table th:if="${!customer.documents.isEmpty()}">
+            <thead>
+            <tr><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="d : ${customer.documents}">
+                <td th:text="${d.originalFilename}">file.pdf</td>
+                <td th:text="${d.fileSize}">0</td>
+                <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
+                <td style="display:flex; gap:8px; align-items:center">
+                    <a href="#" th:attr="data-preview-url=@{/customers/{id}/documents/{docId}(id=${customer.id}, docId=${d.id})}" class="btn ghost small">View</a>
+                    <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents/{docId}/delete(id=${customer.id}, docId=${d.id})}" method="post" style="margin:0">
+                        <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                        <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${customer.documents.isEmpty()}">No documents uploaded.</p>
+    </div>
+    </div>
+
+    <div class="customer-section-panel" id="billing-tab" style="display:none;">
     <div class="panel" id="invoice-panel" th:attr="data-base-total=${runningTotal != null ? runningTotal.doubleValue() : 0.0}, data-service-days=${serviceDays != null ? serviceDays : 0}, data-customer-id=${customer.id}">
         <div class="topbar" style="margin-bottom:12px; align-items:flex-end;">
             <div>
@@ -267,7 +306,9 @@
             <p class="sub" th:if="${#lists.isEmpty(customerInvoices)}">No invoice saved for this customer yet.</p>
         </div>
     </div>
+    </div>
 
+    <div class="customer-section-panel" id="charges-tab" style="display:none;">
     <div class="panel">
         <div class="topbar" style="margin-bottom:12px; align-items:center;">
             <h3 style="margin:0;">Charges Paid Status</h3>
@@ -319,7 +360,9 @@
             </table>
         </div>
     </div>
+    </div>
 
+    <div class="customer-section-panel" id="duty-tab" style="display:none;">
     <div class="panel">
         <h3>Duty roster (date range)</h3>
         <p class="sub">Example: Day-01 to Day-04 Employee A, then Day-05 to Day-10 Employee B. Tick Hold for unpaid days.</p>
@@ -350,63 +393,35 @@
             </div>
         </form>
         <p class="sub" th:if="${customer.closed}">Duty dates cannot be changed after close.</p>
-    </div>
 
-    <div class="panel">
-        <div class="topbar" style="margin-bottom:12px">
-            <h3 style="margin:0" th:text="'Days in ' + ${month}">Days</h3>
-            <form method="get" th:action="@{/customers/{id}(id=${customer.id})}" class="search" style="margin:0">
-                <input type="month" name="month" th:value="${month}"/>
-                <button class="btn ghost" type="submit">Show month</button>
-            </form>
+        <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
+            <div class="topbar" style="margin-bottom:12px; align-items:center;">
+                <h3 style="margin:0" th:text="'Days in ' + ${month}">Days</h3>
+                <form method="get" th:action="@{/customers/{id}(id=${customer.id})}" class="search" style="margin:0">
+                    <input type="month" name="month" th:value="${month}"/>
+                    <button class="btn ghost" type="submit">Show month</button>
+                </form>
+            </div>
+            <table>
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Staff / Hold</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${dayRows}">
+                    <td th:text="${#temporals.format(row.date, 'dd MMM yyyy')}">01 Sep</td>
+                    <td>
+                        <span class="badge warn" th:if="${row.hold}">Hold</span>
+                        <span th:if="${row.hasStaff()}" th:text="${row.staffName}">Name</span>
+                        <span class="badge muted" th:if="${row.empty}">—</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
         </div>
-        <table>
-            <thead>
-            <tr>
-                <th>Date</th>
-                <th>Staff / Hold</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="row : ${dayRows}">
-                <td th:text="${#temporals.format(row.date, 'dd MMM yyyy')}">01 Sep</td>
-                <td>
-                    <span class="badge warn" th:if="${row.hold}">Hold</span>
-                    <span th:if="${row.hasStaff()}" th:text="${row.staffName}">Name</span>
-                    <span class="badge muted" th:if="${row.empty}">—</span>
-                </td>
-            </tr>
-            </tbody>
-        </table>
     </div>
-
-    <div class="panel">
-        <h3>Documents</h3>
-        <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents(id=${customer.id})}" method="post" enctype="multipart/form-data" class="search">
-            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-            <input type="file" name="documents" multiple/>
-            <button class="btn secondary" type="submit">Upload</button>
-        </form>
-        <table th:if="${!customer.documents.isEmpty()}">
-            <thead>
-            <tr><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr>
-            </thead>
-            <tbody>
-            <tr th:each="d : ${customer.documents}">
-                <td th:text="${d.originalFilename}">file.pdf</td>
-                <td th:text="${d.fileSize}">0</td>
-                <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
-                <td style="display:flex; gap:8px; align-items:center">
-                    <a href="#" th:attr="data-preview-url=@{/customers/{id}/documents/{docId}(id=${customer.id}, docId=${d.id})}" class="btn ghost small">View</a>
-                    <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents/{docId}/delete(id=${customer.id}, docId=${d.id})}" method="post" style="margin:0">
-                        <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-                        <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        <p class="empty" th:if="${customer.documents.isEmpty()}">No documents uploaded.</p>
     </div>
 
     <div id="invoice-modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.52); z-index:2000; align-items:center; justify-content:center; padding:24px;">
@@ -426,6 +441,43 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            var tabButtons = document.querySelectorAll('.customer-tab');
+            var tabSections = document.querySelectorAll('.customer-section-panel');
+            var params = new URLSearchParams(window.location.search);
+            var requestedTab = params.get('tab');
+            if (requestedTab === 'duty') {
+                requestedTab = 'duty-tab';
+            }
+
+            function activateTab(targetId) {
+                tabButtons.forEach(function (tab) {
+                    var isActive = tab.getAttribute('data-target') === targetId;
+                    tab.classList.toggle('active', isActive);
+                    tab.style.background = isActive ? '#0f766e' : 'transparent';
+                    tab.style.color = isActive ? '#fff' : 'var(--ink)';
+                    tab.style.boxShadow = isActive ? '0 2px 8px rgba(15,118,110,0.22)' : 'none';
+                    tab.style.fontWeight = isActive ? '700' : '600';
+                });
+                tabSections.forEach(function (section) {
+                    section.style.display = section.id === targetId ? 'block' : 'none';
+                });
+            }
+
+            tabButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    activateTab(button.getAttribute('data-target'));
+                });
+            });
+
+            if (requestedTab) {
+                var existingTarget = document.getElementById(requestedTab);
+                if (existingTarget) {
+                    activateTab(requestedTab);
+                }
+            } else {
+                activateTab('case-details-tab');
+            }
+
             var panel = document.getElementById('invoice-panel');
             if (!panel) {
                 return;
@@ -500,6 +552,35 @@
                 var firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
                 invoiceDateFrom.value = formatInputDate(firstDayOfMonth);
                 invoiceDateTo.value = formatInputDate(today);
+            }
+
+            function calculateSelectedServiceDays() {
+                if (!invoiceDateFrom || !invoiceDateTo) {
+                    return Number(serviceDays || 0);
+                }
+                var startValue = invoiceDateFrom.value;
+                var endValue = invoiceDateTo.value;
+                if (!startValue || !endValue) {
+                    return Number(serviceDays || 0);
+                }
+                var startDate = new Date(startValue + 'T00:00:00');
+                var endDate = new Date(endValue + 'T00:00:00');
+                if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
+                    return Number(serviceDays || 0);
+                }
+                var diffDays = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+                return Math.max(0, diffDays);
+            }
+
+            function refreshServiceDayDisplay() {
+                var selectedServiceDays = calculateSelectedServiceDays();
+                if (document.getElementById('invoice-service-days')) {
+                    document.getElementById('invoice-service-days').textContent = selectedServiceDays;
+                }
+                var dailyRateValue = selectedServiceDays > 0 ? (baseTotal / selectedServiceDays) : 0;
+                if (dailyRateEl) {
+                    dailyRateEl.textContent = formatter.format(dailyRateValue);
+                }
             }
 
             var dailyRate = serviceDays > 0 ? (baseTotal / serviceDays) : 0;
@@ -1145,8 +1226,47 @@
                 printWindow.print();
             }
 
+            function ensureInvoiceHistoryTable() {
+                var existingBody = document.getElementById('customer-invoice-history-body');
+                if (existingBody) {
+                    return existingBody;
+                }
+                var historyHeader = Array.prototype.slice.call(document.querySelectorAll('#invoice-panel h4')).find(function (heading) {
+                    return (heading.textContent || '').trim().indexOf('Invoice history') !== -1;
+                });
+                var historyContainer = historyHeader ? historyHeader.parentElement && historyHeader.parentElement.parentElement : null;
+                if (!historyContainer) {
+                    return null;
+                }
+                var emptyMessage = historyContainer.querySelector('p.sub');
+                if (emptyMessage) {
+                    emptyMessage.style.display = 'none';
+                }
+                var table = document.createElement('table');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.innerHTML = '<thead><tr><th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:40px;">' +
+                    '<input type="checkbox" id="select-all-invoices" aria-label="Select all invoices"/>' +
+                    '</th><th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Period</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:left;">Invoice</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Total</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Discount</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Advance</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:right;">Net</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">View</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">Edit</th>' +
+                    '<th style="padding:8px 10px; border:1px solid var(--line); text-align:center; width:90px;">Delete</th></tr></thead>' +
+                    '<tbody id="customer-invoice-history-body"></tbody>';
+                historyContainer.appendChild(table);
+                var createdBody = table.querySelector('#customer-invoice-history-body');
+                if (createdBody) {
+                    createdBody.dataset.createdOnFly = 'true';
+                }
+                return createdBody;
+            }
+
             function appendInvoiceHistoryRow(record) {
-                var historyBody = document.getElementById('customer-invoice-history-body');
+                var historyBody = ensureInvoiceHistoryTable();
                 if (!historyBody) {
                     return;
                 }
@@ -1551,8 +1671,10 @@
             }
 
             setDefaultInvoiceDates();
+            refreshServiceDayDisplay();
             if (invoiceDateFrom) {
                 invoiceDateFrom.addEventListener('change', function () {
+                    refreshServiceDayDisplay();
                     updateAutoDescriptions();
                     applyDateToFocusedRow();
                     updateInvoice();
@@ -1560,6 +1682,7 @@
             }
             if (invoiceDateTo) {
                 invoiceDateTo.addEventListener('change', function () {
+                    refreshServiceDayDisplay();
                     updateAutoDescriptions();
                     applyDateToFocusedRow();
                     updateInvoice();

@@ -53,9 +53,12 @@ CREATE TABLE IF NOT EXISTS employees (
     INDEX idx_emp_name (full_name),
     INDEX idx_emp_mobile (mobile_no),
     INDEX idx_emp_status_created_at (status, created_at),
+    INDEX idx_emp_status_designation_created_at (status, designation, created_at),
     INDEX idx_emp_designation_status (designation, status),
     INDEX idx_emp_training_status (training_status),
-    INDEX idx_emp_emp_code (emp_code)
+    INDEX idx_emp_emp_code (emp_code),
+    INDEX idx_emp_empcode_mobile (emp_code, mobile_no),
+    INDEX idx_emp_created_at (created_at)
 );
 
 -- KYC / ID / certificates uploaded for an employee
@@ -70,6 +73,7 @@ CREATE TABLE IF NOT EXISTS employee_documents (
     created_by         VARCHAR(100) NULL,
     updated_by         VARCHAR(100) NULL,
     uploaded_at        DATETIME     NOT NULL,
+    INDEX idx_emp_doc_employee_type (employee_id, document_type),
     INDEX idx_emp_doc_type (document_type),
     CONSTRAINT fk_doc_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE
 );
@@ -102,7 +106,9 @@ CREATE TABLE IF NOT EXISTS customers (
     INDEX idx_cust_mobile (mobile_no),
     INDEX idx_cust_assigned_employee (assigned_employee_id),
     INDEX idx_cust_created_at (created_at),
-    INDEX idx_cust_status_created_at (status, created_at)
+    INDEX idx_cust_status_created_at (status, created_at),
+    INDEX idx_cust_code_mobile (cust_code, mobile_no),
+    INDEX idx_cust_name_patient (full_name, patient_name)
 );
 
 -- KYC / ID / certificates uploaded for a customer
@@ -130,6 +136,7 @@ CREATE TABLE IF NOT EXISTS customer_duties (
     updated_by   VARCHAR(100) NULL,
     created_at   DATETIME     NOT NULL,
     UNIQUE KEY uk_cust_day (customer_id, duty_date),
+    INDEX idx_duty_employee_date (employee_id, duty_date),
     CONSTRAINT fk_duty_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE,
     CONSTRAINT fk_duty_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE SET NULL
 );

@@ -123,10 +123,15 @@
                     <div class="attendance-page-summary" th:text="|Showing ${#lists.size(employees) == 0 ? 0 : ((pageNumber * pageSize) + 1)}-${#lists.size(employees) == 0 ? 0 : ((pageNumber * pageSize) + #lists.size(employees))} of ${totalElements}|">Showing 0-0 of 0</div>
                     <div class="attendance-pagination" aria-label="Attendance pagination">
                         <a th:if="${pageNumber > 0}" class="page-btn" th:href="@{/attendance(date=${date}, page=${pageNumber - 1}, size=${pageSize})}">Prev</a>
-                        <span th:each="p : ${#numbers.sequence(0, totalPages - 1)}">
-                            <a th:if="${p == pageNumber}" class="page-btn active" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
-                            <a th:if="${p != pageNumber}" class="page-btn" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
-                        </span>
+                        <th:block th:with="
+                            currentPage=${pageNumber},
+                            startPage=${totalPages <= 3 ? 0 : (currentPage <= 1 ? 0 : (currentPage >= totalPages - 2 ? totalPages - 3 : currentPage - 1))},
+                            endPage=${totalPages <= 3 ? totalPages - 1 : (currentPage <= 1 ? 2 : (currentPage >= totalPages - 2 ? totalPages - 1 : currentPage + 1))}">
+                            <span th:each="p : ${#numbers.sequence(startPage, endPage)}">
+                                <a th:if="${p == currentPage}" class="page-btn active" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
+                                <a th:if="${p != currentPage}" class="page-btn" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
+                            </span>
+                        </th:block>
                         <a th:if="${pageNumber + 1 < totalPages}" class="page-btn" th:href="@{/attendance(date=${date}, page=${pageNumber + 1}, size=${pageSize})}">Next</a>
                     </div>
                 </div>

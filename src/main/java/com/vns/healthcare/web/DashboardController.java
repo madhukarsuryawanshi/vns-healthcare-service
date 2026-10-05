@@ -34,10 +34,10 @@ public class DashboardController {
         log.info("Loading dashboard page");
         model.addAttribute("page", "dashboard");
         model.addAttribute("stats", dashboardService.stats());
-        model.addAttribute("recentEmployees", employeeRepository.findTop5ByOrderByCreatedAtDesc());
-        model.addAttribute("recentCustomers", customerRepository.findTop5WithEmployee());
+        model.addAttribute("recentEmployees", java.util.Collections.emptyList());
+        model.addAttribute("recentCustomers", java.util.Collections.emptyList());
         model.addAttribute("today", LocalDate.now());
-        log.info("Dashboard page prepared successfully");
+        log.info("Dashboard page prepared successfully without recent staff/leads queries");
         return "dashboard";
     }
 

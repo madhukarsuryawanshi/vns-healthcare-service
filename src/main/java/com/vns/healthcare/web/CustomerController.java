@@ -54,6 +54,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Controller
 @RequestMapping("/customers")
@@ -64,6 +65,8 @@ public class CustomerController {
     private final CustomerService customerService;
     private final EmployeeService employeeService;
     private final CustomerDutyService dutyService;
+    private static final long SUGGESTION_CACHE_TTL_MS = 5000L;
+
     private final CustomerReportService reportService;
     private final FileStorageService fileStorageService;
     private final BusinessBankAccountRepository businessBankAccountRepository;
@@ -71,6 +74,7 @@ public class CustomerController {
     private final AppSequenceRepository appSequenceRepository;
     private final CustomerChargeStatusService chargeStatusService;
     private final com.vns.healthcare.security.UserActivityService userActivityService;
+    private final Map<String, SuggestionCacheEntry> suggestionCache = new ConcurrentHashMap<String, SuggestionCacheEntry>();
 
     public CustomerController(CustomerService customerService,
                               EmployeeService employeeService,
@@ -94,13 +98,48 @@ public class CustomerController {
         this.userActivityService = userActivityService;
     }
 
+    @GetMapping("/suggestions")
+    @ResponseBody
+    public List<String> suggestions(@RequestParam(value = "q", required = false) String query,
+                                  @RequestParam(value = "limit", required = false, defaultValue = "10") int limit) {
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        int maxLimit = Math.max(1, Math.min(limit, 20));
+        String cacheKey = (q + "|" + maxLimit).toLowerCase();
+        long now = System.currentTimeMillis();
+        SuggestionCacheEntry cached = suggestionCache.get(cacheKey);
+        if (cached != null && now - cached.cachedAt < SUGGESTION_CACHE_TTL_MS) {
+            return cached.values;
+        }
+
+        List<String> result = customerService.search(q, PageRequest.of(0, Math.max(1, Math.min(maxLimit, 20)), Sort.by(Sort.Direction.DESC, "createdAt")))
+                .getContent()
+                .stream()
+                .flatMap(c -> java.util.stream.Stream.of(
+                       c.getFullName(),
+                       c.getMobileNo(),
+                       c.getPatientName(),
+                       c.getCustCode(),
+                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
+                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
+                .filter(v -> v != null && !v.trim().isEmpty())
+                .distinct()
+                .sorted()
+                .limit(maxLimit)
+                .collect(java.util.stream.Collectors.toList());
+        suggestionCache.put(cacheKey, new SuggestionCacheEntry(result, now));
+        return result;
+    }
+
     @GetMapping
     public String list(@RequestParam(value = "q", required = false) String query,
                        @RequestParam(value = "status", required = false) String status,
                        @RequestParam(value = "sort", required = false, defaultValue = "custCode") String sort,
                        @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
                        @RequestParam(value = "page", required = false, defaultValue = "0") int page,
-                       @RequestParam(value = "size", required = false, defaultValue = "20") int size,
+                       @RequestParam(value = "size", required = false, defaultValue = "10") int size,
                        Model model) {
         log.info("Listing customers with query [{}], status [{}], sort [{}], dir [{}], page [{}], size [{}]", query, status, sort, dir, page, size);
         LocalDate today = LocalDate.now();
@@ -124,22 +163,29 @@ public class CustomerController {
             customerPage = customerService.listPage(pageable);
         }
 
-        java.util.List<String> customerSuggestions = customerService.search("", PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
-                .flatMap(c -> java.util.stream.Stream.of(
-                       c.getFullName(),
-                       c.getMobileNo(),
-                       c.getPatientName(),
-                       c.getCustCode(),
-                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
-                       c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
-                .distinct()
-                .filter(v -> v != null && !v.trim().isEmpty())
-                .sorted()
-                .collect(java.util.stream.Collectors.toList());
+        refreshCurrentAssignedEmployees(customerPage.getContent());
+
+        java.util.List<String> customerSuggestions = java.util.Collections.emptyList();
+        if (query != null && !query.trim().isEmpty()) {
+            customerSuggestions = customerService.search(query.trim(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
+                    .flatMap(c -> java.util.stream.Stream.of(
+                           c.getFullName(),
+                           c.getMobileNo(),
+                           c.getPatientName(),
+                           c.getCustCode(),
+                           c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
+                           c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
+                    .distinct()
+                    .filter(v -> v != null && !v.trim().isEmpty())
+                    .sorted()
+                    .collect(java.util.stream.Collectors.toList());
+        }
 
         model.addAttribute("page", "customers");
         model.addAttribute("customers", customerPage.getContent());
         model.addAttribute("pagination", customerPage);
+        model.addAttribute("filteredRecordCount", customerPage.getTotalElements());
+        model.addAttribute("filterSummary", buildFilterSummary(query, status));
         model.addAttribute("currentPage", safePage);
         model.addAttribute("pageSize", safeSize);
         model.addAttribute("q", query == null ? "" : query);
@@ -151,6 +197,47 @@ public class CustomerController {
         model.addAttribute("reportTo", today);
         model.addAttribute("customerSuggestions", customerSuggestions);
         return "customers/list";
+    }
+
+    private void refreshCurrentAssignedEmployees(List<Customer> customers) {
+        if (customers == null || customers.isEmpty()) {
+            return;
+        }
+        for (Customer customer : customers) {
+            if (customer == null) {
+                continue;
+            }
+            customer.setAssignedEmployee(dutyService.resolveCurrentAssignedEmployee(customer));
+        }
+    }
+
+    private String buildFilterSummary(String query, String status) {
+        if (status != null && !status.trim().isEmpty()) {
+            return formatFilterLabel(status) + " records";
+        }
+        if (query != null && !query.trim().isEmpty()) {
+            return "Search results";
+        }
+        return "Total records";
+    }
+
+    private String formatFilterLabel(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "Total";
+        }
+        String normalized = value.trim().replace('_', ' ');
+        String[] parts = normalized.split("\\s+");
+        StringBuilder formatted = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                continue;
+            }
+            if (formatted.length() > 0) {
+                formatted.append(' ');
+            }
+            formatted.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1).toLowerCase());
+        }
+        return formatted.length() == 0 ? "Total" : formatted.toString();
     }
 
     private String normalizeSortField(String sort) {
@@ -177,6 +264,16 @@ public class CustomerController {
             case "custCode":
             default:
                 return "custCode";
+        }
+    }
+
+    private static class SuggestionCacheEntry {
+        private final List<String> values;
+        private final long cachedAt;
+
+        private SuggestionCacheEntry(List<String> values, long cachedAt) {
+            this.values = values == null ? java.util.Collections.emptyList() : new ArrayList<String>(values);
+            this.cachedAt = cachedAt;
         }
     }
 
@@ -242,7 +339,7 @@ public class CustomerController {
         model.addAttribute("page", "customers");
         model.addAttribute("form", new CustomerForm());
         model.addAttribute("mode", "create");
-        model.addAttribute("staff", employeeService.activeCareStaff());
+        model.addAttribute("staff", employeeService.activeCareStaffAvailable(null));
         model.addAttribute("statuses", CustomerStatus.values());
         return "customers/form";
     }
@@ -258,7 +355,7 @@ public class CustomerController {
             log.warn("Customer create validation failed for form [{}]", form.getPatientName());
             model.addAttribute("page", "customers");
             model.addAttribute("mode", "create");
-            model.addAttribute("staff", employeeService.activeCareStaff());
+            model.addAttribute("staff", employeeService.activeCareStaffAvailable(null));
             model.addAttribute("statuses", CustomerStatus.values());
             return "customers/form";
         }
@@ -273,7 +370,7 @@ public class CustomerController {
             log.error("Failed to create customer [{}]", form.getPatientName(), ex);
             model.addAttribute("page", "customers");
             model.addAttribute("mode", "create");
-            model.addAttribute("staff", employeeService.activeCareStaff());
+            model.addAttribute("staff", employeeService.activeCareStaffAvailable(null));
             model.addAttribute("statuses", CustomerStatus.values());
             model.addAttribute("error", ex.getMessage());
             return "customers/form";
@@ -286,6 +383,7 @@ public class CustomerController {
                          @RequestParam(value = "chargeYear", required = false) Integer chargeYear,
                          Model model) {
         Customer customer = customerService.get(id);
+        customer.setAssignedEmployee(dutyService.resolveCurrentAssignedEmployee(customer));
         YearMonth yearMonth = parseMonth(month);
         int selectedChargeYear = chargeYear == null ? YearMonth.now().getYear() : chargeYear;
         LocalDate from = yearMonth.atDay(1);
@@ -301,7 +399,7 @@ public class CustomerController {
         LocalDate billTo = customer.isClosed() && customer.getServiceClosedDate() != null
                 ? customer.getServiceClosedDate()
                 : LocalDate.now();
-        LocalDate billFrom = billTo.withDayOfMonth(1);
+        LocalDate billFrom = resolveOpenChargesStart(customer, billTo);
         BigDecimal runningTotal = dutyService.calculateCharges(customer, billFrom, billTo);
         int serviceDays = dutyService.countBillableDays(customer, billFrom, billTo);
         BigDecimal invoiceDailyRate = BigDecimal.ZERO;
@@ -311,7 +409,7 @@ public class CustomerController {
 
         model.addAttribute("page", "customers");
         model.addAttribute("customer", customer);
-        model.addAttribute("staff", employeeService.activeCareStaff());
+        model.addAttribute("staff", employeeService.activeCareStaffAvailable(customer.getId()));
         model.addAttribute("month", yearMonth.toString());
         model.addAttribute("monthLabel", yearMonth);
         model.addAttribute("dayRows", dayRows);
@@ -328,6 +426,27 @@ public class CustomerController {
         model.addAttribute("chargeStatusPrevYear", selectedChargeYear - 1);
         model.addAttribute("chargeStatusNextYear", selectedChargeYear + 1);
         return "customers/detail";
+    }
+
+    private LocalDate resolveOpenChargesStart(Customer customer, LocalDate billTo) {
+        YearMonth current = YearMonth.from(billTo);
+        YearMonth startMonth = customer.getServiceStartDate() == null
+                ? current
+                : YearMonth.from(customer.getServiceStartDate());
+        YearMonth cursor = current;
+        while (!cursor.isBefore(startMonth)) {
+            for (CustomerChargeMonthView monthView : chargeStatusService.monthsForCustomer(customer, cursor.getYear())) {
+                if (!monthView.getMonth().equals(cursor)) {
+                    continue;
+                }
+                if (monthView.getStatus() != null && monthView.getStatus() != com.vns.healthcare.domain.ChargePayStatus.PAID) {
+                    return cursor.atDay(1);
+                }
+                break;
+            }
+            cursor = cursor.minusMonths(1);
+        }
+        return current.atDay(1);
     }
 
     @GetMapping("/{id:\\d+}/invoices/{invoiceId:\\d+}")
@@ -657,7 +776,13 @@ public class CustomerController {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
         }
         String month = from == null ? "" : from.getYear() + "-" + String.format("%02d", from.getMonthValue());
-        return "redirect:/customers/" + id + (month.isEmpty() ? "" : "?month=" + month);
+        StringBuilder redirect = new StringBuilder("redirect:/customers/").append(id);
+        if (month.isEmpty()) {
+            redirect.append("?tab=duty-tab");
+        } else {
+            redirect.append("?month=").append(month).append("&tab=duty-tab");
+        }
+        return redirect.toString();
     }
 
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")

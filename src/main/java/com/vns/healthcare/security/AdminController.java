@@ -2,6 +2,7 @@ package com.vns.healthcare.security;
 
 import com.vns.healthcare.entity.BusinessBankAccount;
 import com.vns.healthcare.repository.BusinessBankAccountRepository;
+import com.vns.healthcare.repository.EmployeeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,6 +28,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.time.LocalDate;
@@ -49,6 +51,7 @@ public class AdminController {
 
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
     private final BusinessBankAccountRepository businessBankAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final com.vns.healthcare.service.EmployeeService employeeService;
@@ -56,12 +59,14 @@ public class AdminController {
 
     public AdminController(RoleRepository roleRepository,
                           UserRepository userRepository,
+                          EmployeeRepository employeeRepository,
                           BusinessBankAccountRepository businessBankAccountRepository,
                           PasswordEncoder passwordEncoder,
                           com.vns.healthcare.service.EmployeeService employeeService,
                           UserActivityService userActivityService) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
         this.businessBankAccountRepository = businessBankAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.employeeService = employeeService;
@@ -86,6 +91,16 @@ public class AdminController {
         model.addAttribute("dir", dir);
         model.addAttribute("userStatuses", java.util.Arrays.asList("true", "false"));
         return "admin/users";
+    }
+
+    @GetMapping("/users/validate-employee")
+    @ResponseBody
+    public Map<String, Boolean> validateEmployee(@RequestParam(value = "code", required = false) String code) {
+        String normalized = normalizeEmployeeCode(code);
+        boolean valid = isValidEmployeeCode(normalized);
+        Map<String, Boolean> result = new LinkedHashMap<String, Boolean>();
+        result.put("valid", valid);
+        return result;
     }
 
     @GetMapping("/roles")
@@ -343,7 +358,12 @@ public class AdminController {
     @PostMapping("/users")
     public String saveUser(@ModelAttribute("userForm") UserForm form,
                            RedirectAttributes redirectAttributes) {
-        String username = form.getUsername() == null ? "" : form.getUsername().trim();
+        String username = normalizeEmployeeCode(form.getUsername());
+        if (!isValidEmployeeCode(username)) {
+            log.warn("Attempt to create user with non-employee username [{}]", form.getUsername());
+            redirectAttributes.addFlashAttribute("error", "Employee not present");
+            return "redirect:/admin/users/new";
+        }
         if (userRepository.existsByUsername(username)) {
             log.warn("Attempt to create duplicate user [{}]", username);
             redirectAttributes.addFlashAttribute("error", "Username already exists.");
@@ -372,7 +392,12 @@ public class AdminController {
                              @ModelAttribute("userForm") UserForm form,
                              RedirectAttributes redirectAttributes) {
         AppUser user = userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("User not found"));
-        String requested = form.getUsername() == null ? "" : form.getUsername().trim();
+        String requested = normalizeEmployeeCode(form.getUsername());
+        if (!isValidEmployeeCode(requested)) {
+            log.warn("Attempt to update user [{}] with non-employee username [{}]", user.getUsername(), form.getUsername());
+            redirectAttributes.addFlashAttribute("error", "Employee not present");
+            return "redirect:/admin/users/" + id + "/edit";
+        }
         if (!requested.isEmpty() && !requested.equalsIgnoreCase(user.getUsername())
                 && userRepository.existsByUsername(requested)) {
             log.warn("Attempt to update user [{}] to duplicate username [{}]", user.getUsername(), requested);
@@ -489,6 +514,25 @@ public class AdminController {
 
         redirectAttributes.addFlashAttribute("success", "Role updated successfully.");
         return "redirect:/admin/roles";
+    }
+
+    private boolean isValidEmployeeCode(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return false;
+        }
+        return employeeRepository.findByEmpCode(username.trim().toUpperCase(Locale.ROOT)).isPresent();
+    }
+
+    private String normalizeEmployeeCode(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        String[] parts = trimmed.split("\\s+");
+        return parts[0].trim().toUpperCase(Locale.ROOT);
     }
 
     private List<String> buildPermissions(UserForm userForm) {

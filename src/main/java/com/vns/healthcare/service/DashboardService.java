@@ -7,6 +7,8 @@ import com.vns.healthcare.repository.CustomerRepository;
 import com.vns.healthcare.repository.EmployeeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ public class DashboardService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "dashboard-stats", key = "'all'")
     public Map<String, Long> stats() {
         log.debug("Generating dashboard statistics");
         Map<String, Long> stats = new HashMap<String, Long>();
@@ -43,5 +46,10 @@ public class DashboardService {
         stats.put("presentToday", attendanceRepository.countByAttendanceDateAndStatus(LocalDate.now(), AttendanceStatus.PRESENT));
         log.debug("Dashboard stats generated: {}", stats);
         return stats;
+    }
+
+    @CacheEvict(value = "dashboard-stats", allEntries = true)
+    public void evictStatsCache() {
+        log.debug("Dashboard stats cache evicted");
     }
 }

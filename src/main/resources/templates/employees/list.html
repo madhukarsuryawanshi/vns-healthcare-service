@@ -10,17 +10,153 @@
         <a class="btn" th:if="${canWriteEmployees}" th:href="@{/employees/new}">Add employee</a>
     </div>
 
-    <form class="search" method="get" th:action="@{/employees}">
-        <input type="text" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" list="employeeSuggestionsList" autocomplete="off"/>
+    <style>
+        #employee-results mark {
+            background: #fff3a0;
+            color: inherit;
+            border-radius: 3px;
+            padding: 0 2px;
+        }
+    </style>
+    <form id="employee-search-form" class="search" method="get" th:action="@{/employees}">
+        <input type="hidden" name="page" value="0"/>
+        <input id="employee-search-input" type="search" name="q" th:value="${q}" placeholder="Name / Mobile / Aadhar / Emp ID" autocomplete="off"/>
         <button class="btn" type="submit">Search</button>
         <a class="btn ghost" th:href="@{/employees}">Clear</a>
+        <span id="employee-search-status" class="sub" style="display:none; font-size:12px; color:var(--muted);">Searching...</span>
     </form>
-    <datalist id="employeeSuggestionsList" th:if="${!employeeSuggestions.isEmpty()}">
-        <option th:each="s : ${employeeSuggestions}" th:value="${s}"></option>
-    </datalist>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const input = document.getElementById('employee-search-input');
+            const status = document.getElementById('employee-search-status');
+            if (!input) return;
 
-    <div class="panel">
-        <table th:if="${!employees.isEmpty()}">
+            let debounceTimer = null;
+            let lastSubmittedValue = (input.value || '').trim();
+
+            function setStatus(show) {
+                if (!status) return;
+                status.style.display = show ? 'inline' : 'none';
+            }
+
+            function fillSuggestions(query) {
+                return;
+            }
+
+            function escapeRegExp(value) {
+                return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            function applyTextHighlight(root) {
+                if (!root) return;
+                const query = (input.value || '').trim();
+                if (!query) {
+                    root.querySelectorAll('mark').forEach(function (element) {
+                        const parent = element.parentNode;
+                        if (parent) {
+                            parent.replaceChild(document.createTextNode(element.textContent), element);
+                        }
+                    });
+                    return;
+                }
+                const regex = new RegExp(escapeRegExp(query), 'ig');
+                root.querySelectorAll('tbody td').forEach(function (cell) {
+                    cell.childNodes.forEach(function (node) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            const text = node.textContent || '';
+                            if (!text || text.toLowerCase().indexOf(query.toLowerCase()) === -1) return;
+                            const fragment = document.createDocumentFragment();
+                            let lastIndex = 0;
+                            let match;
+                            while ((match = regex.exec(text)) !== null) {
+                                if (match.index > lastIndex) {
+                                    fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+                                }
+                                const mark = document.createElement('mark');
+                                mark.textContent = match[0];
+                                fragment.appendChild(mark);
+                                lastIndex = match.index + match[0].length;
+                            }
+                            if (lastIndex < text.length) {
+                                fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+                            }
+                            if (fragment.childNodes.length) {
+                                node.parentNode.replaceChild(fragment, node);
+                            }
+                        }
+                    });
+                });
+            }
+
+            function updateTableWithHtml(htmlText) {
+                const container = document.getElementById('employee-results');
+                if (!container) return;
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlText, 'text/html');
+                const nextTable = doc.querySelector('#employee-results');
+                if (nextTable) {
+                    container.innerHTML = nextTable.innerHTML;
+                    applyTextHighlight(container);
+                    setStatus(false);
+                }
+            }
+
+            function submitLiveSearch() {
+                const form = input.form;
+                if (!form) return;
+                const value = (input.value || '').trim();
+                if (value === lastSubmittedValue) {
+                    return;
+                }
+                lastSubmittedValue = value;
+                setStatus(true);
+
+                const formData = new URLSearchParams(new FormData(form));
+                formData.set('page', '0');
+                formData.set('q', value);
+                const params = formData.toString();
+                const url = form.action + (form.action.indexOf('?') === -1 ? '?' : '&') + params;
+
+                fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (response) { return response.text(); })
+                    .then(function (html) {
+                        updateTableWithHtml(html);
+                    })
+                    .catch(function () {
+                        setStatus(false);
+                        form.submit();
+                    });
+            }
+
+            input.addEventListener('input', function () {
+                const value = (input.value || '').trim();
+                window.clearTimeout(debounceTimer);
+                debounceTimer = window.setTimeout(function () {
+                    fillSuggestions(value);
+                    submitLiveSearch();
+                }, 450);
+            });
+
+            input.addEventListener('focus', function () {
+                const value = (input.value || '').trim();
+                window.clearTimeout(debounceTimer);
+                debounceTimer = window.setTimeout(function () {
+                    fillSuggestions(value);
+                }, 120);
+            });
+
+            const results = document.getElementById('employee-results');
+            if (results) {
+                applyTextHighlight(results);
+            }
+        });
+    </script>
+
+    <div id="employee-results" class="panel">
+        <div class="sub" style="margin-bottom:12px;" th:if="${filteredRecordCount != null}" th:text="${filterSummary} + ': ' + ${filteredRecordCount}">Active records: 10</div>
+        <table th:if="${!employees.isEmpty()}" data-server-paginated="true">
             <thead>
             <tr>
                 <th><a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='empCode', dir=${sort == 'empCode' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Emp ID <span th:if="${sort == 'empCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
@@ -127,16 +263,23 @@
             </tbody>
         </table>
 
-        <div class="panel" th:if="${pagination != null and pagination.totalPages > 1}" style="margin-top:16px; border-top:1px solid var(--line); padding-top:16px; display:none;">
+        <div class="panel" th:if="${pagination != null and pagination.totalPages > 1}" style="margin-top:16px; border-top:1px solid var(--line); padding-top:16px;">
             <div class="search" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                 <div class="sub" th:text="'Page ' + (${pagination.number + 1}) + ' of ' + ${pagination.totalPages}">Page 1 of 1</div>
-                <div class="actions" style="gap:8px;">
-                    <a class="btn ghost small"
-                       th:if="${!pagination.first}"
-                       th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort=${sort}, dir=${dir}, page=${pagination.number - 1}, size=${pageSize})}">Previous</a>
-                    <a class="btn ghost small"
-                       th:if="${!pagination.last}"
-                       th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort=${sort}, dir=${dir}, page=${pagination.number + 1}, size=${pageSize})}">Next</a>
+                <div class="actions" style="gap:8px; flex-wrap:wrap;">
+                    <a class="btn ghost small" th:if="${!pagination.first}" th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort=${sort}, dir=${dir}, page=${pagination.number - 1}, size=${pageSize})}">Previous</a>
+                    <th:block th:with="
+                        totalPages=${pagination.totalPages},
+                        currentPage=${pagination.number},
+                        startPage=${totalPages <= 3 ? 0 : (currentPage <= 1 ? 0 : (currentPage >= totalPages - 2 ? totalPages - 3 : currentPage - 1))},
+                        endPage=${totalPages <= 3 ? totalPages - 1 : (currentPage <= 1 ? 2 : (currentPage >= totalPages - 2 ? totalPages - 1 : currentPage + 1))}">
+                        <a class="btn small"
+                           th:each="p : ${#numbers.sequence(startPage, endPage)}"
+                           th:classappend="${p == currentPage} ? ' secondary' : ' ghost'"
+                           th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort=${sort}, dir=${dir}, page=${p}, size=${pageSize})}"
+                           th:text="${p + 1}">1</a>
+                    </th:block>
+                    <a class="btn ghost small" th:if="${!pagination.last}" th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort=${sort}, dir=${dir}, page=${pagination.number + 1}, size=${pageSize})}">Next</a>
                 </div>
             </div>
         </div>

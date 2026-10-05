@@ -5,15 +5,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class UserActivityService {
+
+    public static final int RETENTION_DAYS = 30;
 
     private static final Logger log = LoggerFactory.getLogger(UserActivityService.class);
 
@@ -49,6 +53,22 @@ public class UserActivityService {
         int safeSize = Math.max(size, 1);
         Pageable pageable = PageRequest.of(safePage, safeSize);
         return userActivityRepository.findAllByOrderByCreatedAtDesc(pageable);
+    }
+
+    @Transactional
+    public int purgeExpiredLogs() {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(RETENTION_DAYS);
+        int deletedCount = userActivityRepository.deleteOlderThan(cutoff);
+        if (deletedCount > 0) {
+            log.info("Deleted {} user activity logs older than {} days", deletedCount, RETENTION_DAYS);
+        }
+        return deletedCount;
+    }
+
+    @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void cleanupExpiredLogs() {
+        purgeExpiredLogs();
     }
 
     @Transactional(readOnly = true)

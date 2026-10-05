@@ -17,171 +17,276 @@
         </div>
     </div>
 
-    <div class="grid-2">
-        <div class="panel">
-            <h3>Personal details</h3>
-            <dl class="dl">
-                <dt>Email</dt>
-                <dd th:text="${employee.email != null and employee.email != '' ? employee.email : '—'}">name@example.com</dd>
-                <dt>Gender</dt>
-                <dd th:text="${employee.gender}">MALE</dd>
-                <dt>Marital status</dt>
-                                <dd th:text="${(employee.maritalStatus != null and employee.maritalStatus != '') ? #strings.capitalize(employee.maritalStatus.toLowerCase()) : '—'}">—</dd>
-                <dt>Languages</dt>
-                <dd th:text="${employee.knownLanguages != null and !employee.knownLanguages.isEmpty()} ? ${#strings.arrayJoin(employee.knownLanguages.toArray(), ', ')} : '—'">—</dd>
-                <dt>Designation</dt>
-                <dd th:text="${employee.designation != null ? #strings.capitalize(#strings.toLowerCase(#strings.replace(employee.designation.name(), '_', ' '))) : '—'}">Care Giver</dd>
-                <dt>Date of birth</dt>
-                <dd th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</dd>
-                <dt>Joining date</dt>
-                <dd th:text="${#temporals.format(employee.joiningDate, 'dd MMM yyyy')}">01 Jan 2026</dd>
-                <dt>Referred by</dt>
-                <dd th:text="${employee.referredBy != null} ? ${employee.referredBy} : '—'">—</dd>
-                <dt>Aadhar</dt>
-                <dd th:text="${employee.aadharNumber}">xxxxxxxxxxxx</dd>
-                <dt>Address</dt>
-                <dd th:text="${employee.fullAddress}">Address</dd>
-                <dt>Status</dt>
-                <dd th:text="${employee.status}">ACTIVE</dd>
-                <dt>No. of experience</dt>
-                <dd th:text="${employee.noOfExperience != null} ? ${employee.noOfExperience} + ' yrs' : '—'">—</dd>
-                <dt>Salary</dt>
-                <dd th:text="${employee.salary != null} ? ${#numbers.formatDecimal(employee.salary, 1, 'COMMA', 2, 'POINT')} : '—'">18,000.00</dd>
-            </dl>
-        </div>
+    <div class="customer-tabs" style="display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 14px; align-items:center; padding:6px; border:1px solid var(--line); border-radius:999px; background:#f8fafc; width:fit-content; max-width:100%;">
+        <button type="button" class="employee-tab active" data-target="personal-tab" style="border:0; background:#0f766e; color:#fff; border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:700; letter-spacing:0.02em; cursor:pointer; box-shadow:0 2px 8px rgba(15,118,110,0.22);">Personal details</button>
+        <button type="button" class="employee-tab" data-target="salary-tab" style="border:0; background:transparent; color:var(--ink); border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:600; cursor:pointer;">Salary paid status</button>
+        <button type="button" class="employee-tab" data-target="training-tab" style="border:0; background:transparent; color:var(--ink); border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:600; cursor:pointer;">Training</button>
+    </div>
 
-        <div class="panel">
-            <h3>Onboarding &amp; salary</h3>
-            <p th:if="${employee.onboarded}">
-                Salary started on
-                <strong th:text="${#temporals.format(employee.salaryStartDate, 'dd MMM yyyy')}">01 Jan 2026</strong>
-                <span th:if="${employee.salary != null}">
-                    · Amount
-                    <strong th:text="${#numbers.formatDecimal(employee.salary, 1, 'COMMA', 2, 'POINT')}">18000</strong>
-                </span>
-            </p>
-            <p th:unless="${employee.onboarded}" class="sub">Not onboarded yet. Record salary start when the employee is placed.</p>
-            <form th:if="${canWriteEmployees and !employee.onboarded}" th:action="@{/employees/{id}/onboard(id=${employee.id})}" method="post" class="form-grid" style="margin-top:12px">
-                <div class="field">
-                    <label>Salary start date</label>
-                    <input type="date" name="salaryStartDate" th:value="${today}"/>
+    <div class="employee-section-panel" id="personal-tab" style="display:block;">
+        <div class="grid-2">
+            <div class="panel">
+                <div style="display:flex; gap:18px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:220px;">
+                        <h3>Personal details</h3>
+                        <dl class="dl">
+                            <dt>Email</dt>
+                            <dd th:text="${employee.email != null and employee.email != '' ? employee.email : '—'}">name@example.com</dd>
+                            <dt>Gender</dt>
+                            <dd th:text="${employee.gender}">MALE</dd>
+                            <dt>Marital status</dt>
+                            <dd th:text="${(employee.maritalStatus != null and employee.maritalStatus != '') ? #strings.capitalize(employee.maritalStatus.toLowerCase()) : '—'}">—</dd>
+                            <dt>Languages</dt>
+                            <dd th:text="${employee.knownLanguages != null and !employee.knownLanguages.isEmpty()} ? ${#strings.arrayJoin(employee.knownLanguages.toArray(), ', ')} : '—'">—</dd>
+                            <dt>Designation</dt>
+                            <dd th:text="${employee.designation != null ? #strings.capitalize(#strings.toLowerCase(#strings.replace(employee.designation.name(), '_', ' '))) : '—'}">Care Giver</dd>
+                            <dt>Date of birth</dt>
+                            <dd th:text="${#temporals.format(employee.dateOfBirth, 'dd MMM yyyy')}">01 Jan 1990</dd>
+                            <dt>Joining date</dt>
+                            <dd th:text="${#temporals.format(employee.joiningDate, 'dd MMM yyyy')}">01 Jan 2026</dd>
+                            <dt>Referred by</dt>
+                            <dd th:text="${employee.referredBy != null} ? ${employee.referredBy} : '—'">—</dd>
+                            <dt>Aadhar</dt>
+                            <dd th:text="${employee.aadharNumber}">xxxxxxxxxxxx</dd>
+                            <dt>Address</dt>
+                            <dd th:text="${employee.fullAddress}">Address</dd>
+                            <dt>Status</dt>
+                            <dd th:text="${employee.status}">ACTIVE</dd>
+                            <dt>No. of experience</dt>
+                            <dd th:text="${employee.noOfExperience != null} ? ${employee.noOfExperience} + ' yrs' : '—'">—</dd>
+                            <dt>Salary</dt>
+                            <dd th:text="${employee.salary != null} ? ${#numbers.formatDecimal(employee.salary, 1, 'COMMA', 2, 'POINT')} : '—'">18,000.00</dd>
+                        </dl>
+                    </div>
+
+                    <div style="width:150px; flex-shrink:0;">
+                        <div style="border:1px solid var(--line); border-radius:14px; background:#f8fafc; padding:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:160px;">
+                            <img th:if="${passportPhoto != null}"
+                                 th:src="@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${passportPhoto.id})}"
+                                 alt="Passport photo"
+                                 style="width:120px; height:150px; object-fit:cover; border-radius:10px; border:1px solid var(--line); background:#fff;"/>
+                            <div th:unless="${passportPhoto != null}"
+                                 style="width:120px; height:150px; border:1px dashed var(--line); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; text-align:center; background:#fff;">
+                                No photo
+                            </div>
+                            <form th:if="${canWriteEmployees and passportPhoto != null}"
+                                  th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${passportPhoto.id})}"
+                                  method="post"
+                                  style="margin:0;">
+                                <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                                <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this passport photo?">Delete photo</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
-                <div class="field" style="align-self:end">
-                    <button class="btn coral" type="submit">Mark onboarded</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="panel" id="salary">
-        <div class="topbar" style="margin-bottom:12px">
-            <h3 style="margin:0">Salary paid status</h3>
-            <form method="get" th:action="@{/employees/{id}(id=${employee.id})}" class="search" style="margin:0">
-                <input type="number" name="year" th:value="${salaryYear}" min="2020" max="2100" style="max-width:100px"/>
-                <button class="btn ghost" type="submit">Year</button>
-            </form>
-        </div>
-        <p class="sub">June / July / August can be Paid while the current month stays In progress until you mark it Paid.</p>
-        <table>
-            <thead>
-            <tr>
-                <th>Month</th>
-                <th>Status</th>
-                <th>Paid on</th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="m : ${salaryMonths}">
-                <td>
-                    <span th:text="${m.label}">June</span>
-                    <span class="badge muted" th:if="${m.currentMonth}">This month</span>
-                </td>
-                <td>
-                    <span class="badge muted" th:if="${m.status == null}">—</span>
-                    <span class="badge ok" th:if="${m.paid}">Paid</span>
-                    <span class="badge warn" th:if="${m.inProgress}">In progress</span>
-                    <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
-                </td>
-                <td th:text="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'dd MMM yyyy')} : '—'">—</td>
-                <td>
-                    <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search" style="margin:0; display:flex; flex-direction:column; gap:6px; align-items:flex-start; width:170px">
-                        <input type="hidden" name="year" th:value="${salaryYear}"/>
-                        <input type="hidden" name="month" th:value="${m.monthValue}"/>
-                        <input type="hidden" name="anchor" value="salary"/>
-                        <select name="status" style="max-width:130px" th:disabled="${m.paid}">
-                            <option value="PAID" th:selected="${m.paid}">Paid</option>
-                            <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
-                            <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
-                        </select>
-                        <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; width:100%" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
-                        <button class="btn secondary" type="submit" th:disabled="${m.paid}">Save</button>
-                    </form>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="panel">
-        <h3>Training (manual)</h3>
-        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/training(id=${employee.id})}" method="post" class="form-grid">
-            <div class="field">
-                <label>Training status</label>
-                <select name="trainingStatus">
-                    <option th:each="s : ${trainingStatuses}" th:value="${s}" th:text="${s}" th:selected="${s == employee.trainingStatus}">NOT_STARTED</option>
-                </select>
             </div>
-            <div class="field full">
-                <label>Notes</label>
-                <textarea name="trainingNotes" rows="3" th:text="${employee.trainingNotes}"></textarea>
-            </div>
-            <div class="field">
-                <button class="btn" type="submit">Save training</button>
-            </div>
-        </form>
-    </div>
 
-    <div class="panel">
-        <h3>Documents</h3>
-        <div class="form-grid" style="margin-bottom:12px">
-            <div class="field full">
-                <label>Passport size photo (PNG / JPG)</label>
-                <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/photo(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:0;">
-                    <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-                    <input type="file" name="photo" accept="image/png,image/jpeg" style="margin:0;"/>
-                    <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload passport photo</button>
+            <div class="panel">
+                <h3>Onboarding &amp; salary</h3>
+                <p th:if="${employee.onboarded}">
+                    Salary started on
+                    <strong th:text="${#temporals.format(employee.salaryStartDate, 'dd MMM yyyy')}">01 Jan 2026</strong>
+                    <span th:if="${employee.salary != null}">
+                        · Amount
+                        <strong th:text="${#numbers.formatDecimal(employee.salary, 1, 'COMMA', 2, 'POINT')}">18000</strong>
+                    </span>
+                </p>
+                <p th:unless="${employee.onboarded}" class="sub">Not onboarded yet. Record salary start when the employee is placed.</p>
+                <form th:if="${canWriteEmployees and !employee.onboarded}" th:action="@{/employees/{id}/onboard(id=${employee.id})}" method="post" class="form-grid" style="margin-top:12px">
+                    <div class="field">
+                        <label>Salary start date</label>
+                        <input type="date" name="salaryStartDate" th:value="${today}"/>
+                    </div>
+                    <div class="field" style="align-self:end">
+                        <button class="btn coral" type="submit">Mark onboarded</button>
+                    </div>
                 </form>
-                <div th:if="${passportPhoto != null}" style="margin-top:10px">
-                    <img th:src="@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${passportPhoto.id})}" alt="Passport photo" style="width:120px; height:150px; object-fit:cover; border:1px solid var(--line); border-radius:10px; background:#f7f7f7;"/>
-                </div>
             </div>
         </div>
-        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
-            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-            <input type="file" name="documents" multiple style="margin:0;"/>
-            <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload</button>
-        </form>
-        <table th:if="${!documentsForDisplay.isEmpty()}">
-            <thead>
-            <tr><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr>
-            </thead>
-            <tbody>
-            <tr th:each="d : ${documentsForDisplay}">
-                <td th:text="${d.originalFilename}">file.pdf</td>
-                <td th:text="${d.fileSize}">0</td>
-                <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
-                <td style="display:flex; gap:8px; align-items:center">
-                    <a href="#" th:attr="data-preview-url=@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${d.id})}" class="btn ghost small">View</a>
-                    <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${d.id})}" method="post" style="margin:0">
+
+        <div class="panel" style="margin-top:18px;">
+            <h3>Documents</h3>
+            <div class="form-grid" style="margin-bottom:12px">
+                <div class="field full">
+                    <label>Passport size photo (PNG / JPG)</label>
+                    <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/photo(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:0;">
                         <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-                        <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
+                        <input type="file" name="photo" accept="image/png,image/jpeg" required style="margin:0;"/>
+                        <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload passport photo</button>
                     </form>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        <p class="empty" th:if="${documentsForDisplay.isEmpty()}">No documents uploaded.</p>
+                </div>
+            </div>
+            <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                <input type="file" name="documents" multiple required style="margin:0;"/>
+                <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload</button>
+            </form>
+            <table th:if="${!documentsForDisplay.isEmpty()}">
+                <thead>
+                <tr><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="d : ${documentsForDisplay}">
+                    <td th:text="${d.originalFilename}">file.pdf</td>
+                    <td th:text="${d.fileSize}">0</td>
+                    <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
+                    <td style="display:flex; gap:8px; align-items:center">
+                        <a href="#" th:attr="data-preview-url=@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${d.id})}" class="btn ghost small">View</a>
+                        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${d.id})}" method="post" style="margin:0">
+                            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                            <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="empty" th:if="${documentsForDisplay.isEmpty()}">No documents uploaded.</p>
+        </div>
     </div>
+
+    <div class="employee-section-panel" id="salary-tab" style="display:none;">
+        <div class="panel" id="salary">
+            <div class="topbar" style="margin-bottom:12px">
+                <h3 style="margin:0">Salary paid status</h3>
+                <form method="get" th:action="@{/employees/{id}(id=${employee.id})}" class="search" style="margin:0">
+                    <input type="number" name="year" th:value="${salaryYear}" min="2020" max="2100" style="max-width:100px"/>
+                    <button class="btn ghost" type="submit">Year</button>
+                </form>
+            </div>
+            <p class="sub">June / July / August can be Paid while the current month stays In progress until you mark it Paid.</p>
+            <table>
+                <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Status</th>
+                    <th>Paid on</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="m : ${salaryMonths}">
+                    <td>
+                        <span th:text="${m.label}">June</span>
+                        <span class="badge muted" th:if="${m.currentMonth}">This month</span>
+                    </td>
+                    <td>
+                        <span class="badge muted" th:if="${m.status == null}">—</span>
+                        <span class="badge ok" th:if="${m.paid}">Paid</span>
+                        <span class="badge warn" th:if="${m.inProgress}">In progress</span>
+                        <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
+                    </td>
+                    <td th:text="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'dd MMM yyyy')} : '—'">—</td>
+                    <td>
+                        <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search" style="margin:0; display:flex; flex-direction:column; gap:6px; align-items:flex-start; width:170px">
+                            <input type="hidden" name="year" th:value="${salaryYear}"/>
+                            <input type="hidden" name="month" th:value="${m.monthValue}"/>
+                            <input type="hidden" name="anchor" value="salary-tab"/>
+                            <select name="status" style="max-width:130px" th:disabled="${m.paid}">
+                                <option value="PAID" th:selected="${m.paid}">Paid</option>
+                                <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
+                                <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
+                            </select>
+                            <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; width:100%" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
+                            <button class="btn secondary" type="submit" th:disabled="${m.paid}">Save</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="employee-section-panel" id="training-tab" style="display:none;">
+        <div class="panel">
+            <h3>Training (manual)</h3>
+            <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/training(id=${employee.id})}" method="post" class="form-grid">
+                <input type="hidden" name="anchor" value="training-tab"/>
+                <div class="field">
+                    <label>Training status</label>
+                    <select name="trainingStatus">
+                        <option th:each="s : ${trainingStatuses}" th:value="${s}" th:text="${s}" th:selected="${s == employee.trainingStatus}">NOT_STARTED</option>
+                    </select>
+                </div>
+                <div class="field full">
+                    <label>Notes</label>
+                    <textarea name="trainingNotes" rows="3" th:text="${employee.trainingNotes}"></textarea>
+                </div>
+                <div class="field">
+                    <button class="btn" type="submit">Save training</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="employee-section-panel" id="documents-tab" style="display:none;">
+        <div class="panel">
+            <h3>Documents</h3>
+            <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                <input type="file" name="documents" multiple style="margin:0;"/>
+                <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload</button>
+            </form>
+            <table th:if="${!documentsForDisplay.isEmpty()}">
+                <thead>
+                <tr><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="d : ${documentsForDisplay}">
+                    <td th:text="${d.originalFilename}">file.pdf</td>
+                    <td th:text="${d.fileSize}">0</td>
+                    <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
+                    <td style="display:flex; gap:8px; align-items:center">
+                        <a href="#" th:attr="data-preview-url=@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${d.id})}" class="btn ghost small">View</a>
+                        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${d.id})}" method="post" style="margin:0">
+                            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                            <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="empty" th:if="${documentsForDisplay.isEmpty()}">No documents uploaded.</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var tabButtons = document.querySelectorAll('.employee-tab');
+            var tabSections = document.querySelectorAll('.employee-section-panel');
+
+            function applyTab(targetId) {
+                if (!targetId) {
+                    targetId = 'personal-tab';
+                }
+                tabButtons.forEach(function (tab) {
+                    var isActive = tab.getAttribute('data-target') === targetId;
+                    tab.classList.toggle('active', isActive);
+                    tab.style.background = isActive ? '#0f766e' : 'transparent';
+                    tab.style.color = isActive ? '#fff' : 'var(--ink)';
+                    tab.style.boxShadow = isActive ? '0 2px 8px rgba(15,118,110,0.22)' : 'none';
+                    tab.style.fontWeight = isActive ? '700' : '600';
+                });
+                tabSections.forEach(function (section) {
+                    section.style.display = section.id === targetId ? 'block' : 'none';
+                });
+                if (window.history && window.history.replaceState) {
+                    var hash = '#' + targetId;
+                    if (window.location.hash !== hash) {
+                        window.history.replaceState(null, '', hash);
+                    }
+                }
+            }
+
+            tabButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var targetId = button.getAttribute('data-target');
+                    applyTab(targetId);
+                });
+            });
+
+            var initialTarget = window.location.hash ? window.location.hash.substring(1) : 'personal-tab';
+            applyTab(document.querySelector('.employee-tab[data-target="' + initialTarget + '"]') ? initialTarget : 'personal-tab');
+        });
+    </script>
 </section>
 </html>
