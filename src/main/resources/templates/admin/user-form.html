@@ -19,16 +19,110 @@
                 </datalist>
                 <script>
                     (function () {
+                        var validationUrl = /*[[ @{/admin/users/validate-employee} ]]*/ '/admin/users/validate-employee';
                         var input = document.getElementById('username');
-                        if (!input) return;
-                        input.addEventListener('change', function () {
-                            var v = input.value || '';
-                            // if selected value begins with EMP- we extract the emp id
-                            var m = v.match(/^(EMP-\d+)/i);
-                            if (m && m[1]) {
-                                input.value = m[1].toUpperCase();
+                        var form = input && input.form;
+                        var validationTimer = null;
+                        var lastRequestToken = 0;
+
+                        function normalizeValue(value) {
+                            var v = (value || '').trim();
+                            var match = v.match(/^(EMP-\d+)/i);
+                            if (match && match[1]) {
+                                return match[1].toUpperCase();
                             }
+                            return v.toUpperCase();
+                        }
+
+                        function clearValidationState() {
+                            if (!input) return;
+                            input.setCustomValidity('');
+                        }
+
+                        function validateUsername() {
+                            if (!input) return true;
+                            var value = normalizeValue(input.value);
+                            if (!value) {
+                                clearValidationState();
+                                return true;
+                            }
+                            input.value = value;
+                            var requestToken = ++lastRequestToken;
+                            fetch(validationUrl + '?code=' + encodeURIComponent(value), {
+                                method: 'GET',
+                                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                            })
+                            .then(function (response) {
+                                if (!response.ok) {
+                                    throw new Error('Validation request failed');
+                                }
+                                return response.json();
+                            })
+                            .then(function (data) {
+                                if (requestToken !== lastRequestToken) {
+                                    return;
+                                }
+                                var valid = !!(data && data.valid);
+                                if (valid) {
+                                    input.setCustomValidity('');
+                                    return;
+                                }
+                                input.setCustomValidity('Employee not present');
+                            })
+                            .catch(function () {
+                                if (requestToken !== lastRequestToken) {
+                                    return;
+                                }
+                                input.setCustomValidity('Employee not present');
+                            });
+                            return false;
+                        }
+
+                        input.addEventListener('input', function () {
+                            var normalized = normalizeValue(input.value);
+                            if (normalized) {
+                                input.value = normalized;
+                            }
+                            clearValidationState();
+                            if (validationTimer) {
+                                clearTimeout(validationTimer);
+                            }
+                            if (!normalized) {
+                                return;
+                            }
+                            validationTimer = setTimeout(function () {
+                                validateUsername();
+                            }, 250);
                         });
+
+                        input.addEventListener('change', function () {
+                            var normalized = normalizeValue(input.value);
+                            if (normalized) {
+                                input.value = normalized;
+                            }
+                            if (!normalized) {
+                                clearValidationState();
+                                return;
+                            }
+                            validateUsername();
+                        });
+
+                        if (form) {
+                            form.addEventListener('submit', function (event) {
+                                var normalized = normalizeValue(input.value);
+                                if (normalized) {
+                                    input.value = normalized;
+                                }
+                                if (!normalized) {
+                                    clearValidationState();
+                                    return;
+                                }
+                                var isValid = input.checkValidity();
+                                if (!isValid) {
+                                    event.preventDefault();
+                                }
+                            });
+                        }
                     })();
                 </script>
             </div>

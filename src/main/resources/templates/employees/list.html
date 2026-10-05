@@ -268,11 +268,17 @@
                 <div class="sub" th:text="'Page ' + (${pagination.number + 1}) + ' of ' + ${pagination.totalPages}">Page 1 of 1</div>
                 <div class="actions" style="gap:8px; flex-wrap:wrap;">
                     <a class="btn ghost small" th:if="${!pagination.first}" th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort=${sort}, dir=${dir}, page=${pagination.number - 1}, size=${pageSize})}">Previous</a>
-                    <a class="btn small"
-                       th:each="p : ${#numbers.sequence(0, pagination.totalPages - 1)}"
-                       th:classappend="${p == pagination.number} ? ' secondary' : ' ghost'"
-                       th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort=${sort}, dir=${dir}, page=${p}, size=${pageSize})}"
-                       th:text="${p + 1}">1</a>
+                    <th:block th:with="
+                        totalPages=${pagination.totalPages},
+                        currentPage=${pagination.number},
+                        startPage=${totalPages <= 3 ? 0 : (currentPage <= 1 ? 0 : (currentPage >= totalPages - 2 ? totalPages - 3 : currentPage - 1))},
+                        endPage=${totalPages <= 3 ? totalPages - 1 : (currentPage <= 1 ? 2 : (currentPage >= totalPages - 2 ? totalPages - 1 : currentPage + 1))}">
+                        <a class="btn small"
+                           th:each="p : ${#numbers.sequence(startPage, endPage)}"
+                           th:classappend="${p == currentPage} ? ' secondary' : ' ghost'"
+                           th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort=${sort}, dir=${dir}, page=${p}, size=${pageSize})}"
+                           th:text="${p + 1}">1</a>
+                    </th:block>
                     <a class="btn ghost small" th:if="${!pagination.last}" th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort=${sort}, dir=${dir}, page=${pagination.number + 1}, size=${pageSize})}">Next</a>
                 </div>
             </div>
