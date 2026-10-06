@@ -1,7 +1,7 @@
 package com.vns.healthcare.entity;
 
-import javax.persistence.Column;
-import javax.persistence.MappedSuperclass;
+import jakarta.persistence.Column;
+import jakarta.persistence.MappedSuperclass;
 
 @MappedSuperclass
 public abstract class AuditableEntity {
@@ -28,3 +28,4 @@ public abstract class AuditableEntity {
         this.updatedBy = updatedBy;
     }
 }
+

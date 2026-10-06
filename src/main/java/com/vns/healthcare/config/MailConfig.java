@@ -11,7 +11,7 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessagePreparator;
 import org.springframework.util.StringUtils;
 
-import javax.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMessage;
 import java.io.InputStream;
 import java.util.Properties;
 
@@ -90,3 +90,4 @@ public class MailConfig {
         }
     }
 }
+

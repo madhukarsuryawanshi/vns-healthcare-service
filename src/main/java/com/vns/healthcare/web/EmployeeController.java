@@ -38,7 +38,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -752,3 +752,4 @@ public class EmployeeController {
         return form;
     }
 }
+

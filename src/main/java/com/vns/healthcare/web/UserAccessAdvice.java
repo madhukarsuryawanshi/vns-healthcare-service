@@ -6,7 +6,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSession;
 import java.util.Collection;
 
 @ControllerAdvice
@@ -87,3 +87,4 @@ public class UserAccessAdvice {
                 .anyMatch(a -> ("ROLE_" + role).equalsIgnoreCase(a.getAuthority()));
     }
 }
+

@@ -1,10 +1,10 @@
 package com.vns.healthcare.entity;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.EntityListeners;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @EntityListeners(AuditEntityListener.class)
@@ -34,3 +34,4 @@ public class AppSequence extends AuditableEntity {
         this.nextValue = nextValue;
     }
 }
+
