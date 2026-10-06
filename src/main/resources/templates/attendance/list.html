@@ -12,10 +12,10 @@
     <div class="attendance-control-area">
         <div class="attendance-action-strip">
             <div class="attendance-toolbar attendance-toolbar-rows">
-                <form method="get" th:action="@{/attendance}" class="attendance-toolbar-form">
+                <form method="get" th:action="@{/attendance}" class="attendance-toolbar-form" id="attendance-rows-form">
                     <label class="attendance-rows-label" style="display:flex; align-items:center; gap:8px; margin:0; color:var(--muted); font-size:13px;">
                         <span>ROWS</span>
-                        <select name="size" style="width:88px; min-width:88px;">
+                        <select name="size" id="attendance-size-select" style="width:88px; min-width:88px;">
                             <option value="10" th:selected="${pageSize == 10}">10</option>
                             <option value="25" th:selected="${pageSize == 25}">25</option>
                             <option value="50" th:selected="${pageSize == 50}">50</option>
@@ -76,7 +76,7 @@
     </div>
     <div th:if="${!employees.isEmpty()}">
         <div class="attendance-panel">
-            <div class="data-table-shell attendance-table-shell">
+            <div id="attendance-results" class="data-table-shell attendance-table-shell">
                 <table class="attendance-table">
                 <thead>
                 <tr>
@@ -123,17 +123,17 @@
                 <div class="data-table-controls attendance-controls">
                     <div class="attendance-page-summary" th:text="|Showing ${#lists.size(employees) == 0 ? 0 : ((pageNumber * pageSize) + 1)}-${#lists.size(employees) == 0 ? 0 : ((pageNumber * pageSize) + #lists.size(employees))} of ${totalElements}|">Showing 0-0 of 0</div>
                     <div class="attendance-pagination" aria-label="Attendance pagination">
-                        <a th:if="${pageNumber > 0}" class="page-btn" th:href="@{/attendance(date=${date}, page=${pageNumber - 1}, size=${pageSize})}">Prev</a>
+                        <a th:if="${pageNumber > 0}" class="page-btn js-page-link" th:href="@{/attendance(date=${date}, page=${pageNumber - 1}, size=${pageSize})}">Prev</a>
                         <th:block th:with="
                             currentPage=${pageNumber},
                             startPage=${totalPages <= 3 ? 0 : (currentPage <= 1 ? 0 : (currentPage >= totalPages - 2 ? totalPages - 3 : currentPage - 1))},
                             endPage=${totalPages <= 3 ? totalPages - 1 : (currentPage <= 1 ? 2 : (currentPage >= totalPages - 2 ? totalPages - 1 : currentPage + 1))}">
                             <span th:each="p : ${#numbers.sequence(startPage, endPage)}">
-                                <a th:if="${p == currentPage}" class="page-btn active" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
-                                <a th:if="${p != currentPage}" class="page-btn" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
+                               <a th:if="${p == currentPage}" class="page-btn active js-page-link" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
+                               <a th:if="${p != currentPage}" class="page-btn js-page-link" th:href="@{/attendance(date=${date}, page=${p}, size=${pageSize})}" th:text="${p + 1}">1</a>
                             </span>
                         </th:block>
-                        <a th:if="${pageNumber + 1 < totalPages}" class="page-btn" th:href="@{/attendance(date=${date}, page=${pageNumber + 1}, size=${pageSize})}">Next</a>
+                        <a th:if="${pageNumber + 1 < totalPages}" class="page-btn js-page-link" th:href="@{/attendance(date=${date}, page=${pageNumber + 1}, size=${pageSize})}">Next</a>
                     </div>
                 </div>
             </div>
@@ -285,46 +285,101 @@
             });
         }
 
-        document.querySelectorAll('.attendance-status-select').forEach(function (select) {
-            select.addEventListener('change', function () {
-                var value = this.value;
-                if (!value) return;
-                var row = this.closest('tr');
-                if (!row) return;
-                var payload = serializeRow(row);
-                fetch('/attendance/bulk', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    },
-                    body: payload.toString()
-                }).then(function (response) {
-                    if (response.ok) {
-                        showSavedFlash();
-                        if (summaryDate) {
-                            refreshSummary(summaryDate);
-                        }
-                    }
-                }).catch(function () {});
-            });
-        });
-
-        document.querySelectorAll('.save-row-btn').forEach(function (button) {
-            button.addEventListener('click', function () {
-                var row = this.closest('tr');
-                if (!row) return;
-                saveRow(row)
-                .then(function () {
+        function handleStatusChange(event) {
+            var select = event.target.closest('.attendance-status-select');
+            if (!select) return;
+            var value = select.value;
+            if (!value) return;
+            var row = select.closest('tr');
+            if (!row) return;
+            var payload = serializeRow(row);
+            fetch('/attendance/bulk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: payload.toString()
+            }).then(function (response) {
+                if (response.ok) {
                     showSavedFlash();
                     if (summaryDate) {
                         refreshSummary(summaryDate);
                     }
-                })
-                .catch(function () {});
-            });
+                }
+            }).catch(function () {});
+        }
+
+        document.addEventListener('change', function (event) {
+            if (event.target && event.target.matches && event.target.matches('.attendance-status-select')) {
+                handleStatusChange(event);
+            }
         });
+
+        function handleSaveRowClick(event) {
+            var button = event.target.closest('.save-row-btn');
+            if (!button) return;
+            var row = button.closest('tr');
+            if (!row) return;
+            saveRow(row)
+            .then(function () {
+                showSavedFlash();
+                if (summaryDate) {
+                    refreshSummary(summaryDate);
+                }
+            })
+            .catch(function () {});
+        }
+
+        document.addEventListener('click', function (event) {
+            if (event.target && event.target.closest && event.target.closest('.save-row-btn')) {
+                handleSaveRowClick(event);
+            }
+        });
+
+        function refreshAttendanceTable(url) {
+            var target = document.getElementById('attendance-results');
+            if (!target) return;
+
+            fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (response) { return response.text(); })
+                .then(function (html) {
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(html, 'text/html');
+                    var next = doc.querySelector('#attendance-results');
+                    if (next) {
+                        target.innerHTML = next.innerHTML;
+                        if (window.history && window.history.pushState) {
+                            window.history.pushState({}, '', url);
+                        }
+                    }
+                })
+                .catch(function () {
+                    window.location.href = url;
+                });
+        }
+
+        document.addEventListener('click', function (event) {
+            var link = event.target.closest('a.js-page-link');
+            if (!link) return;
+
+            event.preventDefault();
+            refreshAttendanceTable(link.href);
+        });
+
+        var rowsForm = document.getElementById('attendance-rows-form');
+        if (rowsForm) {
+            rowsForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                var formData = new FormData(rowsForm);
+                var params = new URLSearchParams(formData);
+                var url = rowsForm.action + (rowsForm.action.indexOf('?') === -1 ? '?' : '&') + params.toString();
+                refreshAttendanceTable(url);
+            });
+        }
 
     })();
 </script>

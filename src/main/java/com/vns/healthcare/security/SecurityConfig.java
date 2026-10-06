@@ -1,23 +1,23 @@
 package com.vns.healthcare.security;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
+@EnableMethodSecurity(prePostEnabled = true)
+public class SecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
@@ -39,6 +39,14 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
+    public DaoAuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
+    }
+
+    @Bean
     public AccessDeniedHandler accessDeniedHandler() {
         return (request, response, accessDeniedException) -> {
             String user = request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous";
@@ -53,47 +61,39 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         };
     }
 
-    @Override
-    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
-    }
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.addFilterAfter(noCacheFilter, UsernamePasswordAuthenticationFilter.class);
 
         http
-                .headers()
-                    .frameOptions().sameOrigin()
-                    .and()
-                .authorizeRequests()
-                    .antMatchers("/login", "/forgot-password", "/reset-password", "/css/**", "/js/**").permitAll()
-                    .antMatchers("/admin/**").hasRole("ADMIN")
-                    .anyRequest().authenticated()
-                    .and()
-                .exceptionHandling()
-                    .accessDeniedHandler(accessDeniedHandler())
-                    .and()
-                .formLogin()
-                    .loginPage("/login")
-                    .successHandler((request, response, authentication) -> {
-                        userActivityService.log(authentication.getName(), "LOGIN", "SESSION", null,
-                                "User logged in to the system", request.getRemoteAddr());
-                        response.sendRedirect(request.getContextPath() + "/");
-                    })
-                    .permitAll()
-                    .and()
-                .logout()
-                    .logoutSuccessHandler((request, response, authentication) -> {
-                        if (authentication != null) {
-                            userActivityService.log(authentication.getName(), "LOGOUT", "SESSION", null,
-                                    "User logged out of the system", request.getRemoteAddr());
-                        }
-                        response.sendRedirect(request.getContextPath() + "/login?logout");
-                    })
-                    .invalidateHttpSession(true)
-                    .clearAuthentication(true)
-                    .deleteCookies("JSESSIONID")
-                    .permitAll();
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/login", "/forgot-password", "/reset-password", "/css/**", "/js/**").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .anyRequest().authenticated())
+                .exceptionHandling(ex -> ex.accessDeniedHandler(accessDeniedHandler()))
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .successHandler((request, response, authentication) -> {
+                           userActivityService.log(authentication.getName(), "LOGIN", "SESSION", null,
+                                   "User logged in to the system", request.getRemoteAddr());
+                           response.sendRedirect(request.getContextPath() + "/");
+                        })
+                        .permitAll())
+                .logout(logout -> logout
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                           if (authentication != null) {
+                               userActivityService.log(authentication.getName(), "LOGOUT", "SESSION", null,
+                                       "User logged out of the system", request.getRemoteAddr());
+                           }
+                           response.sendRedirect(request.getContextPath() + "/login?logout");
+                        })
+                        .invalidateHttpSession(true)
+                        .clearAuthentication(true)
+                        .deleteCookies("JSESSIONID")
+                        .permitAll());
+
+        return http.build();
     }
 }
+

@@ -161,7 +161,7 @@ public class AttendanceController {
                                @RequestParam(required = false) String notes,
                                @RequestParam Map<String, String> params,
                                RedirectAttributes redirectAttributes,
-                               javax.servlet.http.HttpServletRequest request) {
+                               jakarta.servlet.http.HttpServletRequest request) {
         Map<LocalDate, AttendanceStatus> statuses = new LinkedHashMap<LocalDate, AttendanceStatus>();
         LocalDate monthStart = month.withDayOfMonth(1);
         for (LocalDate day : getDaysInMonth(monthStart)) {
@@ -201,7 +201,7 @@ public class AttendanceController {
                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime checkInTime,
                        @RequestParam(required = false) String notes,
                        RedirectAttributes redirectAttributes,
-                       javax.servlet.http.HttpServletRequest request) {
+                       jakarta.servlet.http.HttpServletRequest request) {
         attendanceService.mark(employeeId, date, status, checkInTime, notes);
         // If AJAX (fetch) request, return 200 OK without redirect
         String xrw = request.getHeader("X-Requested-With");

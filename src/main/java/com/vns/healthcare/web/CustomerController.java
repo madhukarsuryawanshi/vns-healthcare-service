@@ -45,7 +45,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -163,8 +163,6 @@ public class CustomerController {
             customerPage = customerService.listPage(pageable);
         }
 
-        refreshCurrentAssignedEmployees(customerPage.getContent());
-
         java.util.List<String> customerSuggestions = java.util.Collections.emptyList();
         if (query != null && !query.trim().isEmpty()) {
             customerSuggestions = customerService.search(query.trim(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
@@ -197,18 +195,6 @@ public class CustomerController {
         model.addAttribute("reportTo", today);
         model.addAttribute("customerSuggestions", customerSuggestions);
         return "customers/list";
-    }
-
-    private void refreshCurrentAssignedEmployees(List<Customer> customers) {
-        if (customers == null || customers.isEmpty()) {
-            return;
-        }
-        for (Customer customer : customers) {
-            if (customer == null) {
-                continue;
-            }
-            customer.setAssignedEmployee(dutyService.resolveCurrentAssignedEmployee(customer));
-        }
     }
 
     private String buildFilterSummary(String query, String status) {
@@ -866,3 +852,4 @@ public class CustomerController {
         return form;
     }
 }
+

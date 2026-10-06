@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 import java.util.Optional;
 
@@ -204,3 +204,4 @@ public class AuthController {
         session.removeAttribute("resetOtpIssuedAt");
     }
 }
+

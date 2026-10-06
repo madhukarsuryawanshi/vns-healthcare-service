@@ -354,7 +354,8 @@ public class EmployeeService {
     @Transactional
     @CacheEvict(value = {"employee-lists", "employee-pages", "employee-active", "employeeById"}, allEntries = true)
     public void resign(Long id) {
-        Employee employee = get(id);
+        Employee employee = employeeRepository.findWithDocuments(id)
+                .orElseThrow(() -> new BusinessException("Employee not found"));
         log.info("Resigning employee id [{}] [{}]", id, employee.getFullName());
 
         List<CustomerDuty> duties = customerDutyRepository.findByEmployeeId(id);
