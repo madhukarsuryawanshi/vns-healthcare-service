@@ -17,7 +17,7 @@
         </div>
     </div>
 
-    <div class="customer-tabs" style="display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 14px; align-items:center; padding:6px; border:1px solid var(--line); border-radius:999px; background:#f8fafc; width:fit-content; max-width:100%;">
+    <div class="employee-tabs" style="display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 14px; align-items:center; padding:6px; border:1px solid var(--line); border-radius:999px; background:#f8fafc; width:fit-content; max-width:100%;">
         <button type="button" class="employee-tab active" data-target="personal-tab" style="border:0; background:#0f766e; color:#fff; border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:700; letter-spacing:0.02em; cursor:pointer; box-shadow:0 2px 8px rgba(15,118,110,0.22);">Personal details</button>
         <button type="button" class="employee-tab" data-target="salary-tab" style="border:0; background:transparent; color:var(--ink); border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:600; cursor:pointer;">Salary paid status</button>
         <button type="button" class="employee-tab" data-target="training-tab" style="border:0; background:transparent; color:var(--ink); border-radius:999px; padding:9px 14px; font-size:0.82rem; font-weight:600; cursor:pointer;">Training</button>
@@ -72,6 +72,8 @@
                             <form th:if="${canWriteEmployees and passportPhoto != null}"
                                   th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${passportPhoto.id})}"
                                   method="post"
+                                  class="ajax-delete-form"
+                                  data-refresh-target="personal-tab"
                                   style="margin:0;">
                                 <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
                                 <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this passport photo?">Delete photo</button>
@@ -109,14 +111,14 @@
             <div class="form-grid" style="margin-bottom:12px">
                 <div class="field full">
                     <label>Passport size photo (PNG / JPG)</label>
-                    <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/photo(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:0;">
+                    <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/photo(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search ajax-upload-form" data-refresh-target="personal-tab" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:0;">
                         <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
                         <input type="file" name="photo" accept="image/png,image/jpeg" required style="margin:0;"/>
                         <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload passport photo</button>
                     </form>
                 </div>
             </div>
-            <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+            <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search ajax-upload-form" data-refresh-target="personal-tab" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
                 <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
                 <input type="file" name="documents" multiple required style="margin:0;"/>
                 <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload</button>
@@ -132,7 +134,7 @@
                     <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
                     <td style="display:flex; gap:8px; align-items:center">
                         <a href="#" th:attr="data-preview-url=@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${d.id})}" class="btn ghost small">View</a>
-                        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${d.id})}" method="post" style="margin:0">
+                        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${d.id})}" method="post" class="ajax-delete-form" data-refresh-target="personal-tab" style="margin:0">
                             <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
                             <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
                         </form>
@@ -145,54 +147,8 @@
     </div>
 
     <div class="employee-section-panel" id="salary-tab" style="display:none;">
-        <div class="panel" id="salary">
-            <div class="topbar" style="margin-bottom:12px">
-                <h3 style="margin:0">Salary paid status</h3>
-                <form method="get" th:action="@{/employees/{id}(id=${employee.id})}" class="search" style="margin:0">
-                    <input type="number" name="year" th:value="${salaryYear}" min="2020" max="2100" style="max-width:100px"/>
-                    <button class="btn ghost" type="submit">Year</button>
-                </form>
-            </div>
-            <p class="sub">June / July / August can be Paid while the current month stays In progress until you mark it Paid.</p>
-            <table>
-                <thead>
-                <tr>
-                    <th>Month</th>
-                    <th>Status</th>
-                    <th>Paid on</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="m : ${salaryMonths}">
-                    <td>
-                        <span th:text="${m.label}">June</span>
-                        <span class="badge muted" th:if="${m.currentMonth}">This month</span>
-                    </td>
-                    <td>
-                        <span class="badge muted" th:if="${m.status == null}">—</span>
-                        <span class="badge ok" th:if="${m.paid}">Paid</span>
-                        <span class="badge warn" th:if="${m.inProgress}">In progress</span>
-                        <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
-                    </td>
-                    <td th:text="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'dd MMM yyyy')} : '—'">—</td>
-                    <td>
-                        <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search" style="margin:0; display:flex; flex-direction:column; gap:6px; align-items:flex-start; width:170px">
-                            <input type="hidden" name="year" th:value="${salaryYear}"/>
-                            <input type="hidden" name="month" th:value="${m.monthValue}"/>
-                            <input type="hidden" name="anchor" value="salary-tab"/>
-                            <select name="status" style="max-width:130px" th:disabled="${m.paid}">
-                                <option value="PAID" th:selected="${m.paid}">Paid</option>
-                                <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
-                                <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
-                            </select>
-                            <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; width:100%" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
-                            <button class="btn secondary" type="submit" th:disabled="${m.paid}">Save</button>
-                        </form>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+        <div class="panel" id="salary-fragment-root">
+            <p class="sub">Loading salary details...</p>
         </div>
     </div>
 
@@ -218,41 +174,127 @@
         </div>
     </div>
 
-    <div class="employee-section-panel" id="documents-tab" style="display:none;">
-        <div class="panel">
-            <h3>Documents</h3>
-            <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
-                <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-                <input type="file" name="documents" multiple style="margin:0;"/>
-                <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload</button>
-            </form>
-            <table th:if="${!documentsForDisplay.isEmpty()}">
-                <thead>
-                <tr><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr>
-                </thead>
-                <tbody>
-                <tr th:each="d : ${documentsForDisplay}">
-                    <td th:text="${d.originalFilename}">file.pdf</td>
-                    <td th:text="${d.fileSize}">0</td>
-                    <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
-                    <td style="display:flex; gap:8px; align-items:center">
-                        <a href="#" th:attr="data-preview-url=@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${d.id})}" class="btn ghost small">View</a>
-                        <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${d.id})}" method="post" style="margin:0">
-                            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
-                            <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-            <p class="empty" th:if="${documentsForDisplay.isEmpty()}">No documents uploaded.</p>
-        </div>
-    </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            function bindAjaxUploadForms() {
+                document.querySelectorAll('.ajax-upload-form').forEach(function (form) {
+                    if (form.dataset.bound === 'true') {
+                        return;
+                    }
+                    form.dataset.bound = 'true';
+                    form.addEventListener('submit', function (event) {
+                        event.preventDefault();
+                        var targetId = form.getAttribute('data-refresh-target');
+                        if (!targetId) {
+                            form.submit();
+                            return;
+                        }
+                        var submitButton = form.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                        }
+                        fetch(form.action, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        }).then(function (response) {
+                            if (!response.ok) {
+                                throw new Error('Upload failed');
+                            }
+                            return response.text();
+                        }).then(function (html) {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var replacement = doc.getElementById(targetId);
+                            var currentPanel = document.getElementById(targetId);
+                            if (replacement && currentPanel) {
+                                currentPanel.innerHTML = replacement.innerHTML;
+                            }
+                            if (window.bindPreviewLinks) {
+                                window.bindPreviewLinks();
+                            }
+                            bindAjaxUploadForms();
+                        }).catch(function () {
+                            form.submit();
+                        }).finally(function () {
+                            if (submitButton) {
+                                submitButton.disabled = false;
+                            }
+                        });
+                    });
+                });
+            }
+
             var tabButtons = document.querySelectorAll('.employee-tab');
             var tabSections = document.querySelectorAll('.employee-section-panel');
+            var employeeId = [[${employee.id}]];
+            var activeSalaryLoad = false;
+
+            function bindSalaryStatusForms() {
+                document.querySelectorAll('.salary-status-form').forEach(function (form) {
+                    if (form.dataset.bound === 'true') {
+                        return;
+                    }
+                    form.dataset.bound = 'true';
+                    form.addEventListener('submit', function (event) {
+                        event.preventDefault();
+                        var submitButton = form.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                        }
+                        fetch(form.action, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        }).then(function (response) {
+                            if (!response.ok) {
+                                throw new Error('Salary update failed');
+                            }
+                            return response.text();
+                        }).then(function (html) {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var fragment = doc.getElementById('salary');
+                            var root = document.getElementById('salary-fragment-root');
+                            if (fragment && root) {
+                                root.innerHTML = fragment.outerHTML;
+                                bindSalaryStatusForms();
+                            }
+                        }).catch(function () {
+                            form.submit();
+                        }).finally(function () {
+                            if (submitButton) {
+                                submitButton.disabled = false;
+                            }
+                        });
+                    });
+                });
+            }
+
+            function loadSalaryFragment() {
+                var root = document.getElementById('salary-fragment-root');
+                if (!root || activeSalaryLoad) {
+                    return;
+                }
+                activeSalaryLoad = true;
+                var selectedYear = [[${salaryYear}]];
+                var url = '/employees/' + employeeId + '/salary-fragment?year=' + encodeURIComponent(selectedYear);
+                fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
+                    .then(function (response) { return response.ok ? response.text() : null; })
+                    .then(function (html) {
+                        activeSalaryLoad = false;
+                        if (!html) {
+                            root.innerHTML = '<p class="sub">Unable to load salary details.</p>';
+                            return;
+                        }
+                        root.innerHTML = html;
+                        bindSalaryStatusForms();
+                    })
+                    .catch(function () {
+                        activeSalaryLoad = false;
+                        root.innerHTML = '<p class="sub">Unable to load salary details.</p>';
+                    });
+            }
 
             function applyTab(targetId) {
                 if (!targetId) {
@@ -269,6 +311,9 @@
                 tabSections.forEach(function (section) {
                     section.style.display = section.id === targetId ? 'block' : 'none';
                 });
+                if (targetId === 'salary-tab') {
+                    loadSalaryFragment();
+                }
                 if (window.history && window.history.replaceState) {
                     var hash = '#' + targetId;
                     if (window.location.hash !== hash) {
@@ -278,11 +323,13 @@
             }
 
             tabButtons.forEach(function (button) {
-                button.addEventListener('click', function () {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
                     var targetId = button.getAttribute('data-target');
                     applyTab(targetId);
                 });
             });
+            bindAjaxUploadForms();
 
             var initialTarget = window.location.hash ? window.location.hash.substring(1) : 'personal-tab';
             applyTab(document.querySelector('.employee-tab[data-target="' + initialTarget + '"]') ? initialTarget : 'personal-tab');

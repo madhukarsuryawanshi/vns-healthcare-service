@@ -626,12 +626,20 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
         window.openPreview = openPreview;
         window.closePreview = closePreview;
 
-        document.querySelectorAll('[data-preview-url]').forEach(function (link) {
-            link.addEventListener('click', function (e) {
-                e.preventDefault();
-                openPreview(link.getAttribute('data-preview-url'));
+        function bindPreviewLinks() {
+            document.querySelectorAll('[data-preview-url]').forEach(function (link) {
+                if (link.dataset.previewBound === 'true') {
+                    return;
+                }
+                link.dataset.previewBound = 'true';
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    openPreview(link.getAttribute('data-preview-url'));
+                });
             });
-        });
+        }
+        window.bindPreviewLinks = bindPreviewLinks;
+        bindPreviewLinks();
 
         document.querySelectorAll('[data-modal-close]').forEach(function (node) {
             node.addEventListener('click', function (e) {
@@ -823,15 +831,83 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
                 if (confirmResolve) confirmResolve(false);
             });
         });
+        function bindAjaxDeleteForms() {
+            document.querySelectorAll('.ajax-delete-form').forEach(function (form) {
+                if (form.dataset.bound === 'true') {
+                    return;
+                }
+                form.dataset.bound = 'true';
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    var button = form.querySelector('[data-confirm-delete]');
+                    var targetId = form.getAttribute('data-refresh-target');
+                    var confirmText = button ? (button.getAttribute('data-confirm-text') || 'Delete this document?') : 'Delete this item?';
+                    showConfirm(confirmText).then(function (ok) {
+                        if (!ok) {
+                            return;
+                        }
+                        if (!targetId) {
+                            form.submit();
+                            return;
+                        }
+                        var submitButton = form.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                        }
+                        fetch(form.action, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        }).then(function (response) {
+                            if (!response.ok) {
+                                throw new Error('Delete failed');
+                            }
+                            return response.text();
+                        }).then(function (html) {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var replacement = doc.getElementById(targetId);
+                            var currentPanel = document.getElementById(targetId);
+                            if (replacement && currentPanel) {
+                                currentPanel.innerHTML = replacement.innerHTML;
+                                if (window.bindPreviewLinks) {
+                                    window.bindPreviewLinks();
+                                }
+                                if (window.__rebindUploadForms) {
+                                    window.__rebindUploadForms();
+                                }
+                                if (window.__rebindDeleteForms) {
+                                    window.__rebindDeleteForms();
+                                }
+                            }
+                        }).catch(function () {
+                            form.submit();
+                        }).finally(function () {
+                            if (submitButton) {
+                                submitButton.disabled = false;
+                            }
+                        });
+                    });
+                });
+            });
+        }
+
         document.querySelectorAll('[data-confirm-delete]').forEach(function (btn) {
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 var form = btn.closest('form');
+                var targetId = form ? form.getAttribute('data-refresh-target') : null;
+                if (form && targetId) {
+                    form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    return;
+                }
                 showConfirm(btn.getAttribute('data-confirm-text') || 'Delete this document?').then(function (ok) {
                     if (ok && form) form.submit();
                 });
             });
         });
+
+        bindAjaxDeleteForms();
 
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {

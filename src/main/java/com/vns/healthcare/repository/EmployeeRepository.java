@@ -70,6 +70,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("SELECT e FROM Employee e WHERE e.status = :status ORDER BY e.fullName ASC")
     List<Employee> findActiveStaff(@Param("status") EmployeeStatus status, Pageable pageable);
 
+    @Query("SELECT e FROM Employee e WHERE e.status = :status ORDER BY e.empCode ASC")
+    List<Employee> findActiveStaffByEmpCode(@Param("status") EmployeeStatus status, Pageable pageable);
+
     @Query("SELECT e FROM Employee e WHERE e.empCode LIKE :prefix OR e.mobileNo LIKE :prefix OR e.fullName LIKE :prefix ORDER BY e.createdAt DESC")
     List<Employee> findSuggestions(@Param("prefix") String prefix, Pageable pageable);
 

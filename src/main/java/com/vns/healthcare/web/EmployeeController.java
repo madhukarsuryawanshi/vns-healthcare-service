@@ -5,9 +5,11 @@ import com.vns.healthcare.domain.TrainingStatus;
 import com.vns.healthcare.entity.Employee;
 import com.vns.healthcare.entity.EmployeeDocument;
 import com.vns.healthcare.exception.BusinessException;
+import com.vns.healthcare.service.EmployeeBrochurePdfService;
 import com.vns.healthcare.service.EmployeeService;
 import com.vns.healthcare.service.FileStorageService;
 import com.vns.healthcare.service.SalaryPaymentService;
+import com.vns.healthcare.service.WhatsAppBusinessService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -28,15 +30,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,16 +59,22 @@ public class EmployeeController {
     private final EmployeeService employeeService;
     private final FileStorageService fileStorageService;
     private final SalaryPaymentService salaryPaymentService;
+    private final EmployeeBrochurePdfService employeeBrochurePdfService;
+    private final WhatsAppBusinessService whatsAppBusinessService;
     private final com.vns.healthcare.security.UserActivityService userActivityService;
     private final Map<String, SuggestionCacheEntry> suggestionCache = new ConcurrentHashMap<String, SuggestionCacheEntry>();
 
     public EmployeeController(EmployeeService employeeService,
                               FileStorageService fileStorageService,
                               SalaryPaymentService salaryPaymentService,
+                              EmployeeBrochurePdfService employeeBrochurePdfService,
+                              WhatsAppBusinessService whatsAppBusinessService,
                               com.vns.healthcare.security.UserActivityService userActivityService) {
         this.employeeService = employeeService;
         this.fileStorageService = fileStorageService;
         this.salaryPaymentService = salaryPaymentService;
+        this.employeeBrochurePdfService = employeeBrochurePdfService;
+        this.whatsAppBusinessService = whatsAppBusinessService;
         this.userActivityService = userActivityService;
     }
 
@@ -356,6 +367,26 @@ public class EmployeeController {
         }
     }
 
+    @GetMapping("/{id}/salary-fragment")
+    public String salaryFragment(@PathVariable Long id,
+                               @RequestParam(value = "year", required = false) Integer year,
+                               Model model) {
+        Employee employee = employeeService.get(id);
+        int y = year == null ? YearMonth.now().getYear() : year;
+        model.addAttribute("employee", employee);
+        model.addAttribute("salaryYear", y);
+        model.addAttribute("salaryMonths", salaryPaymentService.monthsForEmployee(employee, y));
+        return "employees/detail-salary-fragment";
+    }
+
+    @GetMapping("/{id}/documents-fragment")
+    public String documentsFragment(@PathVariable Long id, Model model) {
+        Employee employee = employeeService.get(id);
+        model.addAttribute("employee", employee);
+        model.addAttribute("documentsForDisplay", employeeService.getDocuments(id, "DOCUMENT"));
+        return "employees/detail-documents-fragment";
+    }
+
     @GetMapping("/{id}")
     public String detail(@PathVariable Long id,
                          @RequestParam(value = "year", required = false) Integer year,
@@ -365,7 +396,7 @@ public class EmployeeController {
         int y = year == null ? YearMonth.now().getYear() : year;
         model.addAttribute("page", "employees");
         model.addAttribute("employee", employee);
-        model.addAttribute("passportPhoto", employeeService.getPassportPhoto(employee));
+        model.addAttribute("passportPhoto", employeeService.getPassportPhoto(id));
         model.addAttribute("documentsForDisplay", employeeService.getDocuments(id, "DOCUMENT"));
         // compute age for brochure and templates (defensive)
         if (employee.getDateOfBirth() != null) {
@@ -376,7 +407,7 @@ public class EmployeeController {
         }
         model.addAttribute("trainingStatuses", TrainingStatus.values());
         model.addAttribute("salaryYear", y);
-        model.addAttribute("salaryMonths", salaryPaymentService.monthsForEmployee(employee, y));
+        model.addAttribute("salaryMonths", java.util.Collections.emptyList());
         return "employees/detail";
     }
 
@@ -477,6 +508,8 @@ public class EmployeeController {
                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidOn,
                              @RequestParam(required = false) String notes,
                              @RequestParam(required = false) String anchor,
+                             @RequestHeader(value = "X-Requested-With", required = false) String requestedWith,
+                             Model model,
                              RedirectAttributes redirectAttributes) {
         try {
             salaryPaymentService.mark(id, year, month, status, paidOn, notes);
@@ -487,6 +520,15 @@ public class EmployeeController {
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
         }
+
+        if ("XMLHttpRequest".equalsIgnoreCase(requestedWith)) {
+            Employee employee = employeeService.get(id);
+            model.addAttribute("employee", employee);
+            model.addAttribute("salaryYear", year);
+            model.addAttribute("salaryMonths", salaryPaymentService.monthsForEmployee(employee, year));
+            return "employees/detail-salary-fragment";
+        }
+
         String redirect = "redirect:/employees/" + id + "?year=" + year;
         if (anchor != null && !anchor.trim().isEmpty()) {
             redirect += "#" + anchor.trim();
@@ -548,7 +590,69 @@ public class EmployeeController {
                           @RequestParam(value = "age", required = false) String age,
                           Model model) {
         Employee employee = employeeService.get(id);
-        List<String> brochureOptions = new java.util.ArrayList<>();
+        List<String> brochureOptions = resolveBrochureOptions(options, catheterisationCare);
+        Integer resolvedAge = resolveBrochureAge(employee, includeAge, age);
+
+        model.addAttribute("employee", employee);
+        model.addAttribute("passportPhoto", employeeService.getPassportPhoto(id));
+        model.addAttribute("employeeAge", resolvedAge);
+        model.addAttribute("brochureOptions", brochureOptions);
+        model.addAttribute("pdfUrl", buildBrochurePdfUrl(id, brochureOptions, catheterisationCare, includeAge, age));
+        return "employees/brochure";
+    }
+
+    @GetMapping("/{id}/brochure.pdf")
+    public ResponseEntity<byte[]> brochurePdf(@PathVariable Long id,
+                                           @RequestParam(value = "option", required = false) List<String> options,
+                                           @RequestParam(value = "catheterisationCare", required = false) String catheterisationCare,
+                                           @RequestParam(value = "includeAge", required = false) String includeAge,
+                                           @RequestParam(value = "age", required = false) String age) {
+        Employee employee = employeeService.get(id);
+        List<String> brochureOptions = resolveBrochureOptions(options, catheterisationCare);
+        Integer resolvedAge = resolveBrochureAge(employee, includeAge, age);
+        byte[] pdfBytes = employeeBrochurePdfService.generate(employee, brochureOptions, resolvedAge);
+        String filename = "vns-brochure-" + employee.getEmpCode() + ".pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
+
+    @PostMapping("/{id}/brochure/send-whatsapp")
+    @ResponseBody
+    public Map<String, Object> sendBrochurePdf(@PathVariable Long id,
+                                             @RequestParam("phoneNumber") String phoneNumber,
+                                             @RequestParam(value = "option", required = false) List<String> options,
+                                             @RequestParam(value = "catheterisationCare", required = false) String catheterisationCare,
+                                             @RequestParam(value = "includeAge", required = false) String includeAge,
+                                             @RequestParam(value = "age", required = false) String age,
+                                             @RequestParam(value = "caption", required = false) String caption) {
+        Employee employee = employeeService.get(id);
+        List<String> brochureOptions = resolveBrochureOptions(options, catheterisationCare);
+        Integer resolvedAge = resolveBrochureAge(employee, includeAge, age);
+        byte[] pdfBytes = employeeBrochurePdfService.generate(employee, brochureOptions, resolvedAge);
+        String fileName = "vns-brochure-" + employee.getEmpCode() + ".pdf";
+        String message = caption != null && !caption.trim().isEmpty()
+                ? caption
+                : "Employee profile brochure for " + employee.getFullName() + " (" + employee.getEmpCode() + ")";
+
+        try {
+            whatsAppBusinessService.sendPdf(phoneNumber, pdfBytes, fileName, message);
+            Map<String, Object> response = new HashMap<String, Object>();
+            response.put("success", Boolean.TRUE);
+            response.put("message", "Brochure PDF sent via WhatsApp.");
+            return response;
+        } catch (Exception ex) {
+            log.error("Unable to send brochure PDF to WhatsApp for employee {}", id, ex);
+            Map<String, Object> response = new HashMap<String, Object>();
+            response.put("success", Boolean.FALSE);
+            response.put("message", ex.getMessage());
+            return response;
+        }
+    }
+
+    private List<String> resolveBrochureOptions(List<String> options, String catheterisationCare) {
+        List<String> brochureOptions = new ArrayList<String>();
         if (options != null) {
             brochureOptions.addAll(options.stream()
                     .filter(value -> value != null && !value.trim().isEmpty())
@@ -564,26 +668,61 @@ public class EmployeeController {
                 brochureOptions.add("catheterisation-care-expert");
             }
         }
+        return brochureOptions;
+    }
 
-        model.addAttribute("employee", employee);
-        model.addAttribute("passportPhoto", employeeService.getPassportPhoto(employee));
-
-        // determine age: use provided age when includeAge checked, else derive from DOB
+    private Integer resolveBrochureAge(Employee employee, String includeAge, String age) {
         Integer resolvedAge = null;
         if (includeAge != null && includeAge.equalsIgnoreCase("true") && age != null && !age.trim().isEmpty()) {
             try {
                 resolvedAge = Integer.parseInt(age.trim());
             } catch (NumberFormatException ex) {
-                // ignore invalid age, fallback to DOB
+                resolvedAge = null;
             }
         }
         if (resolvedAge == null && employee.getDateOfBirth() != null) {
             resolvedAge = java.time.Period.between(employee.getDateOfBirth(), java.time.LocalDate.now()).getYears();
         }
-        model.addAttribute("employeeAge", resolvedAge);
+        return resolvedAge;
+    }
 
-        model.addAttribute("brochureOptions", brochureOptions);
-        return "employees/brochure";
+    private String buildBrochurePdfUrl(Long id,
+                                      List<String> options,
+                                      String catheterisationCare,
+                                      String includeAge,
+                                      String age) {
+        StringBuilder url = new StringBuilder();
+        url.append("/employees/").append(id).append("/brochure.pdf");
+
+        List<String> params = new ArrayList<String>();
+        if (options != null) {
+            for (String option : options) {
+                if (option != null && !option.trim().isEmpty()) {
+                    params.add("option=" + urlEncode(option));
+                }
+            }
+        }
+        if (catheterisationCare != null && !catheterisationCare.trim().isEmpty()) {
+            params.add("catheterisationCare=" + urlEncode(catheterisationCare));
+        }
+        if (includeAge != null && !includeAge.trim().isEmpty()) {
+            params.add("includeAge=" + urlEncode(includeAge));
+        }
+        if (age != null && !age.trim().isEmpty()) {
+            params.add("age=" + urlEncode(age));
+        }
+        if (!params.isEmpty()) {
+            url.append("?").append(String.join("&", params));
+        }
+        return url.toString();
+    }
+
+    private String urlEncode(String value) {
+        try {
+            return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8.name());
+        } catch (java.io.UnsupportedEncodingException ex) {
+            return value;
+        }
     }
 
     private EmployeeForm toForm(Employee employee) {

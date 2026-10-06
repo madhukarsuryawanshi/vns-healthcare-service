@@ -106,7 +106,7 @@
 
     <div class="panel" style="margin-top:18px;">
         <h3>Documents</h3>
-        <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents(id=${customer.id})}" method="post" enctype="multipart/form-data" class="search">
+        <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents(id=${customer.id})}" method="post" enctype="multipart/form-data" class="search ajax-upload-form" data-refresh-target="case-details-tab">
             <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
             <input type="file" name="documents" multiple/>
             <button class="btn secondary" type="submit">Upload</button>
@@ -122,7 +122,7 @@
                 <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
                 <td style="display:flex; gap:8px; align-items:center">
                     <a href="#" th:attr="data-preview-url=@{/customers/{id}/documents/{docId}(id=${customer.id}, docId=${d.id})}" class="btn ghost small">View</a>
-                    <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents/{docId}/delete(id=${customer.id}, docId=${d.id})}" method="post" style="margin:0">
+                    <form th:if="${canWriteCustomers}" th:action="@{/customers/{id}/documents/{docId}/delete(id=${customer.id}, docId=${d.id})}" method="post" class="ajax-delete-form" data-refresh-target="case-details-tab" style="margin:0">
                         <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
                         <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
                     </form>
@@ -397,7 +397,8 @@
         <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
             <div class="topbar" style="margin-bottom:12px; align-items:center;">
                 <h3 style="margin:0" th:text="'Days in ' + ${month}">Days</h3>
-                <form method="get" th:action="@{/customers/{id}(id=${customer.id})}" class="search" style="margin:0">
+                <form id="customer-duty-month-form" method="get" th:action="@{/customers/{id}(id=${customer.id})}" class="search" style="margin:0">
+                    <input type="hidden" name="tab" value="duty"/>
                     <input type="month" name="month" th:value="${month}"/>
                     <button class="btn ghost" type="submit">Show month</button>
                 </form>
@@ -463,12 +464,118 @@
                 });
             }
 
+            function bindAjaxUploadForms() {
+                document.querySelectorAll('.ajax-upload-form').forEach(function (form) {
+                    if (form.dataset.bound === 'true') {
+                        return;
+                    }
+                    form.dataset.bound = 'true';
+                    form.addEventListener('submit', function (event) {
+                        event.preventDefault();
+                        var targetId = form.getAttribute('data-refresh-target');
+                        if (!targetId) {
+                            form.submit();
+                            return;
+                        }
+                        var submitButton = form.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                        }
+                        fetch(form.action, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        }).then(function (response) {
+                            if (!response.ok) {
+                                throw new Error('Upload failed');
+                            }
+                            return response.text();
+                        }).then(function (html) {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var replacement = doc.getElementById(targetId);
+                            var currentPanel = document.getElementById(targetId);
+                            if (replacement && currentPanel) {
+                                currentPanel.innerHTML = replacement.innerHTML;
+                            }
+                            if (window.bindPreviewLinks) {
+                                window.bindPreviewLinks();
+                            }
+                            bindAjaxUploadForms();
+                        }).catch(function () {
+                            form.submit();
+                        }).finally(function () {
+                            if (submitButton) {
+                                submitButton.disabled = false;
+                            }
+                        });
+                    });
+                });
+            }
+
             tabButtons.forEach(function (button) {
                 button.addEventListener('click', function () {
                     activateTab(button.getAttribute('data-target'));
                 });
             });
 
+            function bindDutyMonthForm() {
+                var dutyMonthForm = document.getElementById('customer-duty-month-form');
+                if (!dutyMonthForm) {
+                    return;
+                }
+                dutyMonthForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    var monthValue = dutyMonthForm.querySelector('input[name="month"]').value;
+                    var params = new URLSearchParams(window.location.search);
+                    if (monthValue) {
+                        params.set('month', monthValue);
+                    } else {
+                        params.delete('month');
+                    }
+                    params.set('tab', 'duty');
+                    var url = window.location.pathname + '?' + params.toString();
+                    fetch(url, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'text/html'
+                        }
+                    })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                throw new Error('Failed to load duty month');
+                            }
+                            return response.text();
+                        })
+                        .then(function (html) {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var replacement = doc.getElementById('duty-tab');
+                            var currentSection = document.getElementById('duty-tab');
+                            if (!replacement || !currentSection) {
+                                throw new Error('Duty tab not found in response');
+                            }
+                            currentSection.innerHTML = replacement.innerHTML;
+                            activateTab('duty-tab');
+                            bindDutyMonthForm();
+                            if (window.history && window.history.replaceState) {
+                                var nextUrl = new URL(window.location.href);
+                                if (monthValue) {
+                                    nextUrl.searchParams.set('month', monthValue);
+                                } else {
+                                    nextUrl.searchParams.delete('month');
+                                }
+                                nextUrl.searchParams.set('tab', 'duty');
+                                window.history.replaceState({}, '', nextUrl);
+                            }
+                        })
+                        .catch(function () {
+                            dutyMonthForm.submit();
+                        });
+                });
+            }
+
+            bindAjaxUploadForms();
             if (requestedTab) {
                 var existingTarget = document.getElementById(requestedTab);
                 if (existingTarget) {
@@ -477,6 +584,7 @@
             } else {
                 activateTab('case-details-tab');
             }
+            bindDutyMonthForm();
 
             var panel = document.getElementById('invoice-panel');
             if (!panel) {
