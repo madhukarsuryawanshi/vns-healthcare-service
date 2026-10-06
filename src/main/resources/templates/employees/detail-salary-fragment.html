@@ -1,0 +1,49 @@
+<div class="panel" id="salary">
+    <div class="topbar" style="margin-bottom:12px">
+        <h3 style="margin:0">Salary paid status</h3>
+        <form method="get" th:action="@{/employees/{id}(id=${employee.id})}" class="search" style="margin:0">
+            <input type="number" name="year" th:value="${salaryYear}" min="2020" max="2100" style="max-width:100px"/>
+            <button class="btn ghost" type="submit">Year</button>
+        </form>
+    </div>
+    <p class="sub">June / July / August can be Paid while the current month stays In progress until you mark it Paid.</p>
+    <table>
+        <thead>
+        <tr>
+            <th>Month</th>
+            <th>Status</th>
+            <th>Paid on</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="m : ${salaryMonths}">
+            <td>
+                <span th:text="${m.label}">June</span>
+                <span class="badge muted" th:if="${m.currentMonth}">This month</span>
+            </td>
+            <td>
+                <span class="badge muted" th:if="${m.status == null}">—</span>
+                <span class="badge ok" th:if="${m.paid}">Paid</span>
+                <span class="badge warn" th:if="${m.inProgress}">In progress</span>
+                <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
+            </td>
+            <td th:text="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'dd MMM yyyy')} : '—'">—</td>
+            <td>
+                <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search salary-status-form" style="margin:0; display:flex; flex-direction:column; gap:6px; align-items:flex-start; width:170px">
+                    <input type="hidden" name="year" th:value="${salaryYear}"/>
+                    <input type="hidden" name="month" th:value="${m.monthValue}"/>
+                    <input type="hidden" name="anchor" value="salary-tab"/>
+                    <select name="status" style="max-width:130px" th:disabled="${m.paid}">
+                        <option value="PAID" th:selected="${m.paid}">Paid</option>
+                        <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
+                        <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
+                    </select>
+                    <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; width:100%" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
+                    <button class="btn secondary" type="submit" th:disabled="${m.paid}">Save</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>

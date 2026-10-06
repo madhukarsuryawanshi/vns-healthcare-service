@@ -69,7 +69,8 @@
 <div class="sheet" id="brochure-sheet">
     <p class="print">
         <button type="button" onclick="window.print()">Print / save as PDF</button>
-        <button type="button" onclick="shareWhatsApp()" id="share-whatsapp">Share (WhatsApp)</button>
+        <button type="button" onclick="sendPdfToWhatsApp()" id="send-whatsapp" style="background:#25D366;color:#fff;">Send PDF via WhatsApp</button>
+        <button type="button" onclick="shareWhatsApp()" id="share-whatsapp">Share link (WhatsApp)</button>
     </p>
     <!--<p class="print-hint">Tip: in the browser print dialog, enable “Background graphics” to keep the VNS Healthcare red branding and colors in the saved PDF.</p>-->
     <div class="company-header">
@@ -242,21 +243,53 @@
         var age = ageInput && ageInput.value ? ageInput.value.trim() : '';
         var exp = /*[[${employee.noOfExperience}]]*/ '';
         var address = /*[[${employee.fullAddress}]]*/ '';
-        var brochureUrl = window.location.href;
+        var brochureUrl = /*[[${pdfUrl}]]*/ '' || window.location.href;
 
-        // WhatsApp web does not allow direct PDF attachment from browser JS.
-        // Share the brochure link and profile summary instead so the recipient can open it and print/save as PDF.
         var parts = [];
         parts.push('Employee Profile: ' + name + ' (' + code + ')');
         if (age) parts.push('Age: ' + age);
         if (exp) parts.push('Experience: ' + exp + ' yrs');
         if (address) parts.push('Address: ' + address);
-        parts.push('View brochure: ' + brochureUrl);
+        parts.push('Brochure PDF: ' + brochureUrl);
         parts.push('Shared from VNS Healthcare');
 
         var text = encodeURIComponent(parts.join('\n'));
         var url = 'https://wa.me/?text=' + text;
         window.open(url, '_blank', 'noopener');
+    }
+
+    async function sendPdfToWhatsApp() {
+        var name = /*[[${employee.fullName}]]*/ 'Employee';
+        var code = /*[[${employee.empCode}]]*/ 'EMP-XXXX';
+        var employeeId = /*[[${employee.id}]]*/ 0;
+        var phone = window.prompt('Enter recipient WhatsApp mobile number with country code (example: +919876543210)', '');
+        if (!phone || !phone.trim()) {
+            return;
+        }
+
+        var params = new URLSearchParams(window.location.search);
+        params.set('phoneNumber', phone.trim());
+        params.set('caption', 'Employee profile brochure for ' + name + ' (' + code + ')');
+
+        try {
+            var response = await fetch('/employees/' + employeeId + '/brochure/send-whatsapp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                },
+                body: params.toString()
+            });
+            var result = await response.json();
+            if (result && result.success) {
+                alert('Brochure PDF sent successfully via WhatsApp.');
+            } else {
+                var message = (result && result.message) ? result.message : 'Unable to send brochure PDF.';
+                alert(message);
+            }
+        } catch (error) {
+            alert('Unable to send brochure PDF. Please check the WhatsApp Business API configuration.');
+            console.error(error);
+        }
     }
 </script>
 </body>

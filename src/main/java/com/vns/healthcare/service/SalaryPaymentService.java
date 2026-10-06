@@ -50,7 +50,7 @@ public class SalaryPaymentService {
     public Map<Employee, List<SalaryMonthView>> register(int year) {
         Map<Employee, List<SalaryMonthView>> rows = new LinkedHashMap<Employee, List<SalaryMonthView>>();
         for (Employee employee : employeeService.activeStaff()) {
-            rows.put(employee, monthsForEmployee(employee, year));
+            rows.put(detachEmployeeForCache(employee), monthsForEmployee(employee, year));
         }
         return rows;
     }
@@ -102,6 +102,25 @@ public class SalaryPaymentService {
             return null;
         }
         return SalaryPayStatus.UNPAID;
+    }
+
+    private Employee detachEmployeeForCache(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        Employee detached = new Employee();
+        detached.setId(employee.getId());
+        detached.setEmpCode(employee.getEmpCode());
+        detached.setFullName(employee.getFullName());
+        detached.setMobileNo(employee.getMobileNo());
+        detached.setJoiningDate(employee.getJoiningDate());
+        detached.setDesignation(employee.getDesignation());
+        detached.setStatus(employee.getStatus());
+        detached.setSalary(employee.getSalary());
+        detached.setSalaryStartDate(employee.getSalaryStartDate());
+        detached.setKnownLanguages(employee.getKnownLanguages() == null ? new java.util.HashSet<String>() : new java.util.HashSet<String>(employee.getKnownLanguages()));
+        detached.setDocuments(new java.util.ArrayList<com.vns.healthcare.entity.EmployeeDocument>());
+        return detached;
     }
 
     private String blankToNull(String value) {

@@ -101,11 +101,12 @@
                                    th:attr="data-day=${#temporals.format(day, 'yyyy-MM-dd')}"
                                    style="min-width:90px"
                                    th:disabled="${!canWriteAttendance}">
-                                <option value="">--</option>
+                                <option value="" style="display:none;"
+                                       th:selected="${(attendanceByEmployee.get(employee.id) == null or attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) == null) and #temporals.format(day, 'yyyy-MM-dd') != #temporals.format(today, 'yyyy-MM-dd')}"></option>
                                 <option th:each="s : ${statuses}"
                                        th:value="${s}"
                                        th:text="${s.name() == 'HALF_DAY' ? 'HALF-DAY' : s.name()}"
-                                       th:selected="${((attendanceByEmployee.get(employee.id) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')).status == s) or (#temporals.format(day, 'yyyy-MM-dd') == #temporals.format(today, 'yyyy-MM-dd') and (attendanceByEmployee.get(employee.id) == null or attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) == null) and s.name() == 'PRESENT'))}">PRESENT</option>
+                                       th:selected="${((attendanceByEmployee.get(employee.id) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) != null and attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')).status == s) or (#temporals.format(day, 'yyyy-MM-dd') == #temporals.format(today, 'yyyy-MM-dd') and ((attendanceByEmployee.get(employee.id) == null) or (attendanceByEmployee.get(employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) == null)) and s.name() == 'PRESENT'))}">PRESENT</option>
                             </select>
                         </td>
                     </th:block>

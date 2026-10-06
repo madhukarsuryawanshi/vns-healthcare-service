@@ -1,0 +1,38 @@
+<div class="panel">
+    <h3>Documents</h3>
+    <div class="form-grid" style="margin-bottom:12px">
+        <div class="field full">
+            <label>Passport size photo (PNG / JPG)</label>
+            <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/photo(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:0;">
+                <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                <input type="file" name="photo" accept="image/png,image/jpeg" required style="margin:0;"/>
+                <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload passport photo</button>
+            </form>
+        </div>
+    </div>
+    <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents(id=${employee.id})}" method="post" enctype="multipart/form-data" class="search" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+        <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+        <input type="file" name="documents" multiple required style="margin:0;"/>
+        <button class="btn secondary" type="submit" style="padding:6px 10px;">Upload</button>
+    </form>
+    <table th:if="${!documentsForDisplay.isEmpty()}">
+        <thead>
+        <tr><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="d : ${documentsForDisplay}">
+            <td th:text="${d.originalFilename}">file.pdf</td>
+            <td th:text="${d.fileSize}">0</td>
+            <td th:text="${#temporals.format(d.uploadedAt, 'dd MMM yyyy HH:mm')}">01 Jan</td>
+            <td style="display:flex; gap:8px; align-items:center">
+                <a href="#" th:attr="data-preview-url=@{/employees/{id}/documents/{docId}(id=${employee.id}, docId=${d.id})}" class="btn ghost small">View</a>
+                <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/documents/{docId}/delete(id=${employee.id}, docId=${d.id})}" method="post" style="margin:0">
+                    <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
+                    <button class="btn ghost small" type="submit" data-confirm-delete="true" data-confirm-text="Delete this document?">Delete</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <p class="empty" th:if="${documentsForDisplay.isEmpty()}">No documents uploaded.</p>
+</div>

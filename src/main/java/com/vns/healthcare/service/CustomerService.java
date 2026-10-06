@@ -80,7 +80,7 @@ public class CustomerService {
             result = customerRepository.findSuggestions(CustomerRepository.buildPrefix(search), PageRequest.of(0, 20));
         }
         if (cache != null) {
-            cache.put(cacheKey, result);
+            cache.put(cacheKey, detachCustomerListForCache(result));
         }
         log.info("LOADED {} customer records into customer-lists cache key=[{}]", result.size(), cacheKey);
         return result;
@@ -100,7 +100,7 @@ public class CustomerService {
         log.info("CACHE MISS customer-pages key=[{}] -> querying DB", cacheKey);
         Page<Customer> result = customerRepository.findPage(pageable);
         if (cache != null) {
-            cache.put(cacheKey, result);
+            cache.put(cacheKey, detachCustomerPageForCache(result));
         }
         log.info("LOADED {} customer records into customer-pages cache key=[{}]", result.getNumberOfElements(), cacheKey);
         return result;
@@ -134,7 +134,7 @@ public class CustomerService {
         Customer customer = customerRepository.findWithEmployee(id)
                 .orElseThrow(() -> new BusinessException("Customer not found"));
         if (cache != null) {
-            cache.put(id, customer);
+            cache.put(id, detachCustomerForCache(customer));
         }
         return customer;
     }
@@ -398,6 +398,60 @@ public class CustomerService {
 
     private Cache cache(String cacheName) {
         return cacheManager == null ? null : cacheManager.getCache(cacheName);
+    }
+
+    private java.util.List<Customer> detachCustomerListForCache(java.util.List<Customer> customers) {
+        if (customers == null) {
+            return null;
+        }
+        java.util.List<Customer> detached = new java.util.ArrayList<Customer>();
+        for (Customer customer : customers) {
+            detached.add(detachCustomerForCache(customer));
+        }
+        return detached;
+    }
+
+    private org.springframework.data.domain.Page<Customer> detachCustomerPageForCache(org.springframework.data.domain.Page<Customer> page) {
+        if (page == null) {
+            return null;
+        }
+        return new org.springframework.data.domain.PageImpl<Customer>(
+                detachCustomerListForCache(page.getContent()),
+                page.getPageable(),
+                page.getTotalElements());
+    }
+
+    private Customer detachCustomerForCache(Customer customer) {
+        if (customer == null) {
+            return null;
+        }
+        Customer detached = new Customer();
+        detached.setId(customer.getId());
+        detached.setCustCode(customer.getCustCode());
+        detached.setPatientName(customer.getPatientName());
+        detached.setMobileNo(customer.getMobileNo());
+        detached.setAddress(customer.getAddress());
+        detached.setServiceType(customer.getServiceType());
+        detached.setStatus(customer.getStatus());
+        detached.setAssignedEmployee(customer.getAssignedEmployee() == null ? null : detachEmployeeForCache(customer.getAssignedEmployee()));
+        detached.setDocuments(new java.util.ArrayList<CustomerDocument>());
+        return detached;
+    }
+
+    private Employee detachEmployeeForCache(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        Employee detached = new Employee();
+        detached.setId(employee.getId());
+        detached.setEmpCode(employee.getEmpCode());
+        detached.setFullName(employee.getFullName());
+        detached.setMobileNo(employee.getMobileNo());
+        detached.setDesignation(employee.getDesignation());
+        detached.setStatus(employee.getStatus());
+        detached.setKnownLanguages(employee.getKnownLanguages() == null ? new java.util.HashSet<String>() : new java.util.HashSet<String>(employee.getKnownLanguages()));
+        detached.setDocuments(new java.util.ArrayList<com.vns.healthcare.entity.EmployeeDocument>());
+        return detached;
     }
 
     private void refreshCustomerCachesSafely() {

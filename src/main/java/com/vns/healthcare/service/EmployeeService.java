@@ -98,7 +98,7 @@ public class EmployeeService {
             result = employeeRepository.findSuggestions(prefix, PageRequest.of(0, 20));
         }
         if (cache != null) {
-            cache.put(cacheKey, result);
+            cache.put(cacheKey, detachEmployeeListForCache(result));
         }
         log.info("LOADED {} employee records into employee-lists cache key=[{}]", result.size(), cacheKey);
         return result;
@@ -121,7 +121,7 @@ public class EmployeeService {
         log.info("CACHE MISS employee-pages key=[{}] -> querying DB", cacheKey);
         Page<Employee> result = employeeRepository.findFilteredPage(null, null, "", EmployeeRepository.buildPrefix(""), pageable);
         if (cache != null) {
-            cache.put(cacheKey, result);
+            cache.put(cacheKey, detachEmployeePageForCache(result));
         }
         log.info("LOADED {} employee records into employee-pages cache key=[{}]", result.getNumberOfElements(), cacheKey);
         return result;
@@ -168,10 +168,16 @@ public class EmployeeService {
         log.info("CACHE MISS employee-active key=[{}] -> querying DB", cacheKey);
         List<Employee> result = employeeRepository.findAllActive(EmployeeStatus.ACTIVE);
         if (cache != null) {
-            cache.put(cacheKey, result);
+            cache.put(cacheKey, detachEmployeeListForCache(result));
         }
         log.info("LOADED {} employee records into employee-active cache key=[{}]", result.size(), cacheKey);
         return result;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Employee> activeStaffSuggestions(int limit) {
+        int max = Math.max(1, Math.min(limit, 200));
+        return employeeRepository.findActiveStaffByEmpCode(EmployeeStatus.ACTIVE, PageRequest.of(0, max));
     }
 
     @Transactional(readOnly = true)
@@ -210,7 +216,7 @@ public class EmployeeService {
         log.info("CACHE MISS employee-active-pages key=[{}] -> querying DB", cacheKey);
         Page<Employee> result = employeeRepository.findActivePage(EmployeeStatus.ACTIVE, pageable);
         if (cache != null) {
-            cache.put(cacheKey, result);
+            cache.put(cacheKey, detachEmployeePageForCache(result));
         }
         log.info("LOADED {} employee records into employee-active-pages cache key=[{}]", result.getNumberOfElements(), cacheKey);
         return result;
@@ -230,12 +236,18 @@ public class EmployeeService {
         } else {
             log.info("CACHE MISS employeeById key=[{}] -> querying DB", id);
         }
-        Employee employee = employeeRepository.findWithDocuments(id)
+        Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Employee not found"));
         if (cache != null) {
-            cache.put(id, employee);
+            cache.put(id, detachEmployeeForCache(employee));
         }
         return employee;
+    }
+
+    @Transactional(readOnly = true)
+    public Employee getWithDocuments(Long id) {
+        return employeeRepository.findWithDocuments(id)
+                .orElseThrow(() -> new BusinessException("Employee not found"));
     }
 
     @Transactional
@@ -424,16 +436,12 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
-    public EmployeeDocument getPassportPhoto(Employee employee) {
-        if (employee == null || employee.getDocuments() == null || employee.getDocuments().isEmpty()) {
+    public EmployeeDocument getPassportPhoto(Long employeeId) {
+        if (employeeId == null) {
             return null;
         }
-        for (EmployeeDocument document : employee.getDocuments()) {
-            if (document.getDocumentType() != null && "PHOTO".equalsIgnoreCase(document.getDocumentType())) {
-                return document;
-            }
-        }
-        return null;
+        List<EmployeeDocument> docs = documentRepository.findByEmployeeIdAndDocumentType(employeeId, "PHOTO");
+        return docs == null || docs.isEmpty() ? null : docs.get(0);
     }
 
     @Transactional(readOnly = true)
@@ -614,6 +622,57 @@ public class EmployeeService {
 
     private Cache cache(String cacheName) {
         return cacheManager == null ? null : cacheManager.getCache(cacheName);
+    }
+
+    private java.util.List<Employee> detachEmployeeListForCache(java.util.List<Employee> employees) {
+        if (employees == null) {
+            return null;
+        }
+        java.util.List<Employee> detached = new java.util.ArrayList<Employee>();
+        for (Employee employee : employees) {
+            detached.add(detachEmployeeForCache(employee));
+        }
+        return detached;
+    }
+
+    private org.springframework.data.domain.Page<Employee> detachEmployeePageForCache(org.springframework.data.domain.Page<Employee> page) {
+        if (page == null) {
+            return null;
+        }
+        return new org.springframework.data.domain.PageImpl<Employee>(
+                detachEmployeeListForCache(page.getContent()),
+                page.getPageable(),
+                page.getTotalElements());
+    }
+
+    private Employee detachEmployeeForCache(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        Employee detached = new Employee();
+        detached.setId(employee.getId());
+        detached.setEmpCode(employee.getEmpCode());
+        detached.setFullName(employee.getFullName());
+        detached.setMobileNo(employee.getMobileNo());
+        detached.setJoiningDate(employee.getJoiningDate());
+        detached.setGender(employee.getGender());
+        detached.setDateOfBirth(employee.getDateOfBirth());
+        detached.setReferredBy(employee.getReferredBy());
+        detached.setFullAddress(employee.getFullAddress());
+        detached.setAadharNumber(employee.getAadharNumber());
+        detached.setTrainingStatus(employee.getTrainingStatus());
+        detached.setTrainingNotes(employee.getTrainingNotes());
+        detached.setOnboarded(employee.isOnboarded());
+        detached.setNoOfExperience(employee.getNoOfExperience());
+        detached.setSalary(employee.getSalary());
+        detached.setSalaryStartDate(employee.getSalaryStartDate());
+        detached.setStatus(employee.getStatus());
+        detached.setDesignation(employee.getDesignation());
+        detached.setEmail(employee.getEmail());
+        detached.setMaritalStatus(employee.getMaritalStatus());
+        detached.setKnownLanguages(employee.getKnownLanguages() == null ? new java.util.HashSet<String>() : new java.util.HashSet<String>(employee.getKnownLanguages()));
+        detached.setDocuments(new java.util.ArrayList<EmployeeDocument>());
+        return detached;
     }
 
     private void refreshEmployeeCachesSafely() {

@@ -5,6 +5,9 @@ import com.vns.healthcare.repository.BusinessBankAccountRepository;
 import com.vns.healthcare.repository.EmployeeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -56,6 +59,7 @@ public class AdminController {
     private final PasswordEncoder passwordEncoder;
     private final com.vns.healthcare.service.EmployeeService employeeService;
     private final UserActivityService userActivityService;
+    private final CacheManager cacheManager;
 
     public AdminController(RoleRepository roleRepository,
                           UserRepository userRepository,
@@ -63,7 +67,8 @@ public class AdminController {
                           BusinessBankAccountRepository businessBankAccountRepository,
                           PasswordEncoder passwordEncoder,
                           com.vns.healthcare.service.EmployeeService employeeService,
-                          UserActivityService userActivityService) {
+                          UserActivityService userActivityService,
+                          CacheManager cacheManager) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
@@ -71,6 +76,7 @@ public class AdminController {
         this.passwordEncoder = passwordEncoder;
         this.employeeService = employeeService;
         this.userActivityService = userActivityService;
+        this.cacheManager = cacheManager;
     }
 
     @GetMapping({"", "/users"})
@@ -100,6 +106,53 @@ public class AdminController {
         boolean valid = isValidEmployeeCode(normalized);
         Map<String, Boolean> result = new LinkedHashMap<String, Boolean>();
         result.put("valid", valid);
+        return result;
+    }
+
+    @GetMapping("/cache-debug")
+    @ResponseBody
+    public Map<String, Object> cacheDebug() {
+        List<String> cacheNames = Arrays.asList(
+                "employee-lists",
+                "employee-pages",
+                "employee-active",
+                "employee-active-pages",
+                "employeeById",
+                "customer-lists",
+                "customer-pages",
+                "customerById",
+                "dashboard-stats",
+                "attendance-monthly",
+                "attendance-summary",
+                "salary-register"
+        );
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (String cacheName : cacheNames) {
+            Cache cache = cacheManager == null ? null : cacheManager.getCache(cacheName);
+            if (cache == null) {
+                Map<String, Object> info = new LinkedHashMap<String, Object>();
+                info.put("size", 0);
+                info.put("keys", new ArrayList<Object>());
+                result.put(cacheName, info);
+                continue;
+            }
+
+            if (cache instanceof CaffeineCache) {
+                com.github.benmanes.caffeine.cache.Cache<Object, Object> nativeCache = ((CaffeineCache) cache).getNativeCache();
+                List<Object> keys = new ArrayList<Object>(nativeCache.asMap().keySet());
+                Map<String, Object> info = new LinkedHashMap<String, Object>();
+                info.put("size", nativeCache.estimatedSize());
+                info.put("keys", keys);
+                result.put(cacheName, info);
+                log.info("CACHE DEBUG {} size={} keys={}", cacheName, nativeCache.estimatedSize(), keys);
+            } else {
+                Map<String, Object> info = new LinkedHashMap<String, Object>();
+                info.put("size", "unknown");
+                info.put("keys", "cache implementation not caffeine");
+                result.put(cacheName, info);
+            }
+        }
         return result;
     }
 
@@ -304,7 +357,7 @@ public class AdminController {
         model.addAttribute("accessModules", AVAILABLE_PERMISSIONS);
         // provide employee suggestions for username autocomplete
         try {
-            java.util.List<com.vns.healthcare.entity.Employee> employees = employeeService.activeStaff();
+            java.util.List<com.vns.healthcare.entity.Employee> employees = employeeService.activeStaffSuggestions(200);
             java.util.List<String> suggestions = new java.util.ArrayList<String>();
             for (com.vns.healthcare.entity.Employee e : employees) {
                 if (e.getEmpCode() != null && !e.getEmpCode().trim().isEmpty()) {
