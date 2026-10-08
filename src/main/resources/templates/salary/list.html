@@ -24,82 +24,122 @@
         </div>
     </div>
 
-    <div class="panel" style="overflow-x:auto">
+    <div id="salary-results" class="panel" style="overflow-x:auto">
         <div th:if="${canReadSalary}">
             <table th:if="${!rows.isEmpty()}">
+                <thead>
+                <tr>
+                    <th><a th:href="@{/salary(year=${year}, status=${status}, sort='empCode', dir=${sort == 'empCode' and dir == 'asc' ? 'desc' : 'asc'}, page=0, size=${pageSize})}">Emp ID <span th:if="${sort == 'empCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                    <th><a th:href="@{/salary(year=${year}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'}, page=0, size=${pageSize})}">Name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                    <th><a th:href="@{/salary(year=${year}, status=${status}, sort='salary', dir=${sort == 'salary' and dir == 'asc' ? 'desc' : 'asc'}, page=0, size=${pageSize})}">Salary <span th:if="${sort == 'salary'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                    <th th:each="name, iterStat : ${monthNames}" style="position:relative; white-space:nowrap; padding-right:24px;">
+                        <div style="display:flex; align-items:center; justify-content:center; gap:6px; position:relative; min-height:20px;">
+                            <span th:text="${name}">Jan</span>
+                            <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" th:aria-controls="|filter-month-${iterStat.index + 1}|" onclick="toggleFilter(this)">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div th:id="|filter-month-${iterStat.index + 1}|" class="column-filter">
+                            <form method="get" th:action="@{/salary}">
+                                <input type="hidden" name="year" th:value="${year}"/>
+                                <input type="hidden" name="sort" th:value="${sort}"/>
+                                <input type="hidden" name="dir" th:value="${dir}"/>
+                                <input type="hidden" name="page" value="0"/>
+                                <input type="hidden" name="size" th:value="${pageSize}"/>
+                                <th:block th:each="selected : ${selectedMonthFilters}">
+                                    <input th:if="${selected.key != (iterStat.index + 1)}" type="hidden" th:name="|monthStatus_${selected.key}|" th:value="${selected.value}"/>
+                                </th:block>
+                                <select th:name="|monthStatus_${iterStat.index + 1}|">
+                                    <option value="">All</option>
+                                    <option th:each="s : ${statuses}"
+                                            th:value="${s.name()}"
+                                            th:text="${s.name() == 'UNPAID' ? 'Hold' : (s.name() == 'IN_PROGRESS' ? 'In progress' : 'Paid')}"
+                                            th:selected="${selectedMonthFilters != null and selectedMonthFilters[iterStat.index + 1] == s.name()}">Paid</option>
+                                </select>
+                                <div class="filter-actions">
+                                    <button class="btn ghost small" type="button" onclick="clearMonthFilter(this)">Clear</button>
+                                    <button class="btn small" type="submit">Apply</button>
+                                </div>
+                            </form>
+                        </div>
+                    </th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="entry : ${rows}">
+                    <td th:text="${entry.key.empCode}">EMP-1001</td>
+                    <td><a th:href="@{/employees/{id}(id=${entry.key.id})}" th:text="${entry.key.fullName}">Name</a></td>
+                    <td th:text="${entry.key.salary != null} ? ${#numbers.formatDecimal(entry.key.salary, 1, 'COMMA', 2, 'POINT')} : '—'">18,000</td>
+                    <td th:each="m : ${entry.value}" style="white-space:nowrap">
+                        <span class="badge muted" th:if="${m.status == null}">—</span>
+                        <span class="badge ok" th:if="${m.paid}">Paid</span>
+                        <span class="badge warn" th:if="${m.inProgress}">In progress</span>
+                        <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
+                        <form th:if="${m.status != null and canWriteSalary}" th:action="@{/salary}" method="post" style="margin-top:6px; display:flex; flex-direction:column; gap:6px; min-width:150px">
+                            <input type="hidden" name="employeeId" th:value="${entry.key.id}"/>
+                            <input type="hidden" name="year" th:value="${year}"/>
+                            <input type="hidden" name="month" th:value="${m.monthValue}"/>
+                            <input type="hidden" name="anchor" value="salary"/>
+                            <select name="status" style="max-width:110px" th:disabled="${m.paid}">
+                                <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).PAID}" th:selected="${m.paid}">Paid</option>
+                                <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).IN_PROGRESS}" th:selected="${m.inProgress}">In progress</option>
+                                <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).UNPAID}" th:selected="${m.unpaid}">Hold</option>
+                            </select>
+                            <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; min-width:130px; max-width:180px" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
+                            <button class="btn secondary" type="submit" style="max-width:90px" th:disabled="${m.paid}">Save</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <div class="panel" th:if="${totalPages != null and totalPages > 1}" style="margin-top:16px; border-top:1px solid var(--line); padding-top:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <div class="sub" th:text="|Showing ${#lists.size(rows) == 0 ? 0 : (pageNumber * pageSize) + 1}-${#lists.size(rows) == 0 ? 0 : ((pageNumber * pageSize) + #lists.size(rows))} of ${totalRows}|">Showing 1-10 of 50</div>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <a class="btn ghost small js-page-link" th:if="${pageNumber > 0}" th:href="@{/salary(year=${year}, sort=${sort}, dir=${dir}, page=${pageNumber - 1}, size=${pageSize})}">Previous</a>
+                        <th:block th:with="startPage=${totalPages <= 3 ? 0 : (pageNumber <= 1 ? 0 : (pageNumber >= totalPages - 2 ? totalPages - 3 : pageNumber - 1))},
+                                           endPage=${totalPages <= 3 ? totalPages - 1 : (pageNumber <= 1 ? 2 : (pageNumber >= totalPages - 2 ? totalPages - 1 : pageNumber + 1))}">
+                            <a class="btn small js-page-link" th:each="p : ${#numbers.sequence(startPage, endPage)}"
+                               th:classappend="${p == pageNumber} ? ' secondary' : ' ghost'"
+                               th:href="@{/salary(year=${year}, sort=${sort}, dir=${dir}, page=${p}, size=${pageSize})}"
+                               th:text="${p + 1}">1</a>
+                        </th:block>
+                        <a class="btn ghost small js-page-link" th:if="${pageNumber + 1 < totalPages}" th:href="@{/salary(year=${year}, sort=${sort}, dir=${dir}, page=${pageNumber + 1}, size=${pageSize})}">Next</a>
+                    </div>
+                </div>
+            </div>
+            <p class="empty" th:if="${rows.isEmpty()}">Add active employees first.</p>
         </div>
         <div th:unless="${canReadSalary}">
             <p class="empty">You do not have permission, Please contact your Admin</p>
         </div>
-            <thead>
-            <tr>
-                <th><a th:href="@{/salary(year=${year}, status=${status}, sort='empCode', dir=${sort == 'empCode' and dir == 'asc' ? 'desc' : 'asc'})}">Emp ID <span th:if="${sort == 'empCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/salary(year=${year}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'})}">Name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/salary(year=${year}, status=${status}, sort='salary', dir=${sort == 'salary' and dir == 'asc' ? 'desc' : 'asc'})}">Salary <span th:if="${sort == 'salary'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th th:each="name, iterStat : ${monthNames}" style="position:relative; white-space:nowrap; padding-right:24px;">
-                    <div style="display:flex; align-items:center; justify-content:center; gap:6px; position:relative; min-height:20px;">
-                        <span th:text="${name}">Jan</span>
-                        <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" th:aria-controls="|filter-month-${iterStat.index + 1}|" onclick="toggleFilter(this)">
-                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div th:id="|filter-month-${iterStat.index + 1}|" class="column-filter">
-                        <form method="get" th:action="@{/salary}">
-                            <input type="hidden" name="year" th:value="${year}"/>
-                            <input type="hidden" name="sort" th:value="${sort}"/>
-                            <input type="hidden" name="dir" th:value="${dir}"/>
-                            <th:block th:each="selected : ${selectedMonthFilters}">
-                                <input th:if="${selected.key != (iterStat.index + 1)}" type="hidden" th:name="|monthStatus_${selected.key}|" th:value="${selected.value}"/>
-                            </th:block>
-                            <select th:name="|monthStatus_${iterStat.index + 1}|">
-                                <option value="">All</option>
-                                <option th:each="s : ${statuses}"
-                                        th:value="${s.name()}"
-                                        th:text="${s.name() == 'UNPAID' ? 'Hold' : (s.name() == 'IN_PROGRESS' ? 'In progress' : 'Paid')}"
-                                        th:selected="${selectedMonthFilters != null and selectedMonthFilters[iterStat.index + 1] == s.name()}">Paid</option>
-                            </select>
-                            <div class="filter-actions">
-                                <button class="btn ghost small" type="button" onclick="clearMonthFilter(this)">Clear</button>
-                                <button class="btn small" type="submit">Apply</button>
-                            </div>
-                        </form>
-                    </div>
-                </th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="entry : ${rows}">
-                <td th:text="${entry.key.empCode}">EMP-1001</td>
-                <td><a th:href="@{/employees/{id}(id=${entry.key.id})}" th:text="${entry.key.fullName}">Name</a></td>
-                <td th:text="${entry.key.salary != null} ? ${#numbers.formatDecimal(entry.key.salary, 1, 'COMMA', 2, 'POINT')} : '—'">18,000</td>
-                <td th:each="m : ${entry.value}" style="white-space:nowrap">
-                    <span class="badge muted" th:if="${m.status == null}">—</span>
-                    <span class="badge ok" th:if="${m.paid}">Paid</span>
-                    <span class="badge warn" th:if="${m.inProgress}">In progress</span>
-                    <span class="badge coral" th:if="${m.unpaid}">Unpaid</span>
-                    <form th:if="${m.status != null and canWriteSalary}" th:action="@{/salary}" method="post" style="margin-top:6px; display:flex; flex-direction:column; gap:6px; min-width:150px">
-                        <input type="hidden" name="employeeId" th:value="${entry.key.id}"/>
-                        <input type="hidden" name="year" th:value="${year}"/>
-                        <input type="hidden" name="month" th:value="${m.monthValue}"/>
-                        <input type="hidden" name="anchor" value="salary"/>
-                        <select name="status" style="max-width:110px" th:disabled="${m.paid}">
-                            <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).PAID}" th:selected="${m.paid}">Paid</option>
-                            <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).IN_PROGRESS}" th:selected="${m.inProgress}">In progress</option>
-                            <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).UNPAID}" th:selected="${m.unpaid}">Hold</option>
-                        </select>
-                        <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; min-width:130px; max-width:180px" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
-                        <button class="btn secondary" type="submit" style="max-width:90px" th:disabled="${m.paid}">Save</button>
-                    </form>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        <p class="empty" th:if="${rows.isEmpty()}">Add active employees first.</p>
     </div>
 
     <script>
+        document.addEventListener('click', function (event) {
+            var link = event.target.closest('a.js-page-link');
+            if (!link) return;
+            event.preventDefault();
+            var target = document.getElementById('salary-results');
+            if (!target) return;
+            fetch(link.href, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (response) { return response.text(); })
+                .then(function (html) {
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(html, 'text/html');
+                    var next = doc.querySelector('#salary-results');
+                    if (next) {
+                        target.innerHTML = next.innerHTML;
+                        if (window.history && window.history.pushState) {
+                            window.history.pushState({}, '', link.href);
+                        }
+                    }
+                });
+        });
         function toggleFilter(btn) {
             var panelId = btn.getAttribute('aria-controls');
             var panel = panelId ? document.getElementById(panelId) : btn.nextElementSibling;
