@@ -733,17 +733,31 @@ public class CustomerController {
     public String saveChargeStatus(@PathVariable Long id,
                                   @RequestParam int year,
                                   @RequestParam int month,
-                                  @RequestParam com.vns.healthcare.domain.ChargePayStatus status,
+                                  @RequestParam(value = "status", required = false) com.vns.healthcare.domain.ChargePayStatus status,
+                                  @RequestParam(value = "chargeYear", required = false) Integer chargeYear,
+                                  @RequestParam(value = "tab", required = false) String tab,
                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidOn,
                                   @RequestParam(required = false) String remarks,
                                   RedirectAttributes redirectAttributes) {
         try {
+            if (status == null) {
+                redirectAttributes.addFlashAttribute("error", "Please select a charge status before saving.");
+                return "redirect:/customers/" + id + "?tab=" + (tab == null || tab.isBlank() ? "charges-tab" : tab);
+            }
+            if (status == com.vns.healthcare.domain.ChargePayStatus.PAID && paidOn == null) {
+                redirectAttributes.addFlashAttribute("error", "Please select Paid on date before saving a Paid status.");
+                return "redirect:/customers/" + id + "?chargeYear=" + (chargeYear != null ? chargeYear : year) + "&tab=" + (tab == null || tab.isBlank() ? "charges-tab" : tab);
+            }
             chargeStatusService.save(id, year, month, status, paidOn, remarks);
             redirectAttributes.addFlashAttribute("success", "Charge status saved.");
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
         }
-        return "redirect:/customers/" + id;
+        Integer redirectYear = chargeYear != null ? chargeYear : year;
+        StringBuilder redirect = new StringBuilder("redirect:/customers/").append(id)
+                .append("?chargeYear=").append(redirectYear)
+                .append("&tab=").append(tab == null || tab.isBlank() ? "charges-tab" : tab);
+        return redirect.toString();
     }
 
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")

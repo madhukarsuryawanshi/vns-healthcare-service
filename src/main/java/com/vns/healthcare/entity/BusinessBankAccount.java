@@ -1,15 +1,18 @@
 package com.vns.healthcare.entity;
 
+import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 @Entity
@@ -36,7 +39,8 @@ public class BusinessBankAccount extends AuditableEntity {
     @Column(name = "gpay_phonepe", length = 100)
     private String gpayPhonepe;
 
-    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @JdbcTypeCode(SqlTypes.VARBINARY)
     @Column(name = "gpay_phonepe_qr_image")
     private byte[] gpayPhonepeQrImage;
 

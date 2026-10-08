@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -75,8 +74,7 @@ public class CustomerInvoice extends AuditableEntity {
     @Column(name = "gpay_phonepe", length = 120)
     private String gpayPhonepe;
 
-    @Lob
-    @Column(name = "breakdown", nullable = false)
+    @Column(name = "breakdown", nullable = false, columnDefinition = "TEXT")
     private String breakdown;
 
     @Column(name = "created_at", nullable = false)
