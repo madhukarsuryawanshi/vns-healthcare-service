@@ -41,6 +41,8 @@ public class SalaryController {
                            @RequestParam(value = "status", required = false) String status,
                            @RequestParam(value = "sort", required = false, defaultValue = "empCode") String sort,
                            @RequestParam(value = "dir", required = false, defaultValue = "asc") String dir,
+                           @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+                           @RequestParam(value = "size", required = false, defaultValue = "10") int size,
                            @RequestParam Map<String, String> requestParams,
                            Model model,
                            org.springframework.security.core.Authentication authentication,
@@ -63,7 +65,9 @@ public class SalaryController {
             return "redirect:/";
         }
         int y = year == null ? YearMonth.now().getYear() : year;
-        log.info("Loading salary register for year [{}], sort [{}], dir [{}]", y, sort, dir);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+        log.info("Loading salary register for year [{}], sort [{}], dir [{}], page [{}], size [{}]", y, sort, dir, safePage, safeSize);
         Map<Integer, String> monthStatusFilters = new LinkedHashMap<Integer, String>();
         for (int month = 1; month <= 12; month++) {
             String value = requestParams.get("monthStatus_" + month);
@@ -77,6 +81,12 @@ public class SalaryController {
             rowEntries.removeIf(entry -> entry.getKey() == null || !matchesMonthFilters(entry.getValue(), monthStatusFilters));
         }
         rowEntries.sort(sortSalaryRows(sort, dir));
+        int totalRows = rowEntries.size();
+        int totalPages = totalRows == 0 ? 1 : (int) Math.ceil(totalRows / (double) safeSize);
+        int boundedPage = totalPages <= 1 ? 0 : Math.min(safePage, totalPages - 1);
+        int start = boundedPage * safeSize;
+        int end = Math.min(start + safeSize, totalRows);
+        List<Map.Entry<Employee, List<SalaryMonthView>>> pageEntries = start >= totalRows ? new ArrayList<>() : rowEntries.subList(start, end);
         List<String> monthNames = new ArrayList<String>();
         for (int m = 1; m <= 12; m++) {
             monthNames.add(YearMonth.of(y, m).getMonth().name().substring(0, 3));
@@ -86,14 +96,19 @@ public class SalaryController {
         model.addAttribute("status", status == null ? "" : status);
         model.addAttribute("sort", sort);
         model.addAttribute("dir", dir);
+        model.addAttribute("page", "salary");
+        model.addAttribute("pageNumber", boundedPage);
+        model.addAttribute("pageSize", safeSize);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("totalRows", totalRows);
         model.addAttribute("prevYear", y - 1);
         model.addAttribute("nextYear", y + 1);
         model.addAttribute("monthNames", monthNames);
-        model.addAttribute("rows", rowEntries);
+        model.addAttribute("rows", pageEntries);
         model.addAttribute("today", LocalDate.now());
         model.addAttribute("statuses", com.vns.healthcare.domain.SalaryPayStatus.values());
         model.addAttribute("selectedMonthFilters", monthStatusFilters);
-        log.debug("Salary register page prepared with {} rows", rowEntries.size());
+        log.debug("Salary register page prepared with {} rows on page {} of {}", pageEntries.size(), boundedPage + 1, totalPages);
         return "salary/list";
     }
 

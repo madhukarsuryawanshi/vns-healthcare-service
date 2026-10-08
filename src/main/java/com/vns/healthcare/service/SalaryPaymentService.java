@@ -48,9 +48,45 @@ public class SalaryPaymentService {
     @Transactional(readOnly = true)
     @Cacheable(value = "salary-register", key = "#year")
     public Map<Employee, List<SalaryMonthView>> register(int year) {
+        List<Employee> staff = employeeService.activeStaff();
         Map<Employee, List<SalaryMonthView>> rows = new LinkedHashMap<Employee, List<SalaryMonthView>>();
-        for (Employee employee : employeeService.activeStaff()) {
-            rows.put(detachEmployeeForCache(employee), monthsForEmployee(employee, year));
+        if (staff == null || staff.isEmpty()) {
+            return rows;
+        }
+
+        List<Long> employeeIds = new ArrayList<Long>();
+        for (Employee employee : staff) {
+            if (employee != null && employee.getId() != null) {
+                employeeIds.add(employee.getId());
+            }
+        }
+        Map<Long, Map<Integer, SalaryPayment>> byEmployeeMonth = new LinkedHashMap<Long, Map<Integer, SalaryPayment>>();
+        for (SalaryPayment payment : paymentRepository.findByEmployeeIdsAndPayYearOrderByEmployeeIdAscPayMonthAsc(employeeIds, year)) {
+            if (payment == null || payment.getEmployee() == null || payment.getEmployee().getId() == null) {
+                continue;
+            }
+            Long employeeId = payment.getEmployee().getId();
+            Map<Integer, SalaryPayment> byMonth = byEmployeeMonth.get(employeeId);
+            if (byMonth == null) {
+                byMonth = new LinkedHashMap<Integer, SalaryPayment>();
+                byEmployeeMonth.put(employeeId, byMonth);
+            }
+            byMonth.put(payment.getPayMonth(), payment);
+        }
+
+        YearMonth now = YearMonth.now();
+        for (Employee employee : staff) {
+            if (employee == null) {
+                continue;
+            }
+            Map<Integer, SalaryPayment> byMonth = byEmployeeMonth.get(employee.getId());
+            List<SalaryMonthView> views = new ArrayList<SalaryMonthView>();
+            for (int m = 1; m <= 12; m++) {
+                YearMonth ym = YearMonth.of(year, m);
+                SalaryPayment payment = byMonth == null ? null : byMonth.get(m);
+                views.add(new SalaryMonthView(ym, resolveStatus(employee, ym, payment, now), payment, ym.equals(now)));
+            }
+            rows.put(detachEmployeeForCache(employee), views);
         }
         return rows;
     }

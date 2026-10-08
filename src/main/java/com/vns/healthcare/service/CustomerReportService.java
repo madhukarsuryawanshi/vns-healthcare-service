@@ -209,22 +209,32 @@ public class CustomerReportService {
         if (customers == null || customers.isEmpty()) {
             return result;
         }
-        List<Long> customerIds = customers.stream().map(Customer::getId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+
+        List<Long> customerIds = new java.util.ArrayList<>();
+        for (Customer customer : customers) {
+            if (customer != null && customer.getId() != null) {
+                customerIds.add(customer.getId());
+            }
+        }
         if (customerIds.isEmpty()) {
             return result;
         }
 
         int fromYear = from.getYear();
         int toYear = to.getYear();
-        for (Long customerId : customerIds) {
-            Map<Integer, ChargePayStatus> statuses = new java.util.HashMap<>();
-            for (CustomerChargeStatus record : customerChargeStatusRepository.findByCustomerIdAndPayYearBetweenOrderByPayYearAscPayMonthAsc(customerId, fromYear, toYear)) {
-                if (record == null || record.getStatus() == null) {
-                    continue;
-                }
-                statuses.put(record.getPayYear() * 100 + record.getPayMonth(), record.getStatus());
+        Map<Long, Map<Integer, ChargePayStatus>> statusesByCustomer = new java.util.HashMap<>();
+
+        for (CustomerChargeStatus record : customerChargeStatusRepository.findByCustomerIdsAndPayYearBetweenOrderByCustomerIdAscPayYearAscPayMonthAsc(customerIds, fromYear, toYear)) {
+            if (record == null || record.getCustomer() == null || record.getCustomer().getId() == null || record.getStatus() == null) {
+                continue;
             }
-            result.put(customerId, statuses);
+            Long customerId = record.getCustomer().getId();
+            Map<Integer, ChargePayStatus> statuses = statusesByCustomer.computeIfAbsent(customerId, ignored -> new java.util.HashMap<>());
+            statuses.put(record.getPayYear() * 100 + record.getPayMonth(), record.getStatus());
+        }
+
+        for (Long customerId : customerIds) {
+            result.put(customerId, statusesByCustomer.getOrDefault(customerId, new java.util.HashMap<>()));
         }
         return result;
     }

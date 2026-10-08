@@ -188,20 +188,32 @@ public class AttendanceReportService {
         if (staff == null || staff.isEmpty()) {
             return result;
         }
+
+        List<Long> employeeIds = new ArrayList<>();
+        for (Employee employee : staff) {
+            if (employee != null && employee.getId() != null) {
+                employeeIds.add(employee.getId());
+            }
+        }
+        if (employeeIds.isEmpty()) {
+            return result;
+        }
+
         int fromYear = from.getYear();
         int toYear = to.getYear();
-        for (Employee employee : staff) {
-            if (employee == null || employee.getId() == null) {
+        Map<Long, Map<Integer, SalaryPayStatus>> statusesByEmployee = new LinkedHashMap<>();
+
+        for (SalaryPayment payment : salaryPaymentRepository.findByEmployeeIdsAndPayYearBetweenOrderByEmployeeIdAscPayYearAscPayMonthAsc(employeeIds, fromYear, toYear)) {
+            if (payment == null || payment.getEmployee() == null || payment.getEmployee().getId() == null || payment.getStatus() == null) {
                 continue;
             }
-            Map<Integer, SalaryPayStatus> statuses = new LinkedHashMap<>();
-            for (SalaryPayment payment : salaryPaymentRepository.findByEmployeeIdAndPayYearBetweenOrderByPayYearAscPayMonthAsc(employee.getId(), fromYear, toYear)) {
-                if (payment == null || payment.getStatus() == null) {
-                    continue;
-                }
-                statuses.put(payment.getPayYear() * 100 + payment.getPayMonth(), payment.getStatus());
-            }
-            result.put(employee.getId(), statuses);
+            Long employeeId = payment.getEmployee().getId();
+            Map<Integer, SalaryPayStatus> statuses = statusesByEmployee.computeIfAbsent(employeeId, ignored -> new LinkedHashMap<>());
+            statuses.put(payment.getPayYear() * 100 + payment.getPayMonth(), payment.getStatus());
+        }
+
+        for (Long employeeId : employeeIds) {
+            result.put(employeeId, statusesByEmployee.getOrDefault(employeeId, new LinkedHashMap<>()));
         }
         return result;
     }
