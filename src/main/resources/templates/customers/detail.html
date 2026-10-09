@@ -135,7 +135,7 @@
     </div>
 
     <div class="customer-section-panel" id="billing-tab" style="display:none;">
-    <div class="panel" id="invoice-panel" th:attr="data-base-total=${runningTotal != null ? runningTotal.doubleValue() : 0.0}, data-service-days=${serviceDays != null ? serviceDays : 0}, data-customer-id=${customer.id}">
+    <div class="panel" id="invoice-panel" th:attr="data-base-total=${customer.charges != null ? customer.charges.doubleValue() : 0.0}, data-service-days=${serviceDays != null ? serviceDays : 0}, data-customer-id=${customer.id}">
         <div class="topbar" style="margin-bottom:12px; align-items:flex-end;">
             <div>
                 <p class="eyebrow">Billing</p>

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -160,6 +161,7 @@ public class SalaryController {
                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidOn,
                        @RequestParam(required = false) String notes,
                        @RequestParam(required = false) String anchor,
+                       @RequestHeader(value = "X-Requested-With", required = false) String requestedWith,
                        RedirectAttributes redirectAttributes) {
         log.info("Saving salary status for employee [{}] year [{}] month [{}] status [{}]", employeeId, year, month, status);
         try {

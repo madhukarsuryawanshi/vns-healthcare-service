@@ -16,10 +16,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -80,6 +83,41 @@ class CustomerDutyServiceTest {
         when(dutyRepository.findByCustomerIdAndDutyDate(10L, LocalDate.of(2026, 9, 10))).thenReturn(Optional.empty());
 
         assertDoesNotThrow(() -> customerDutyService.applyRange(10L, LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 10), 20L, false));
+    }
+
+    @Test
+    void payDaysDivisor_usesMonthLength_forSingleMonthRange() {
+        assertEquals(30, customerDutyService.payDaysDivisor(LocalDate.of(2025, 9, 1), LocalDate.of(2025, 9, 30)));
+    }
+
+    @Test
+    void payDaysDivisor_usesInclusiveDayCount_whenRangeCrossesMonthBoundary() {
+        assertEquals(39, customerDutyService.payDaysDivisor(LocalDate.of(2025, 9, 1), LocalDate.of(2025, 10, 9)));
+    }
+
+    @Test
+    void calculateCharges_keepsMonthlyChargeEquivalent_forCrossMonthRange() {
+        Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
+        customer.setCharges(BigDecimal.valueOf(30000));
+
+        LocalDate from = LocalDate.of(2025, 9, 1);
+        LocalDate to = LocalDate.of(2025, 10, 9);
+        Employee employee = employee(20L, "EMP-1007", "Madhukar");
+
+        List<com.vns.healthcare.entity.CustomerDuty> duties = new ArrayList<>();
+        for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+            com.vns.healthcare.entity.CustomerDuty duty = new com.vns.healthcare.entity.CustomerDuty();
+            duty.setCustomer(customer);
+            duty.setDutyDate(day);
+            duty.setEmployee(employee);
+            duty.setHold(false);
+            duties.add(duty);
+        }
+
+        when(dutyRepository.findForCustomerInRange(10L, from, to)).thenReturn(duties);
+
+        BigDecimal total = customerDutyService.calculateCharges(customer, from, to);
+        assertEquals(0, total.compareTo(BigDecimal.valueOf(30000).setScale(2, java.math.RoundingMode.HALF_UP)));
     }
 
     private Customer customer(Long id, String custCode, String patientName) {
