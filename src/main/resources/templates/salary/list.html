@@ -82,6 +82,7 @@
                             <input type="hidden" name="year" th:value="${year}"/>
                             <input type="hidden" name="month" th:value="${m.monthValue}"/>
                             <input type="hidden" name="anchor" value="salary"/>
+                            <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
                             <select name="status" style="max-width:110px" th:disabled="${m.paid}" th:attr="data-initial-status=${m.status != null ? m.status.name() : ''}">
                                 <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).PAID}" th:selected="${m.paid}">Paid</option>
                                 <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).IN_PROGRESS}" th:selected="${m.inProgress}">In progress</option>
@@ -142,21 +143,75 @@
                 function update() {
                     hiddenStatus.value = select.value;
                     if (submitBtn) submitBtn.disabled = false;
+                    if (paidOnInput) {
+                        if (('' + select.value).toUpperCase() === 'PAID' && !paidOnInput.value) {
+                            paidOnInput.setCustomValidity('Please select the Paid on date before saving.');
+                        } else {
+                            paidOnInput.setCustomValidity('');
+                        }
+                    }
                 }
 
                 select.addEventListener('change', update);
                 paidOnInput.addEventListener('input', update);
                 paidOnInput.addEventListener('change', update);
 
-                form.addEventListener('submit', function () {
+                form.addEventListener('submit', function (event) {
                     hiddenStatus.name = 'status';
                     hiddenStatus.value = select.value;
+                    select.name = '_status_select';
                     if (('' + select.value).toUpperCase() === 'PAID') {
-                        if (submitBtn) submitBtn.disabled = true;
-                        select.disabled = true;
-                        paidOnInput.disabled = true;
+                        if (!paidOnInput || !paidOnInput.value) {
+                            event.preventDefault();
+                            if (paidOnInput) {
+                                paidOnInput.focus();
+                                paidOnInput.setCustomValidity('Please select the Paid on date before saving.');
+                                paidOnInput.reportValidity();
+                            }
+                            return false;
+                        }
                     }
-                    return true;
+                    event.preventDefault();
+                    var requestBody = new FormData(form);
+                    requestBody.set('status', select.value);
+                    if (submitBtn) submitBtn.disabled = true;
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: requestBody,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    }).then(function (response) {
+                        if (!response.ok) {
+                            throw new Error('Salary update failed');
+                        }
+                        return response.text();
+                    }).then(function (html) {
+                        var parser = new DOMParser();
+                        var doc = parser.parseFromString(html, 'text/html');
+                        var nextResults = doc.querySelector('#salary-results');
+                        var target = document.getElementById('salary-results');
+                        if (nextResults && target) {
+                            target.innerHTML = nextResults.innerHTML;
+                        }
+                        var params = new URLSearchParams(window.location.search);
+                        params.set('year', form.querySelector('input[name="year"]').value || params.get('year') || new Date().getFullYear());
+                        if (window.history && window.history.replaceState) {
+                            window.history.replaceState({}, '', window.location.pathname + '?' + params.toString());
+                        }
+                        document.querySelectorAll('form[data-salary-form]').forEach(function (nextForm) {
+                            if (nextForm.dataset.bound === 'true') {
+                                nextForm.dataset.bound = 'false';
+                            }
+                        });
+                        document.querySelectorAll('form[data-salary-form]').forEach(function (nextForm) {
+                            nextForm.dataset.bound = 'false';
+                        });
+                        document.querySelectorAll('form[data-salary-form]').forEach(bindForm);
+                    }).catch(function () {
+                        form.submit();
+                    }).finally(function () {
+                        if (submitBtn) submitBtn.disabled = false;
+                    });
+                    return false;
                 });
 
                 update();

@@ -30,17 +30,18 @@
            </td>
            <td th:text="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'dd MMM yyyy')} : '—'">—</td>
            <td>
-               <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search" style="margin:0; display:flex; flex-direction:column; gap:6px; align-items:flex-start; width:170px" data-salary-status-form>
+               <form th:if="${canWriteEmployees and m.status != null}" th:action="@{/employees/{id}/salary(id=${employee.id})}" method="post" class="search salary-status-form" style="margin:0; display:flex; flex-direction:column; gap:6px; align-items:flex-start; width:170px" data-salary-status-form>
                    <input type="hidden" name="year" th:value="${salaryYear}"/>
                    <input type="hidden" name="month" th:value="${m.monthValue}"/>
                    <input type="hidden" name="anchor" value="salary-tab"/>
+                   <input th:if="${_csrf != null}" type="hidden" name="_csrf" th:value="${_csrf.token}"/>
                    <select name="status" style="max-width:130px" th:disabled="${m.paid}">
                        <option value="PAID" th:selected="${m.paid}">Paid</option>
                        <option value="IN_PROGRESS" th:selected="${m.inProgress}">In progress</option>
                        <option value="UNPAID" th:selected="${m.unpaid}">Unpaid</option>
                    </select>
                    <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
-                       <input type="date" name="paidOn" style="max-width:130px; width:100%" th:disabled="${m.paid}" th:value="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'yyyy-MM-dd')} : ''" data-paid-on-input/>
+                       <input type="date" name="paidOn" style="max-width:130px; width:100%" th:disabled="${m.paid}" th:value="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'yyyy-MM-dd')} : ''" data-paid-on-input required="required"/>
                    </div>
                    <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; width:100%" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
                    <button class="btn secondary" type="submit" th:disabled="${m.paid}">Save</button>
@@ -63,29 +64,82 @@
                if (!hiddenStatus) {
                    hiddenStatus = document.createElement('input');
                    hiddenStatus.type = 'hidden';
+                   hiddenStatus.name = 'status';
                    hiddenStatus.dataset.statusHidden = 'true';
                    form.appendChild(hiddenStatus);
+               }
+               var originalSelectName = select.name || 'status';
+               if (originalSelectName === 'status') {
+                   select.name = 'statusSelect';
                }
                hiddenStatus.value = select.value;
 
                function update() {
                    hiddenStatus.value = select.value;
                    if (submitBtn) submitBtn.disabled = false;
+                   if (paidOnInput) {
+                       var isPaid = ('' + select.value).toUpperCase() === 'PAID';
+                       paidOnInput.required = isPaid;
+                       if (isPaid && !paidOnInput.value) {
+                           paidOnInput.setCustomValidity('Please select the Paid on date before saving.');
+                       } else {
+                           paidOnInput.setCustomValidity('');
+                       }
+                   }
                }
 
                select.addEventListener('change', update);
                paidOnInput.addEventListener('input', update);
                paidOnInput.addEventListener('change', update);
 
-               form.addEventListener('submit', function () {
-                   hiddenStatus.name = 'status';
+               form.addEventListener('submit', function (event) {
                    hiddenStatus.value = select.value;
-                   if ((('' + select.value).toUpperCase() === 'PAID')) {
-                       if (submitBtn) submitBtn.disabled = true;
-                       select.disabled = true;
-                       paidOnInput.disabled = true;
+                   var isPaid = ('' + select.value).toUpperCase() === 'PAID';
+                   paidOnInput.required = isPaid;
+                   if (isPaid && (!paidOnInput || !paidOnInput.value)) {
+                       event.preventDefault();
+                       if (paidOnInput) {
+                           paidOnInput.focus();
+                           paidOnInput.setCustomValidity('Please select the Paid on date before saving.');
+                           paidOnInput.reportValidity();
+                       }
+                       return false;
                    }
-                   return true;
+                   paidOnInput.setCustomValidity('');
+                   var formData = new FormData(form);
+                   formData.delete('status');
+                   formData.set('status', select.value);
+                   if (submitBtn) submitBtn.disabled = true;
+                   fetch(form.action, {
+                       method: 'POST',
+                       body: formData,
+                       headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                   }).then(function (response) {
+                       if (!response.ok) {
+                           throw new Error('Salary update failed');
+                       }
+                       return response.text();
+                   }).then(function (html) {
+                       var parser = new DOMParser();
+                       var doc = parser.parseFromString(html, 'text/html');
+                       var fragment = doc.getElementById('salary');
+                       var root = document.getElementById('salary-fragment-root');
+                       if (fragment && root) {
+                           root.innerHTML = fragment.outerHTML;
+                           document.querySelectorAll('.salary-status-form').forEach(function (nextForm) {
+                               if (nextForm.dataset.bound === 'true') {
+                                   nextForm.dataset.bound = 'false';
+                               }
+                           });
+                           bindSalaryStatusForms();
+                       }
+                   }).catch(function () {
+                       form.submit();
+                   }).finally(function () {
+                       if (submitBtn) submitBtn.disabled = false;
+                   });
+                   event.preventDefault();
+                   return false;
                });
 
                update();
