@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Employees', ~{::section})">
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Employees', ~{::section})}">
 <section>
     <div class="topbar">
         <div>
@@ -165,7 +165,7 @@
                                 <th><a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='trainingStatus', dir=${sort == 'trainingStatus' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Training <span th:if="${sort == 'trainingStatus'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th style="position:relative;">
                                     <a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='designation', dir=${sort == 'designation' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Designation <span th:if="${sort == 'designation'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a>
-                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-designation" onclick="toggleFilter(this)">
+                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-designation" onclick="toggleFilter(this)}">
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                             <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
@@ -185,7 +185,7 @@
                 </th>
                 <th style="position:relative;">
                     Attendance
-                                        <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-attendance" onclick="toggleFilter(this)">
+                                        <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-attendance" onclick="toggleFilter(this)}">
                                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                                                 <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                             </svg>
@@ -205,7 +205,7 @@
                 </th>
                 <th style="position:relative;">
                     <a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='status', dir=${sort == 'status' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Status <span th:if="${sort == 'status'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a>
-                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-status" onclick="toggleFilter(this)">
+                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-status" onclick="toggleFilter(this)}">
                                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                                                 <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                             </svg>

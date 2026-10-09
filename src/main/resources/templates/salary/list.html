@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Salary', ~{::section})">
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Salary', ~{::section})}">
 <section>
     <div class="topbar">
         <div>
@@ -87,6 +87,9 @@
                                 <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).IN_PROGRESS}" th:selected="${m.inProgress}">In progress</option>
                                 <option th:value="${T(com.vns.healthcare.domain.SalaryPayStatus).UNPAID}" th:selected="${m.unpaid}">Hold</option>
                             </select>
+                            <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
+                                <input type="date" name="paidOn" style="max-width:130px; min-width:120px" th:disabled="${m.paid}" th:value="${m.payment != null and m.payment.paidOn != null} ? ${#temporals.format(m.payment.paidOn, 'yyyy-MM-dd')} : ''" data-paid-on-input/>
+                            </div>
                             <textarea name="notes" rows="2" placeholder="Salary comment" style="resize:vertical; min-width:130px; max-width:180px" th:disabled="${m.paid}" th:text="${m.payment != null} ? ${m.payment.notes} : ''"></textarea>
                             <button class="btn secondary" type="submit" style="max-width:90px" th:disabled="${m.paid}">Save</button>
                         </form>
@@ -118,55 +121,102 @@
     </div>
 
     <script>
-        document.addEventListener('submit', function (event) {
-            var form = event.target.closest('form[data-salary-form]');
-            if (!form) return;
-            var select = form.querySelector('select[name="status"]');
-            if (!select) return;
-            if (select.value === 'PAID') {
-                var button = form.querySelector('button[type="submit"]');
-                if (button) {
-                    button.disabled = true;
+        document.addEventListener('DOMContentLoaded', function () {
+            function bindForm(form) {
+                if (!form || form.dataset.bound === 'true') return;
+                form.dataset.bound = 'true';
+                var select = form.querySelector('select[name="status"]');
+                var paidOnInput = form.querySelector('input[name="paidOn"]');
+                var submitBtn = form.querySelector('button[type="submit"]');
+                if (!select || !paidOnInput) return;
+
+                var hiddenStatus = form.querySelector('input[data-status-hidden]');
+                if (!hiddenStatus) {
+                    hiddenStatus = document.createElement('input');
+                    hiddenStatus.type = 'hidden';
+                    hiddenStatus.dataset.statusHidden = 'true';
+                    form.appendChild(hiddenStatus);
                 }
-                var notes = form.querySelector('textarea[name="notes"]');
-                if (notes) {
-                    notes.disabled = true;
+                hiddenStatus.value = select.value;
+
+                function update() {
+                    hiddenStatus.value = select.value;
+                    if (submitBtn) submitBtn.disabled = false;
                 }
+
+                select.addEventListener('change', update);
+                paidOnInput.addEventListener('input', update);
+                paidOnInput.addEventListener('change', update);
+
+                form.addEventListener('submit', function () {
+                    hiddenStatus.name = 'status';
+                    hiddenStatus.value = select.value;
+                    if (('' + select.value).toUpperCase() === 'PAID') {
+                        if (submitBtn) submitBtn.disabled = true;
+                        select.disabled = true;
+                        paidOnInput.disabled = true;
+                    }
+                    return true;
+                });
+
+                update();
             }
+
+            document.querySelectorAll('form[data-salary-form]').forEach(bindForm);
+            var observer = new MutationObserver(function (mutations) {
+                mutations.forEach(function (m) {
+                    m.addedNodes && m.addedNodes.forEach(function (n) {
+                        if (n.nodeType === 1) {
+                            n.querySelectorAll && n.querySelectorAll('form[data-salary-form]').forEach(bindForm);
+                        }
+                    });
+                });
+            });
+            observer.observe(document.getElementById('salary-results') || document.body, { childList: true, subtree: true });
+
+            document.addEventListener('click', function (event) {
+                var link = event.target.closest('a.js-page-link');
+                if (!link) return;
+                event.preventDefault();
+                var target = document.getElementById('salary-results');
+                if (!target) return;
+                fetch(link.href, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (response) { return response.text(); })
+                    .then(function (html) {
+                        var parser = new DOMParser();
+                        var doc = parser.parseFromString(html, 'text/html');
+                        var next = doc.querySelector('#salary-results');
+                        if (next) {
+                            target.innerHTML = next.innerHTML;
+                            if (window.history && window.history.pushState) {
+                                window.history.pushState({}, '', link.href);
+                            }
+                        }
+                    });
+            });
+
+            document.addEventListener('click', function (e) {
+                var target = e.target;
+                if (!target.closest || (!target.closest('.filter-toggle') && !target.closest('.column-filter'))) {
+                    document.querySelectorAll('.column-filter').forEach(function (el) { el.style.display = 'none'; });
+                    document.querySelectorAll('.filter-toggle').forEach(function (t) { t.setAttribute('aria-expanded', 'false'); });
+                }
+            });
         });
 
-        document.addEventListener('click', function (event) {
-            var link = event.target.closest('a.js-page-link');
-            if (!link) return;
-            event.preventDefault();
-            var target = document.getElementById('salary-results');
-            if (!target) return;
-            fetch(link.href, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-                .then(function (response) { return response.text(); })
-                .then(function (html) {
-                    var parser = new DOMParser();
-                    var doc = parser.parseFromString(html, 'text/html');
-                    var next = doc.querySelector('#salary-results');
-                    if (next) {
-                        target.innerHTML = next.innerHTML;
-                        if (window.history && window.history.pushState) {
-                            window.history.pushState({}, '', link.href);
-                        }
-                    }
-                });
-        });
         function toggleFilter(btn) {
             var panelId = btn.getAttribute('aria-controls');
             var panel = panelId ? document.getElementById(panelId) : btn.nextElementSibling;
             if (!panel) return;
-            document.querySelectorAll('.column-filter').forEach(function(el){ if (el !== panel) el.style.display='none'; });
-            document.querySelectorAll('.filter-toggle').forEach(function(t){ if (t !== btn) t.setAttribute('aria-expanded','false'); });
+            document.querySelectorAll('.column-filter').forEach(function (el) { if (el !== panel) el.style.display = 'none'; });
+            document.querySelectorAll('.filter-toggle').forEach(function (t) { if (t !== btn) t.setAttribute('aria-expanded', 'false'); });
             var isOpen = panel.style.display === 'block';
             panel.style.display = isOpen ? 'none' : 'block';
             btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
         }
+
         function clearMonthFilter(button) {
             var form = button.closest('form');
             if (!form) return;
@@ -176,6 +226,7 @@
             }
             form.submit();
         }
+
         function resetAllMonthFilters() {
             var form = document.createElement('form');
             form.method = 'get';
@@ -198,13 +249,6 @@
             document.body.appendChild(form);
             form.submit();
         }
-        document.addEventListener('click', function(e){
-            var target = e.target;
-            if (!target.closest || (!target.closest('.filter-toggle') && !target.closest('.column-filter'))) {
-                document.querySelectorAll('.column-filter').forEach(function(el){ el.style.display='none'; });
-                document.querySelectorAll('.filter-toggle').forEach(function(t){ t.setAttribute('aria-expanded','false'); });
-            }
-        });
     </script>
 </section>
 </html>

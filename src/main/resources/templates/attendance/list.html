@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout('Attendance', ~{::section})">
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Attendance', ~{::section})}">
 <section>
     <div class="topbar">
         <div>
@@ -72,7 +72,7 @@
         <div><strong>Absent:</strong> <span id="summary-absent" th:text="${summary.absent}">0</span></div>
         <div><strong>Leave:</strong> <span id="summary-leave" th:text="${summary.leave}">0</span></div>
         <div><strong>Unmarked:</strong> <span id="summary-unmarked" th:text="${summary.unmarked}">0</span></div>
-        <div style="margin-left:auto; color:var(--muted)"><strong>Total:</strong> <span id="summary-total" th:text="${summary.total}">0</span></div>
+        <div style="margin-left:auto; color:var(--muted)}"><strong>Total:</strong> <span id="summary-total" th:text="${summary.total}">0</span></div>
     </div>
     <div th:if="${!employees.isEmpty()}">
         <div class="attendance-panel">

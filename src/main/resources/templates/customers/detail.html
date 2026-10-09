@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout(${customer.patientName}, ~{::section})">
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(${customer.patientName}, ~{::section})}">
 <section>
     <div class="topbar">
         <div>

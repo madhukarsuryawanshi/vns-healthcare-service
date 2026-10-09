@@ -111,7 +111,7 @@ public class SalaryPaymentService {
         payment.setStatus(status);
         payment.setNotes(blankToNull(notes));
         if (status == SalaryPayStatus.PAID) {
-            payment.setPaidOn(paidOn == null ? LocalDate.now() : paidOn);
+            payment.setPaidOn(paidOn);
             if (payment.getAmount() == null) {
                 payment.setAmount(employee.getSalary());
             }

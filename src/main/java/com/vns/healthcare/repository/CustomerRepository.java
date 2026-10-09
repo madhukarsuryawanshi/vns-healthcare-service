@@ -14,6 +14,8 @@ import java.util.Optional;
 
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
+    Optional<Customer> findByCustCode(String custCode);
+
     @EntityGraph(attributePaths = {"assignedEmployee", "documents"})
     @Query("SELECT c FROM Customer c WHERE c.id = :id")
     Optional<Customer> findWithEmployee(@Param("id") Long id);
