@@ -332,7 +332,6 @@ public class CustomerService {
     }
 
     private void applyForm(Customer customer, CustomerForm form) {
-        customer.setFullName(form.getFullName().trim());
         customer.setMobileNo(form.getMobileNo().trim());
         customer.setAddress(form.getAddress().trim());
         customer.setPatientName(form.getPatientName().trim());

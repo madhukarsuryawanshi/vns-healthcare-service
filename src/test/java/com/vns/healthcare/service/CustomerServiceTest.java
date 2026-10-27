@@ -5,6 +5,7 @@ import com.vns.healthcare.entity.Customer;
 import com.vns.healthcare.entity.Employee;
 import com.vns.healthcare.repository.CustomerDocumentRepository;
 import com.vns.healthcare.repository.CustomerRepository;
+import com.vns.healthcare.web.CustomerForm;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,6 +40,27 @@ class CustomerServiceTest {
 
     @InjectMocks
     private CustomerService customerService;
+
+    @Test
+    void create_usesPatientNameAsCustomerIdentity() {
+        CustomerForm form = new CustomerForm();
+        form.setPatientName("Sarla Malhotra");
+        form.setMobileNo("9876543210");
+        form.setAddress("Bengaluru");
+        form.setAge(52);
+        form.setServiceStartDate(LocalDate.of(2026, 9, 1));
+        form.setServiceType("HOURS_24");
+        form.setCharges(BigDecimal.valueOf(25000));
+        form.setAdvancePayment(BigDecimal.ZERO);
+
+        when(codeGeneratorService.nextCustomerCode()).thenReturn("CUS-1001");
+        when(customerRepository.save(any(Customer.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Customer saved = customerService.create(form);
+
+        assertEquals("CUS-1001", saved.getCustCode());
+        assertEquals("Sarla Malhotra", saved.getPatientName());
+    }
 
     @Test
     void assignEmployee_releasesAssignmentWhenUnassigned() {

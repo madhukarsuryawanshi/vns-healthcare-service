@@ -5,7 +5,7 @@
         <div>
             <p class="eyebrow" th:text="${customer.custCode}">CUS-1001</p>
             <h2 class="page-title" th:text="${customer.patientName}">Patient</h2>
-            <p class="sub" th:text="'Family contact: ' + (${customer.fullName != null and !#strings.isEmpty(customer.fullName)} ? ${customer.fullName} : ${customer.patientName}) + ' · ' + ${customer.mobileNo}">Contact</p>
+            <p class="sub" th:text="'Patient: ' + ${customer.patientName} + ' · ' + ${customer.mobileNo}">Contact</p>
         </div>
         <div class="actions">
             <a class="btn ghost" th:if="${canWriteCustomers and !customer.closed}" th:href="@{/customers/{id}/edit(id=${customer.id})}">Edit</a>
@@ -52,8 +52,8 @@
                 <dd th:text="${customer.age}">70</dd>
                 <dt>Service</dt>
                 <dd th:text="${customer.serviceType == T(com.vns.healthcare.domain.ServiceType).HOURS_24} ? '24 hours' : '12 hours'">24 hours</dd>
-                <dt>Monthly charges</dt>
-                <dd th:text="${customer.charges != null} ? ${#numbers.formatDecimal(customer.charges, 1, 'COMMA', 2, 'POINT')} : '—'">25,000.00</dd>
+                <dt>Per day charges</dt>
+                <dd th:text="${customer.charges != null} ? ${#numbers.formatDecimal(customer.charges, 1, 'COMMA', 2, 'POINT')} : '—'">1,000.00</dd>
                 <dt>Advance balance</dt>
                 <dd>
                     <strong id="customer-advance-balance" th:attr="data-customer-advance-balance=${customer.advancePayment != null ? customer.advancePayment : 0}" th:text="${customer.advancePayment != null} ? ${#numbers.formatDecimal(customer.advancePayment, 1, 'COMMA', 2, 'POINT')} : '0.00'">0.00</strong>
@@ -625,6 +625,10 @@
 
             var baseTotal = Number(panel.dataset.baseTotal || 0);
             var serviceDays = Number(panel.dataset.serviceDays || 0);
+            function selectedRangeAmount() {
+                var selectedDays = calculateSelectedServiceDays();
+                return baseTotal * selectedDays;
+            }
             var checkbox = document.getElementById('apply-discount');
             var discountInput = document.getElementById('invoice-discount');
             var advanceCheckbox = document.getElementById('apply-advance');
@@ -714,16 +718,28 @@
 
             function refreshServiceDayDisplay() {
                 var selectedServiceDays = calculateSelectedServiceDays();
+                var selectedRangeTotal = selectedRangeAmount();
                 if (document.getElementById('invoice-service-days')) {
                     document.getElementById('invoice-service-days').textContent = selectedServiceDays;
                 }
-                var dailyRateValue = selectedServiceDays > 0 ? (baseTotal / selectedServiceDays) : 0;
                 if (dailyRateEl) {
-                    dailyRateEl.textContent = formatter.format(dailyRateValue);
+                    dailyRateEl.textContent = formatter.format(baseTotal || 0);
                 }
+                if (invoiceTableBody) {
+                    Array.prototype.slice.call(invoiceTableBody.querySelectorAll('tr')).forEach(function (row) {
+                        if (row.dataset.autoDescription !== 'true') {
+                            return;
+                        }
+                        var amountInput = row.querySelector('.invoice-item-amount');
+                        if (amountInput) {
+                            amountInput.value = selectedRangeTotal.toFixed(2);
+                        }
+                    });
+                }
+                updateInvoice();
             }
 
-            var dailyRate = serviceDays > 0 ? (baseTotal / serviceDays) : 0;
+            var dailyRate = baseTotal || 0;
             if (dailyRateEl) {
                 dailyRateEl.textContent = formatter.format(dailyRate);
             }
@@ -966,7 +982,7 @@
                     return;
                 }
                 invoiceTableBody.innerHTML = '';
-                addInvoiceRow('', baseTotal, true);
+                addInvoiceRow('', selectedRangeAmount(), true);
             }
 
             function updateAutoDescriptions() {

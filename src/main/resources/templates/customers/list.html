@@ -4,7 +4,7 @@
     <div class="topbar">
         <div>
             <p class="eyebrow">Patients</p>
-            <h2 class="page-title">Leads &amp; customers</h2>
+            <h2 class="page-title">Patients</h2>
             <p class="sub">Search by customer name, mobile, patient name, or customer ID.</p>
         </div>
         <a class="btn" th:if="${canWriteCustomers}" th:href="@{/customers/new}">Add customer</a>
@@ -199,9 +199,8 @@
             <thead>
             <tr>
                 <th><a th:href="@{/customers(q=${q}, status=${status}, sort='custCode', dir=${sort == 'custCode' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Cust ID <span th:if="${sort == 'custCode'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='fullName', dir=${sort == 'fullName' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Customer name <span th:if="${sort == 'fullName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='patientName', dir=${sort == 'patientName' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Patient name <span th:if="${sort == 'patientName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th><a th:href="@{/customers(q=${q}, status=${status}, sort='mobileNo', dir=${sort == 'mobileNo' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Contact number <span th:if="${sort == 'mobileNo'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
-                <th><a th:href="@{/customers(q=${q}, status=${status}, sort='patientName', dir=${sort == 'patientName' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Patient <span th:if="${sort == 'patientName'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th><a th:href="@{/customers(q=${q}, status=${status}, sort='serviceType', dir=${sort == 'serviceType' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Service <span th:if="${sort == 'serviceType'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th><a th:href="@{/customers(q=${q}, status=${status}, sort='charges', dir=${sort == 'charges' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Charges <span th:if="${sort == 'charges'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th><a th:href="@{/customers(q=${q}, status=${status}, sort='assignedEmployee', dir=${sort == 'assignedEmployee' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Assigned staff <span th:if="${sort == 'assignedEmployee'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
@@ -213,9 +212,8 @@
             <tbody>
             <tr th:each="c : ${customers}" th:classappend="${c.closed} ? 'closed'">
                 <td th:text="${c.custCode}">CUS-1001</td>
-                <td th:text="${c.fullName != null and !#strings.isEmpty(c.fullName)} ? ${c.fullName} : ${c.patientName}">Name</td>
+                <td th:text="${c.patientName}">Name</td>
                 <td th:text="${c.mobileNo}">999</td>
-                <td th:text="${c.patientName}">Patient</td>
                 <td th:text="${c.serviceType == T(com.vns.healthcare.domain.ServiceType).HOURS_24} ? '24 hrs' : '12 hrs'">24 hrs</td>
                 <td th:text="${c.charges != null} ? ${#numbers.formatDecimal(c.charges, 1, 'COMMA', 2, 'POINT')} : '—'">25,000.00</td>
                 <td>

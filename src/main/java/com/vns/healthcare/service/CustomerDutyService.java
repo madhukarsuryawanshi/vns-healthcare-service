@@ -125,13 +125,12 @@ public class CustomerDutyService {
             byDay.put(duty.getDutyDate(), duty);
         }
         int billable = countBillableDays(customer, from, to);
-        int divisor = payDaysDivisor(from, to);
-        if (divisor <= 0 || billable == 0) {
+        if (billable <= 0) {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
         BigDecimal total = customer.getCharges()
                 .multiply(BigDecimal.valueOf(billable))
-                .divide(BigDecimal.valueOf(divisor), 2, RoundingMode.HALF_UP);
+                .setScale(2, RoundingMode.HALF_UP);
         log.debug("Calculated charge total for customer [{}]: {}", customer.getId(), total);
         return total;
     }

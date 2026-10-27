@@ -28,14 +28,14 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     long countByAssignedEmployeeIsNotNull();
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR LOWER(c.custCode) LIKE LOWER(:prefix) OR LOWER(c.mobileNo) LIKE LOWER(:prefix) OR LOWER(c.fullName) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix)) ORDER BY c.createdAt DESC")
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR LOWER(c.custCode) LIKE LOWER(:prefix) OR LOWER(c.mobileNo) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix))")
     Page<Customer> searchPage(@Param("status") CustomerStatus status,
                              @Param("search") String search,
                              @Param("prefix") String prefix,
                              Pageable pageable);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) ORDER BY c.createdAt DESC")
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status)")
     Page<Customer> findByStatusPage(@Param("status") CustomerStatus status, Pageable pageable);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
@@ -47,16 +47,16 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Customer> findByAssignedEmployee(@Param("employeeId") Long employeeId);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE LOWER(c.custCode) LIKE LOWER(:prefix) OR LOWER(c.mobileNo) LIKE LOWER(:prefix) OR LOWER(c.fullName) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix) ORDER BY c.createdAt DESC")
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE LOWER(c.custCode) LIKE LOWER(:prefix) OR LOWER(c.mobileNo) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix) ORDER BY c.createdAt DESC")
     List<Customer> findSuggestions(@Param("prefix") String prefix, Pageable pageable);
 
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR LOWER(c.custCode) LIKE LOWER(:prefix) OR LOWER(c.mobileNo) LIKE LOWER(:prefix) OR LOWER(c.fullName) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix))")
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e WHERE (:status IS NULL OR c.status = :status) AND (:search IS NULL OR :search = '' OR LOWER(c.custCode) LIKE LOWER(:prefix) OR LOWER(c.mobileNo) LIKE LOWER(:prefix) OR LOWER(c.patientName) LIKE LOWER(:prefix) OR LOWER(e.fullName) LIKE LOWER(:prefix) OR LOWER(e.empCode) LIKE LOWER(:prefix))")
     long countFiltered(@Param("status") CustomerStatus status,
                        @Param("search") String search,
                        @Param("prefix") String prefix);
 
     @EntityGraph(attributePaths = {"assignedEmployee"})
-    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e ORDER BY c.createdAt DESC")
+    @Query("SELECT c FROM Customer c LEFT JOIN c.assignedEmployee e")
     Page<Customer> findPage(Pageable pageable);
 
     default Page<Customer> search(String query, Pageable pageable) {

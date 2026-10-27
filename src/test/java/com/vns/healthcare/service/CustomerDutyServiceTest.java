@@ -96,9 +96,9 @@ class CustomerDutyServiceTest {
     }
 
     @Test
-    void calculateCharges_keepsMonthlyChargeEquivalent_forCrossMonthRange() {
+    void calculateCharges_usesDailyChargeAcrossCrossMonthRange() {
         Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
-        customer.setCharges(BigDecimal.valueOf(30000));
+        customer.setCharges(BigDecimal.valueOf(1000));
 
         LocalDate from = LocalDate.of(2025, 9, 1);
         LocalDate to = LocalDate.of(2025, 10, 9);
@@ -117,7 +117,7 @@ class CustomerDutyServiceTest {
         when(dutyRepository.findForCustomerInRange(10L, from, to)).thenReturn(duties);
 
         BigDecimal total = customerDutyService.calculateCharges(customer, from, to);
-        assertEquals(0, total.compareTo(BigDecimal.valueOf(30000).setScale(2, java.math.RoundingMode.HALF_UP)));
+        assertEquals(0, total.compareTo(BigDecimal.valueOf(39000).setScale(2, java.math.RoundingMode.HALF_UP)));
     }
 
     private Customer customer(Long id, String custCode, String patientName) {
@@ -125,7 +125,6 @@ class CustomerDutyServiceTest {
         customer.setId(id);
         customer.setCustCode(custCode);
         customer.setPatientName(patientName);
-        customer.setFullName("Family contact");
         customer.setMobileNo("9999999999");
         customer.setAddress("Address");
         customer.setAge(52);

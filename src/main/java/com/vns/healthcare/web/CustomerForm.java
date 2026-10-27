@@ -15,10 +15,6 @@ import java.time.LocalDate;
 
 public class CustomerForm {
 
-    @NotBlank(message = "Customer name is required")
-    @Size(max = 120)
-    private String fullName;
-
     @NotBlank(message = "Mobile number is required")
     @Pattern(regexp = "^[0-9]{10}$", message = "Enter a 10-digit mobile number")
     private String mobileNo;
@@ -62,14 +58,6 @@ public class CustomerForm {
     @Email(message = "Enter a valid email")
     @Size(max = 160)
     private String email;
-
-    public String getFullName() {
-        return fullName;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
 
     public String getMobileNo() {
         return mobileNo;
