@@ -111,10 +111,8 @@ public class SalaryPaymentService {
         payment.setStatus(status);
         payment.setNotes(blankToNull(notes));
         if (status == SalaryPayStatus.PAID) {
-            if (paidOn == null) {
-                throw new BusinessException("Please select the Paid on date before saving a Paid status.");
-            }
-            payment.setPaidOn(paidOn);
+            LocalDate effectivePaidOn = paidOn != null ? paidOn : LocalDate.now();
+            payment.setPaidOn(effectivePaidOn);
             if (payment.getAmount() == null) {
                 payment.setAmount(employee.getSalary());
             }

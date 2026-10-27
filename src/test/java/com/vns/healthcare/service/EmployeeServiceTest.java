@@ -110,7 +110,6 @@ class EmployeeServiceTest {
         customer.setId(id);
         customer.setCustCode(custCode);
         customer.setPatientName(patientName);
-        customer.setFullName("Contact person");
         customer.setMobileNo("9111111111");
         customer.setAddress("Address");
         customer.setAge(62);

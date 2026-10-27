@@ -82,7 +82,6 @@ CREATE TABLE IF NOT EXISTS employee_documents (
 CREATE TABLE IF NOT EXISTS customers (
     id                   BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     cust_code            VARCHAR(20)  NOT NULL UNIQUE,
-    full_name            VARCHAR(120) NOT NULL,
     mobile_no            VARCHAR(15)  NOT NULL,
     address              VARCHAR(500) NOT NULL,
     patient_name         VARCHAR(120) NOT NULL,
@@ -102,13 +101,12 @@ CREATE TABLE IF NOT EXISTS customers (
     created_at           DATETIME     NOT NULL,
     updated_at           DATETIME     NOT NULL,
     CONSTRAINT fk_cust_employee FOREIGN KEY (assigned_employee_id) REFERENCES employees (id) ON DELETE SET NULL,
-    INDEX idx_cust_name (full_name),
     INDEX idx_cust_mobile (mobile_no),
     INDEX idx_cust_assigned_employee (assigned_employee_id),
     INDEX idx_cust_created_at (created_at),
     INDEX idx_cust_status_created_at (status, created_at),
     INDEX idx_cust_code_mobile (cust_code, mobile_no),
-    INDEX idx_cust_name_patient (full_name, patient_name)
+    INDEX idx_cust_patient_name (patient_name)
 );
 
 -- KYC / ID / certificates uploaded for a customer

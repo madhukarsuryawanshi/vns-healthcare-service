@@ -231,7 +231,7 @@
         <nav class="nav">
             <a th:if="${canReadDashboard}" th:href="@{/}" th:classappend="${page == 'dashboard'} ? 'active'">Dashboard</a>
             <a th:if="${canReadEmployees}" th:href="@{/employees}" th:classappend="${page == 'employees'} ? 'active'">Employees</a>
-            <a th:if="${canReadCustomers}" th:href="@{/customers}" th:classappend="${page == 'customers'} ? 'active'">Leads</a>
+            <a th:if="${canReadCustomers}" th:href="@{/customers}" th:classappend="${page == 'customers'} ? 'active'">Patients</a>
             <a th:if="${canReadAttendance}" th:href="@{/attendance}" th:classappend="${page == 'attendance'} ? 'active'">Attendance</a>
             <a th:if="${canReadSalary}" th:href="@{/salary}" th:classappend="${page == 'salary'} ? 'active'">Salary</a>
             <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}" th:classappend="${page == 'admin'} ? 'active'">Admin</a>

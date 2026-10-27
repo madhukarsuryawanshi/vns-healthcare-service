@@ -118,9 +118,8 @@ public class CustomerController {
                 .getContent()
                 .stream()
                 .flatMap(c -> java.util.stream.Stream.of(
-                       c.getFullName(),
-                       c.getMobileNo(),
                        c.getPatientName(),
+                       c.getMobileNo(),
                        c.getCustCode(),
                        c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
                        c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
@@ -167,9 +166,8 @@ public class CustomerController {
         if (query != null && !query.trim().isEmpty()) {
             customerSuggestions = customerService.search(query.trim(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
                     .flatMap(c -> java.util.stream.Stream.of(
-                           c.getFullName(),
-                           c.getMobileNo(),
                            c.getPatientName(),
+                           c.getMobileNo(),
                            c.getCustCode(),
                            c.getAssignedEmployee() != null ? c.getAssignedEmployee().getFullName() : null,
                            c.getAssignedEmployee() != null ? c.getAssignedEmployee().getEmpCode() : null))
@@ -232,7 +230,6 @@ public class CustomerController {
         }
         switch (sort) {
             case "fullName":
-                return "fullName";
             case "patientName":
                 return "patientName";
             case "serviceType":
@@ -278,7 +275,6 @@ public class CustomerController {
         }
         switch (sort) {
             case "fullName":
-                return Comparator.comparing(c -> c.getFullName() == null ? "" : c.getFullName(), Comparator.nullsLast(String::compareToIgnoreCase));
             case "patientName":
                 return Comparator.comparing(c -> c.getPatientName() == null ? "" : c.getPatientName(), Comparator.nullsLast(String::compareToIgnoreCase));
             case "serviceType":
@@ -388,10 +384,7 @@ public class CustomerController {
         LocalDate billFrom = resolveOpenChargesStart(customer, billTo);
         BigDecimal runningTotal = dutyService.calculateCharges(customer, billFrom, billTo);
         int serviceDays = dutyService.countBillableDays(customer, billFrom, billTo);
-        BigDecimal invoiceDailyRate = BigDecimal.ZERO;
-        if (serviceDays > 0 && runningTotal != null && runningTotal.compareTo(BigDecimal.ZERO) > 0) {
-            invoiceDailyRate = runningTotal.divide(BigDecimal.valueOf(serviceDays), 2, java.math.RoundingMode.HALF_UP);
-        }
+        BigDecimal invoiceDailyRate = customer.getCharges() == null ? BigDecimal.ZERO : customer.getCharges();
 
         model.addAttribute("page", "customers");
         model.addAttribute("customer", customer);
@@ -849,7 +842,6 @@ public class CustomerController {
 
     private CustomerForm toForm(Customer customer) {
         CustomerForm form = new CustomerForm();
-        form.setFullName(customer.getFullName());
         form.setMobileNo(customer.getMobileNo());
         form.setAddress(customer.getAddress());
         form.setPatientName(customer.getPatientName());

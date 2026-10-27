@@ -43,9 +43,6 @@ public class Customer extends AuditableEntity {
     @Column(name = "cust_code", nullable = false, unique = true, length = 20)
     private String custCode;
 
-    @Column(name = "full_name", nullable = false, length = 120)
-    private String fullName;
-
     @Column(name = "mobile_no", nullable = false, length = 15)
     private String mobileNo;
 
@@ -134,14 +131,6 @@ public class Customer extends AuditableEntity {
 
     public void setCustCode(String custCode) {
         this.custCode = custCode;
-    }
-
-    public String getFullName() {
-        return fullName;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
     }
 
     public String getMobileNo() {

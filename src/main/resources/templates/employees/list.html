@@ -165,7 +165,7 @@
                                 <th><a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='trainingStatus', dir=${sort == 'trainingStatus' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Training <span th:if="${sort == 'trainingStatus'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th style="position:relative;">
                                     <a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='designation', dir=${sort == 'designation' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Designation <span th:if="${sort == 'designation'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a>
-                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-designation" onclick="toggleFilter(this)}">
+                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-designation" onclick="toggleFilter(this)">
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                             <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
@@ -185,7 +185,7 @@
                 </th>
                 <th style="position:relative;">
                     Attendance
-                                        <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-attendance" onclick="toggleFilter(this)}">
+                                        <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-attendance" onclick="toggleFilter(this)">
                                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                                                 <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                             </svg>
@@ -197,7 +197,7 @@
                             <input type="hidden" name="dir" th:value="${dir}" />
                                                 <select name="attendance">
                                 <option value="">All attendance</option>
-                                <option th:each="a : ${attendanceOptions}" th:value="${a}" th:text="${a}" th:selected="${attendance == a}">PRESENT</option>
+                                <option th:each="a : ${attendanceOptions}" th:value="${a}" th:text="${a == 'LEAVE' ? 'BENCH' : (a == 'HALF_DAY' ? 'HALF-DAY' : a)}" th:selected="${attendance == a}">PRESENT</option>
                             </select>
                                                 <div class="filter-actions"><button class="btn" type="submit">Apply</button></div>
                         </form>
@@ -205,7 +205,7 @@
                 </th>
                 <th style="position:relative;">
                     <a th:href="@{/employees(q=${q}, status=${status}, designation=${designation}, attendance=${attendance}, sort='status', dir=${sort == 'status' and dir == 'asc' ? 'desc' : 'asc'}, page=0)}">Status <span th:if="${sort == 'status'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a>
-                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-status" onclick="toggleFilter(this)}">
+                    <button type="button" class="filter-toggle" title="Filter" aria-expanded="false" aria-controls="filter-status" onclick="toggleFilter(this)">
                                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                                                 <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                             </svg>
@@ -238,7 +238,7 @@
                     <span class="badge ok" th:if="${todayAttendance[e.id] != null and todayAttendance[e.id].name() == 'PRESENT'}">Present</span>
                     <span class="badge warn" th:if="${todayAttendance[e.id] != null and todayAttendance[e.id].name() == 'HALF_DAY'}">Half day</span>
                     <span class="badge coral" th:if="${todayAttendance[e.id] != null and todayAttendance[e.id].name() == 'ABSENT'}">Absent</span>
-                    <span class="badge muted" th:if="${todayAttendance[e.id] != null and todayAttendance[e.id].name() == 'LEAVE'}">Leave</span>
+                    <span class="badge muted" th:if="${todayAttendance[e.id] != null and todayAttendance[e.id].name() == 'LEAVE'}">Bench</span>
                     <span class="badge muted" th:if="${todayAttendance[e.id] == null}">—</span>
                 </td>
                 <td>

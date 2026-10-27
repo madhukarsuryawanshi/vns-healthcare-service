@@ -123,17 +123,34 @@ public class EmployeeController {
         com.vns.healthcare.domain.EmployeeStatus normalizedStatus = parseEmployeeStatus(status);
         com.vns.healthcare.domain.Designation normalizedDesignation = parseDesignation(designation);
 
-        if (normalizedStatus != null || normalizedDesignation != null || (query != null && !query.trim().isEmpty())) {
+        List<Employee> allEmployees;
+        Pageable fullDatasetPageable = PageRequest.of(0, Integer.MAX_VALUE, Sort.by(direction, normalizedSort));
+        if (attendance != null && !attendance.trim().isEmpty()) {
+            if (normalizedStatus != null || normalizedDesignation != null || (query != null && !query.trim().isEmpty())) {
+                employeePage = employeeService.filterPage(normalizedStatus, normalizedDesignation, query, fullDatasetPageable);
+            } else {
+                employeePage = employeeService.listPage(fullDatasetPageable);
+            }
+            allEmployees = new ArrayList<Employee>(employeePage.getContent());
+        } else if (normalizedStatus != null || normalizedDesignation != null || (query != null && !query.trim().isEmpty())) {
             employeePage = employeeService.filterPage(normalizedStatus, normalizedDesignation, query, pageable);
+            allEmployees = new ArrayList<Employee>(employeePage.getContent());
         } else {
             employeePage = employeeService.listPage(pageable);
+            allEmployees = new ArrayList<Employee>(employeePage.getContent());
         }
 
-        List<Employee> employees = new ArrayList<Employee>(employeePage.getContent());
+        List<Employee> employees = new ArrayList<Employee>(allEmployees);
         if (attendance != null && !attendance.trim().isEmpty()) {
-            List<Employee> attendanceFiltered = filterEmployeesByAttendance(employees, attendance.trim().toUpperCase(), todayMap);
-            employeePage = new PageImpl<Employee>(attendanceFiltered, PageRequest.of(safePage, safeSize, Sort.by(direction, normalizedSort)), attendanceFiltered.size());
+            List<Employee> attendanceFiltered = filterEmployeesByAttendance(allEmployees, attendance.trim().toUpperCase(), todayMap);
             employees = new ArrayList<Employee>(attendanceFiltered);
+            employees.sort((left, right) -> compareEmployees(left, right, normalizedSort, direction));
+
+            int fromIndex = safePage * safeSize;
+            int toIndex = Math.min(fromIndex + safeSize, employees.size());
+            List<Employee> pageEmployees = fromIndex >= employees.size() ? new ArrayList<Employee>() : employees.subList(fromIndex, toIndex);
+            employeePage = new PageImpl<Employee>(new ArrayList<Employee>(pageEmployees), PageRequest.of(safePage, safeSize, Sort.by(direction, normalizedSort)), employees.size());
+            employees = new ArrayList<Employee>(pageEmployees);
         }
 
         model.addAttribute("page", "employees");
@@ -184,7 +201,8 @@ public class EmployeeController {
                     }
                     break;
                 case "ABSENT":
-                    if (status == com.vns.healthcare.domain.AttendanceStatus.ABSENT) {
+                    boolean hasAttendanceRecord = todayMap != null && todayMap.containsKey(employee.getId());
+                    if (!hasAttendanceRecord || status == com.vns.healthcare.domain.AttendanceStatus.ABSENT) {
                         filtered.add(employee);
                     }
                     break;
@@ -204,6 +222,40 @@ public class EmployeeController {
             }
         }
         return filtered;
+    }
+
+    private int compareEmployees(Employee left, Employee right, String sortField, Sort.Direction direction) {
+        int reverse = direction == Sort.Direction.DESC ? -1 : 1;
+        String field = sortField == null || sortField.trim().isEmpty() ? "empCode" : sortField.trim();
+        java.util.Comparator<Employee> comparator;
+        switch (field) {
+            case "fullName":
+                comparator = java.util.Comparator.comparing((Employee e) -> e.getFullName(), java.util.Comparator.nullsLast(String::compareToIgnoreCase));
+                break;
+            case "mobileNo":
+                comparator = java.util.Comparator.comparing((Employee e) -> e.getMobileNo(), java.util.Comparator.nullsLast(String::compareToIgnoreCase));
+                break;
+            case "joiningDate":
+                comparator = java.util.Comparator.comparing((Employee e) -> e.getJoiningDate(), java.util.Comparator.nullsLast(java.time.LocalDate::compareTo));
+                break;
+            case "trainingStatus":
+                comparator = java.util.Comparator.comparing((Employee e) -> e.getTrainingStatus() == null ? null : e.getTrainingStatus().name(), java.util.Comparator.nullsLast(String::compareToIgnoreCase));
+                break;
+            case "designation":
+                comparator = java.util.Comparator.comparing((Employee e) -> e.getDesignation() == null ? null : e.getDesignation().name(), java.util.Comparator.nullsLast(String::compareToIgnoreCase));
+                break;
+            case "status":
+                comparator = java.util.Comparator.comparing((Employee e) -> e.getStatus() == null ? null : e.getStatus().name(), java.util.Comparator.nullsLast(String::compareToIgnoreCase));
+                break;
+            case "onboarded":
+                comparator = java.util.Comparator.comparing(Employee::isOnboarded);
+                break;
+            case "empCode":
+            default:
+                comparator = java.util.Comparator.comparing((Employee e) -> e.getEmpCode(), java.util.Comparator.nullsLast(String::compareToIgnoreCase));
+                break;
+        }
+        return reverse * comparator.compare(left, right);
     }
 
     private String buildFilterSummary(String query, String status, String designation, String attendance) {
