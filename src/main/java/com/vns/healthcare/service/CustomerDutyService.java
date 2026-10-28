@@ -119,11 +119,6 @@ public class CustomerDutyService {
         if (customer.getCharges() == null || from == null || to == null || from.isAfter(to)) {
             return BigDecimal.ZERO;
         }
-        List<CustomerDuty> duties = dutyRepository.findForCustomerInRange(customer.getId(), from, to);
-        Map<LocalDate, CustomerDuty> byDay = new LinkedHashMap<LocalDate, CustomerDuty>();
-        for (CustomerDuty duty : duties) {
-            byDay.put(duty.getDutyDate(), duty);
-        }
         int billable = countBillableDays(customer, from, to);
         if (billable <= 0) {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
@@ -171,12 +166,16 @@ public class CustomerDutyService {
         LocalDate day = from;
         while (!day.isAfter(to)) {
             CustomerDuty duty = byDay.get(day);
-            if (duty != null && !duty.isHold() && duty.getEmployee() != null) {
+            if (isBillable(duty)) {
                 billable++;
             }
             day = day.plusDays(1);
         }
         return billable;
+    }
+
+    private boolean isBillable(CustomerDuty duty) {
+        return duty != null && !duty.isHold() && duty.getEmployee() != null;
     }
 
     public int payDaysDivisor(LocalDate from, LocalDate to) {

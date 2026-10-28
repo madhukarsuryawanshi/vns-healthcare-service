@@ -144,7 +144,6 @@
             <div class="actions" style="gap:8px;">
                 <button type="button" class="btn secondary" id="new-invoice-btn">New Invoice</button>
                 <button type="button" class="btn secondary" id="save-invoice-btn">Save invoice</button>
-                <button type="button" class="btn ghost" id="share-invoice-btn">Share invoice</button>
             </div>
         </div>
 
@@ -413,7 +412,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="row : ${dayRows}">
+                <tr th:each="row : ${dayRows}" th:attr="data-date=${#temporals.format(row.date, 'yyyy-MM-dd')}, data-hold=${row.hold}">
                     <td th:text="${#temporals.format(row.date, 'dd MMM yyyy')}">01 Sep</td>
                     <td>
                         <span class="badge warn" th:if="${row.hold}">Hold</span>
@@ -637,7 +636,6 @@
             var netAmount = document.getElementById('invoice-net-amount');
             var totalCharges = document.getElementById('invoice-total-raw');
             var dailyRateEl = document.getElementById('invoice-daily-rate');
-            var shareBtn = document.getElementById('share-invoice-btn');
             var saveBtn = document.getElementById('save-invoice-btn');
             var newInvoiceBtn = document.getElementById('new-invoice-btn');
             var cancelInvoiceBtn = document.getElementById('cancel-invoice-btn');
@@ -698,6 +696,27 @@
                 invoiceDateTo.value = formatInputDate(today);
             }
 
+            function countHoldDaysInRange(startDate, endDate) {
+                if (!startDate || !endDate) {
+                    return 0;
+                }
+                var holdDays = 0;
+                document.querySelectorAll('#duty-tab tbody tr[data-date]').forEach(function (row) {
+                    var rowDateValue = row.getAttribute('data-date');
+                    if (!rowDateValue || row.getAttribute('data-hold') !== 'true') {
+                        return;
+                    }
+                    var dutyDate = new Date(rowDateValue + 'T00:00:00');
+                    if (Number.isNaN(dutyDate.getTime())) {
+                        return;
+                    }
+                    if (dutyDate >= startDate && dutyDate <= endDate) {
+                        holdDays += 1;
+                    }
+                });
+                return holdDays;
+            }
+
             function calculateSelectedServiceDays() {
                 if (!invoiceDateFrom || !invoiceDateTo) {
                     return Number(serviceDays || 0);
@@ -713,7 +732,8 @@
                     return Number(serviceDays || 0);
                 }
                 var diffDays = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
-                return Math.max(0, diffDays);
+                var holdDays = countHoldDaysInRange(startDate, endDate);
+                return Math.max(0, diffDays - holdDays);
             }
 
             function refreshServiceDayDisplay() {
@@ -1536,6 +1556,28 @@
                 });
             }
 
+            function hydrateInvoiceFormFromSavedInvoice(invoice) {
+                if (!invoice) {
+                    return;
+                }
+                if (checkbox) {
+                    var hasDiscount = Number(invoice.discountAmount || 0) > 0;
+                    checkbox.checked = hasDiscount;
+                }
+                if (discountInput) {
+                    discountInput.value = Number(invoice.discountAmount || 0).toFixed(2);
+                    discountInput.disabled = !(checkbox && checkbox.checked);
+                }
+                if (advanceCheckbox) {
+                    var hasAdvance = Number(invoice.advanceAmount || 0) > 0;
+                    advanceCheckbox.checked = hasAdvance;
+                }
+                if (advanceInput) {
+                    advanceInput.value = Number(invoice.advanceAmount || 0).toFixed(2);
+                    advanceInput.disabled = !(advanceCheckbox && advanceCheckbox.checked);
+                }
+            }
+
             function loadInvoiceIntoEditor(invoice) {
                 if (!invoiceEntryPanel) {
                     return;
@@ -1574,6 +1616,7 @@
                         accountSelect.value = matched.value;
                     }
                 }
+                hydrateInvoiceFormFromSavedInvoice(invoice);
                 updateInvoice();
                 if (invoiceDateFrom) {
                     invoiceDateFrom.focus();
@@ -1803,24 +1846,6 @@
                     } else {
                         showVnsFlash('Invoice saved successfully.', 'success');
                     }
-                    if (window.__shareAfterSavePreview === true) {
-                        window.__shareAfterSavePreview = false;
-                        fetch('/customers/' + customerId + '/invoices/' + lastSavedInvoiceId, {
-                            method: 'GET',
-                            credentials: 'same-origin'
-                        }).then(function (response) {
-                            return response.json().then(function (data) {
-                                if (!response.ok || data.success === false) {
-                                    throw new Error(data.message || 'Could not load invoice.');
-                                }
-                                return data;
-                            });
-                        }).then(function (invoice) {
-                            renderSavedInvoicePreview(invoice);
-                        }).catch(function (error) {
-                            showVnsFlash(error.message || 'Could not load invoice preview.', 'error');
-                        });
-                    }
                 }).catch(function (error) {
                     showVnsFlash(error.message || 'Invoice save failed.', 'error');
                 });
@@ -1879,17 +1904,6 @@
             }
             if (advanceInput) {
                 advanceInput.addEventListener('input', updateInvoice);
-            }
-            if (shareBtn) {
-                shareBtn.addEventListener('click', function () {
-                    if (accountSelect && !accountSelect.value) {
-                        showVnsFlash('Please select a bank account before sharing the invoice.', 'error');
-                        accountSelect.focus();
-                        return;
-                    }
-                    window.__shareAfterSavePreview = true;
-                    saveInvoice();
-                });
             }
             var invoiceHistorySearch = document.getElementById('invoice-history-search');
             var selectAllInvoices = document.getElementById('select-all-invoices');

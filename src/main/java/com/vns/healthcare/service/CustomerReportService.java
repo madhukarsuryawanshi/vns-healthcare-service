@@ -153,7 +153,7 @@ public class CustomerReportService {
                     cell.setCellStyle(holdStyle);
                     currentEmployee = "HOLD";
                     employeeBlockIndex = 0;
-                } else if (duty.getEmployee() != null) {
+                } else if (duty.getEmployee() != null && !duty.isHold()) {
                     String employeeName = duty.getEmployee().getFullName();
                     if (currentEmployee == null || !currentEmployee.equals(employeeName)) {
                         currentEmployee = employeeName;
