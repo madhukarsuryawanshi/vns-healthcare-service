@@ -653,6 +653,10 @@ public class CustomerController {
         return value.toString();
     }
 
+    private CustomerStatus[] editableStatuses() {
+        return new CustomerStatus[]{CustomerStatus.ACTIVE, CustomerStatus.CLOSED};
+    }
+
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
     @GetMapping("/{id:\\d+}/edit")
     public String editForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
@@ -663,12 +667,11 @@ public class CustomerController {
         }
         model.addAttribute("page", "customers");
         model.addAttribute("form", toForm(customer));
-        model.addAttribute("form", toForm(customer));
         model.addAttribute("mode", "edit");
         model.addAttribute("customerId", id);
         model.addAttribute("custCode", customer.getCustCode());
         model.addAttribute("staff", employeeService.activeCareStaff());
-        model.addAttribute("statuses", CustomerStatus.values());
+        model.addAttribute("statuses", editableStatuses());
         return "customers/form";
     }
 
@@ -684,7 +687,7 @@ public class CustomerController {
             model.addAttribute("mode", "edit");
             model.addAttribute("customerId", id);
             model.addAttribute("staff", employeeService.activeStaff());
-            model.addAttribute("statuses", CustomerStatus.values());
+            model.addAttribute("statuses", editableStatuses());
             return "customers/form";
         }
         try {

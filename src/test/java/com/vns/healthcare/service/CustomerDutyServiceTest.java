@@ -86,6 +86,31 @@ class CustomerDutyServiceTest {
     }
 
     @Test
+    void calculateCharges_ignoresHoldDaysEvenWhenEmployeeIsAssigned() {
+        Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
+        customer.setCharges(BigDecimal.valueOf(1000));
+        Employee employee = employee(20L, "EMP-1007", "Madhukar");
+
+        LocalDate from = LocalDate.of(2025, 9, 1);
+        LocalDate to = LocalDate.of(2025, 9, 3);
+
+        List<com.vns.healthcare.entity.CustomerDuty> duties = new ArrayList<>();
+        for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+            com.vns.healthcare.entity.CustomerDuty duty = new com.vns.healthcare.entity.CustomerDuty();
+            duty.setCustomer(customer);
+            duty.setDutyDate(day);
+            duty.setEmployee(employee);
+            duty.setHold(day.isEqual(LocalDate.of(2025, 9, 2)));
+            duties.add(duty);
+        }
+
+        when(dutyRepository.findForCustomerInRange(10L, from, to)).thenReturn(duties);
+
+        BigDecimal total = customerDutyService.calculateCharges(customer, from, to);
+        assertEquals(0, total.compareTo(BigDecimal.valueOf(2000).setScale(2, java.math.RoundingMode.HALF_UP)));
+    }
+
+    @Test
     void payDaysDivisor_usesMonthLength_forSingleMonthRange() {
         assertEquals(30, customerDutyService.payDaysDivisor(LocalDate.of(2025, 9, 1), LocalDate.of(2025, 9, 30)));
     }

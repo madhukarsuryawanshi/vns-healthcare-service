@@ -103,7 +103,7 @@
                 <div class="field" th:if="${mode == 'edit'}">
                     <label>Status</label>
                     <select th:field="*{status}">
-                        <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}">NEW</option>
+                        <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.name() == 'CLOSED' ? 'Close' : s}">ACTIVE</option>
                     </select>
                 </div>
                 <div class="field full">

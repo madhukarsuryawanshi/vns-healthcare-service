@@ -144,7 +144,6 @@
             <div class="actions" style="gap:8px;">
                 <button type="button" class="btn secondary" id="new-invoice-btn">New Invoice</button>
                 <button type="button" class="btn secondary" id="save-invoice-btn">Save invoice</button>
-                <button type="button" class="btn ghost" id="share-invoice-btn">Share invoice</button>
             </div>
         </div>
 
@@ -413,7 +412,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="row : ${dayRows}">
+                <tr th:each="row : ${dayRows}" th:attr="data-date=${#temporals.format(row.date, 'yyyy-MM-dd')}, data-hold=${row.hold}">
                     <td th:text="${#temporals.format(row.date, 'dd MMM yyyy')}">01 Sep</td>
                     <td>
                         <span class="badge warn" th:if="${row.hold}">Hold</span>
@@ -637,7 +636,6 @@
             var netAmount = document.getElementById('invoice-net-amount');
             var totalCharges = document.getElementById('invoice-total-raw');
             var dailyRateEl = document.getElementById('invoice-daily-rate');
-            var shareBtn = document.getElementById('share-invoice-btn');
             var saveBtn = document.getElementById('save-invoice-btn');
             var newInvoiceBtn = document.getElementById('new-invoice-btn');
             var cancelInvoiceBtn = document.getElementById('cancel-invoice-btn');
@@ -692,10 +690,142 @@
                 if (!invoiceDateFrom || !invoiceDateTo) {
                     return;
                 }
+                var dutyDates = [];
+                document.querySelectorAll('#duty-tab tbody tr[data-date]').forEach(function (row) {
+                    var rowDateValue = row.getAttribute('data-date');
+                    if (!rowDateValue) {
+                        return;
+                    }
+                    var hasMutedEmptyBadge = row.querySelector('.badge.muted') !== null;
+                    if (hasMutedEmptyBadge) {
+                        return;
+                    }
+                    var dutyDate = new Date(rowDateValue + 'T00:00:00');
+                    if (!Number.isNaN(dutyDate.getTime())) {
+                        dutyDates.push(dutyDate);
+                    }
+                });
+                if (dutyDates.length) {
+                    dutyDates.sort(function (a, b) {
+                        return a.getTime() - b.getTime();
+                    });
+                    invoiceDateFrom.value = formatInputDate(dutyDates[0]);
+                    invoiceDateTo.value = formatInputDate(dutyDates[dutyDates.length - 1]);
+                    return;
+                }
                 var today = new Date();
                 var firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
                 invoiceDateFrom.value = formatInputDate(firstDayOfMonth);
                 invoiceDateTo.value = formatInputDate(today);
+            }
+
+            function countHoldDaysInRange(startDate, endDate) {
+                if (!startDate || !endDate) {
+                    return 0;
+                }
+                var holdDays = 0;
+                document.querySelectorAll('#duty-tab tbody tr[data-date]').forEach(function (row) {
+                    var rowDateValue = row.getAttribute('data-date');
+                    if (!rowDateValue || row.getAttribute('data-hold') !== 'true') {
+                        return;
+                    }
+                    var dutyDate = new Date(rowDateValue + 'T00:00:00');
+                    if (Number.isNaN(dutyDate.getTime())) {
+                        return;
+                    }
+                    if (dutyDate >= startDate && dutyDate <= endDate) {
+                        holdDays += 1;
+                    }
+                });
+                return holdDays;
+            }
+
+            function formatHoldDateLabel(dateValue) {
+                if (!dateValue) {
+                    return '';
+                }
+                var parsed = new Date(dateValue + 'T00:00:00');
+                if (Number.isNaN(parsed.getTime())) {
+                    return dateValue;
+                }
+                var day = String(parsed.getDate()).padStart(2, '0');
+                var month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parsed.getMonth()];
+                var year = parsed.getFullYear();
+                return day + '-' + month + '-' + year;
+            }
+
+            function getSelectedHoldDates() {
+                if (!invoiceDateFrom || !invoiceDateTo) {
+                    return [];
+                }
+                var startValue = invoiceDateFrom.value;
+                var endValue = invoiceDateTo.value;
+                if (!startValue || !endValue) {
+                    return [];
+                }
+                var startDate = new Date(startValue + 'T00:00:00');
+                var endDate = new Date(endValue + 'T00:00:00');
+                if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
+                    return [];
+                }
+                var matchedDates = [];
+                document.querySelectorAll('#duty-tab tbody tr[data-date]').forEach(function (row) {
+                    var rowDateValue = row.getAttribute('data-date');
+                    if (!rowDateValue || row.getAttribute('data-hold') !== 'true') {
+                        return;
+                    }
+                    var dutyDate = new Date(rowDateValue + 'T00:00:00');
+                    if (Number.isNaN(dutyDate.getTime())) {
+                        return;
+                    }
+                    if (dutyDate >= startDate && dutyDate <= endDate) {
+                        matchedDates.push(new Date(dutyDate.getTime()));
+                    }
+                });
+                matchedDates.sort(function (a, b) {
+                    return a.getTime() - b.getTime();
+                });
+                return matchedDates;
+            }
+
+            function syncHoldRowsInInvoice() {
+                if (!invoiceTableBody) {
+                    return;
+                }
+                var serviceRows = Array.prototype.slice.call(invoiceTableBody.querySelectorAll('tr:not([data-hold-range="true"])'));
+                var holdRows = Array.prototype.slice.call(invoiceTableBody.querySelectorAll('tr[data-hold-range="true"]'));
+                holdRows.forEach(function (row) {
+                    row.parentNode.removeChild(row);
+                });
+                var holdDates = getSelectedHoldDates();
+                if (!holdDates.length) {
+                    refreshInvoiceRowNumbers();
+                    return;
+                }
+                var holdLabel = 'HOLD Service on - ' + holdDates.map(function (date) {
+                    return formatHoldDateLabel(formatInputDate(date));
+                }).join(', ');
+                var row = document.createElement('tr');
+                row.dataset.holdRange = 'true';
+                row.innerHTML = '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center;">' + (invoiceTableBody.querySelectorAll('tr').length + 1) + '</td>' +
+                    '<td style="padding:8px 10px; border:1px solid var(--line);"><input type="text" class="invoice-item-description" value="' + holdLabel.replace(/"/g, '&quot;') + '" style="width:100%; min-width:240px;" readonly /></td>' +
+                    '<td style="padding:8px 10px; border:1px solid var(--line); text-align:right;"><input type="number" min="0" step="0.01" class="invoice-item-amount" value="0" style="width:100%; text-align:right;" readonly /></td>' +
+                    '<td style="padding:8px 10px; border:1px solid var(--line); text-align:center;"><button type="button" class="btn ghost small remove-invoice-row">Remove</button></td>';
+                var removeBtn = row.querySelector('.remove-invoice-row');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', function () {
+                        row.remove();
+                        refreshInvoiceRowNumbers();
+                        updateInvoice();
+                    });
+                }
+                var insertionPoint = serviceRows.length ? serviceRows[serviceRows.length - 1].nextSibling : null;
+                if (insertionPoint) {
+                    invoiceTableBody.insertBefore(row, insertionPoint);
+                } else {
+                    invoiceTableBody.appendChild(row);
+                }
+                refreshInvoiceRowNumbers();
             }
 
             function calculateSelectedServiceDays() {
@@ -713,7 +843,8 @@
                     return Number(serviceDays || 0);
                 }
                 var diffDays = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
-                return Math.max(0, diffDays);
+                var holdDays = countHoldDaysInRange(startDate, endDate);
+                return Math.max(0, diffDays - holdDays);
             }
 
             function refreshServiceDayDisplay() {
@@ -725,6 +856,7 @@
                 if (dailyRateEl) {
                     dailyRateEl.textContent = formatter.format(baseTotal || 0);
                 }
+                syncHoldRowsInInvoice();
                 if (invoiceTableBody) {
                     Array.prototype.slice.call(invoiceTableBody.querySelectorAll('tr')).forEach(function (row) {
                         if (row.dataset.autoDescription !== 'true') {
@@ -1536,6 +1668,28 @@
                 });
             }
 
+            function hydrateInvoiceFormFromSavedInvoice(invoice) {
+                if (!invoice) {
+                    return;
+                }
+                if (checkbox) {
+                    var hasDiscount = Number(invoice.discountAmount || 0) > 0;
+                    checkbox.checked = hasDiscount;
+                }
+                if (discountInput) {
+                    discountInput.value = Number(invoice.discountAmount || 0).toFixed(2);
+                    discountInput.disabled = !(checkbox && checkbox.checked);
+                }
+                if (advanceCheckbox) {
+                    var hasAdvance = Number(invoice.advanceAmount || 0) > 0;
+                    advanceCheckbox.checked = hasAdvance;
+                }
+                if (advanceInput) {
+                    advanceInput.value = Number(invoice.advanceAmount || 0).toFixed(2);
+                    advanceInput.disabled = !(advanceCheckbox && advanceCheckbox.checked);
+                }
+            }
+
             function loadInvoiceIntoEditor(invoice) {
                 if (!invoiceEntryPanel) {
                     return;
@@ -1574,6 +1728,7 @@
                         accountSelect.value = matched.value;
                     }
                 }
+                hydrateInvoiceFormFromSavedInvoice(invoice);
                 updateInvoice();
                 if (invoiceDateFrom) {
                     invoiceDateFrom.focus();
@@ -1672,14 +1827,50 @@
                 });
             }
 
+            function validateInvoiceSaveState() {
+                if (lastSavedInvoiceId && invoiceEntryPanel && invoiceEntryPanel.style.display === 'none') {
+                    showVnsFlash('This invoice is already saved. Click New Invoice to create another invoice, or Edit to update this saved invoice.', 'error');
+                    return false;
+                }
+                if (!invoiceDateFrom || !invoiceDateTo || !invoiceDateFrom.value || !invoiceDateTo.value) {
+                    showVnsFlash('Please select both From date and To date before saving the invoice.', 'error');
+                    if (invoiceDateFrom && !invoiceDateFrom.value) { invoiceDateFrom.focus(); }
+                    else if (invoiceDateTo && !invoiceDateTo.value) { invoiceDateTo.focus(); }
+                    return false;
+                }
+                var startDate = new Date(invoiceDateFrom.value + 'T00:00:00');
+                var endDate = new Date(invoiceDateTo.value + 'T00:00:00');
+                if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
+                    showVnsFlash('To date cannot be earlier than From date.', 'error');
+                    invoiceDateTo.focus();
+                    return false;
+                }
+                var rows = readInvoiceRows();
+                if (!rows.length) {
+                    showVnsFlash('Please add at least one invoice row before saving.', 'error');
+                    return false;
+                }
+                var hasMeaningfulRow = rows.some(function (row) {
+                    return row.description && row.description.trim() && row.amount > 0;
+                });
+                if (!hasMeaningfulRow) {
+                    showVnsFlash('Please enter valid invoice details before saving.', 'error');
+                    return false;
+                }
+                if (accountSelect && !accountSelect.value) {
+                    showVnsFlash('Please select a bank account before saving the invoice.', 'error');
+                    accountSelect.focus();
+                    return false;
+                }
+                return true;
+            }
+
             function saveInvoice() {
                 if (!customerId) {
                     showVnsFlash('Customer id is missing.', 'error');
                     return;
                 }
-                if (accountSelect && !accountSelect.value) {
-                    showVnsFlash('Please select a bank account before saving the invoice.', 'error');
-                    accountSelect.focus();
+                if (!validateInvoiceSaveState()) {
                     return;
                 }
                 var rows = readInvoiceRows();
@@ -1803,24 +1994,6 @@
                     } else {
                         showVnsFlash('Invoice saved successfully.', 'success');
                     }
-                    if (window.__shareAfterSavePreview === true) {
-                        window.__shareAfterSavePreview = false;
-                        fetch('/customers/' + customerId + '/invoices/' + lastSavedInvoiceId, {
-                            method: 'GET',
-                            credentials: 'same-origin'
-                        }).then(function (response) {
-                            return response.json().then(function (data) {
-                                if (!response.ok || data.success === false) {
-                                    throw new Error(data.message || 'Could not load invoice.');
-                                }
-                                return data;
-                            });
-                        }).then(function (invoice) {
-                            renderSavedInvoicePreview(invoice);
-                        }).catch(function (error) {
-                            showVnsFlash(error.message || 'Could not load invoice preview.', 'error');
-                        });
-                    }
                 }).catch(function (error) {
                     showVnsFlash(error.message || 'Invoice save failed.', 'error');
                 });
@@ -1879,17 +2052,6 @@
             }
             if (advanceInput) {
                 advanceInput.addEventListener('input', updateInvoice);
-            }
-            if (shareBtn) {
-                shareBtn.addEventListener('click', function () {
-                    if (accountSelect && !accountSelect.value) {
-                        showVnsFlash('Please select a bank account before sharing the invoice.', 'error');
-                        accountSelect.focus();
-                        return;
-                    }
-                    window.__shareAfterSavePreview = true;
-                    saveInvoice();
-                });
             }
             var invoiceHistorySearch = document.getElementById('invoice-history-search');
             var selectAllInvoices = document.getElementById('select-all-invoices');
@@ -2007,7 +2169,8 @@
                     if (invoiceDateFrom) { invoiceDateFrom.value = ''; }
                     if (invoiceDateTo) { invoiceDateTo.value = ''; }
                     setDefaultInvoiceDates();
-                    addInvoiceRow('', baseTotal, true);
+                    refreshServiceDayDisplay();
+                    addInvoiceRow('', selectedRangeAmount(), true);
                     if (checkbox) { checkbox.checked = false; }
                     if (discountInput) { discountInput.value = '0'; discountInput.disabled = true; }
                     if (advanceCheckbox) { advanceCheckbox.checked = false; }
