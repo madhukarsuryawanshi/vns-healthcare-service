@@ -10,7 +10,17 @@
     </div>
 
     <div class="attendance-control-area">
-        <div class="attendance-action-strip">
+        <div class="attendance-action-strip" style="align-items:center;">
+            <div class="attendance-toolbar attendance-toolbar-rows" th:if="${canWriteAttendance}">
+                <label style="display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13px; margin:0;">
+                    <span>Auto attendance</span>
+                    <span style="position:relative; display:inline-block; width:42px; height:24px;">
+                        <input id="attendance-auto-toggle" type="checkbox" style="opacity:0; width:0; height:0; position:absolute;" th:checked="${autoAttendanceEnabled}"/>
+                        <span data-role="toggle-track" style="position:absolute; inset:0; border-radius:999px; background:#cbd5e1; transition:0.2s;" th:styleappend="${autoAttendanceEnabled} ? 'background:#16a34a;' : 'background:#cbd5e1;'"></span>
+                        <span data-role="toggle-thumb" style="position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:white; transition:0.2s; box-shadow:0 1px 3px rgba(15,23,42,0.2);" th:styleappend="${autoAttendanceEnabled} ? 'transform:translateX(18px);' : 'transform:translateX(0);'"></span>
+                    </span>
+                </label>
+            </div>
             <div class="attendance-toolbar attendance-toolbar-rows">
                 <form method="get" th:action="@{/attendance}" class="attendance-toolbar-form" id="attendance-rows-form">
                     <label class="attendance-rows-label" style="display:flex; align-items:center; gap:8px; margin:0; color:var(--muted); font-size:13px;">
@@ -275,6 +285,52 @@
                     button.disabled = false;
                     button.textContent = 'Save All';
                 }
+            });
+        }
+
+        function syncAutoToggleVisualState() {
+            var autoToggle = document.getElementById('attendance-auto-toggle');
+            if (!autoToggle) return;
+            var toggleWrap = autoToggle.parentElement;
+            if (!toggleWrap) return;
+            var track = toggleWrap.querySelector('[data-role="toggle-track"]');
+            var thumb = toggleWrap.querySelector('[data-role="toggle-thumb"]');
+            if (track) {
+                track.style.background = autoToggle.checked ? '#16a34a' : '#cbd5e1';
+            }
+            if (thumb) {
+                thumb.style.transform = autoToggle.checked ? 'translateX(18px)' : 'translateX(0)';
+            }
+        }
+
+        var autoToggle = document.getElementById('attendance-auto-toggle');
+        var csrfMeta = document.querySelector('meta[name="_csrf"]');
+        var csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
+        var csrfHeaders = {};
+        if (csrfMeta && csrfHeaderMeta) {
+            csrfHeaders[csrfHeaderMeta.getAttribute('content')] = csrfMeta.getAttribute('content');
+        }
+        if (autoToggle) {
+            syncAutoToggleVisualState();
+            autoToggle.addEventListener('change', function () {
+                syncAutoToggleVisualState();
+                fetch('/attendance/auto-mark', {
+                    method: 'POST',
+                    headers: Object.assign({
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }, csrfHeaders),
+                    body: new URLSearchParams({ enabled: String(autoToggle.checked) }).toString()
+                }).then(function (response) {
+                    if (!response.ok) {
+                        autoToggle.checked = !autoToggle.checked;
+                        syncAutoToggleVisualState();
+                    }
+                }).catch(function () {
+                    autoToggle.checked = !autoToggle.checked;
+                    syncAutoToggleVisualState();
+                });
             });
         }
 

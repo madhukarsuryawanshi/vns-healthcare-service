@@ -3,6 +3,7 @@ package com.vns.healthcare.web;
 import com.vns.healthcare.domain.AttendanceStatus;
 import com.vns.healthcare.entity.Attendance;
 import com.vns.healthcare.entity.Employee;
+import com.vns.healthcare.service.AttendanceAutoMarkService;
 import com.vns.healthcare.service.AttendanceReportService;
 import com.vns.healthcare.service.AttendanceService;
 import com.vns.healthcare.service.EmployeeService;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
@@ -33,13 +35,16 @@ public class AttendanceController {
     private final AttendanceService attendanceService;
     private final AttendanceReportService attendanceReportService;
     private final EmployeeService employeeService;
+    private final AttendanceAutoMarkService attendanceAutoMarkService;
 
     public AttendanceController(AttendanceService attendanceService,
                                 AttendanceReportService attendanceReportService,
-                                EmployeeService employeeService) {
+                                EmployeeService employeeService,
+                                AttendanceAutoMarkService attendanceAutoMarkService) {
         this.attendanceService = attendanceService;
         this.attendanceReportService = attendanceReportService;
         this.employeeService = employeeService;
+        this.attendanceAutoMarkService = attendanceAutoMarkService;
     }
 
     @GetMapping
@@ -89,6 +94,7 @@ public class AttendanceController {
         model.addAttribute("page", "attendance");
         model.addAttribute("date", monthStart);
         model.addAttribute("status", status == null ? "" : status);
+        model.addAttribute("autoAttendanceEnabled", attendanceAutoMarkService.isEnabled());
         model.addAttribute("sort", sort);
         model.addAttribute("dir", dir);
         model.addAttribute("pageNumber", employeePage.getNumber());
@@ -210,5 +216,18 @@ public class AttendanceController {
         }
         redirectAttributes.addFlashAttribute("success", "Attendance saved.");
         return "redirect:/attendance?date=" + date;
+    }
+
+    @PostMapping("/auto-mark")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('attendance:write') or hasRole('ADMIN')")
+    @ResponseBody
+    public ResponseEntity<java.util.Map<String, Object>> updateAutoMark(
+            @RequestParam(value = "enabled", defaultValue = "false") boolean enabled,
+            jakarta.servlet.http.HttpServletRequest request) {
+        attendanceAutoMarkService.setEnabled(enabled);
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("enabled", attendanceAutoMarkService.isEnabled());
+        result.put("message", enabled ? "Auto attendance enabled for 10:00 AM IST." : "Auto attendance disabled.");
+        return ResponseEntity.ok(result);
     }
 }
