@@ -2,6 +2,7 @@ package com.vns.healthcare.web;
 
 import com.vns.healthcare.domain.AttendanceStatus;
 import com.vns.healthcare.entity.Employee;
+import com.vns.healthcare.service.AttendanceAutoMarkService;
 import com.vns.healthcare.service.AttendanceReportService;
 import com.vns.healthcare.service.AttendanceService;
 import com.vns.healthcare.service.EmployeeService;
@@ -43,11 +44,14 @@ class AttendanceControllerTest {
     @Mock
     private EmployeeService employeeService;
 
+    @Mock
+    private AttendanceAutoMarkService attendanceAutoMarkService;
+
     private AttendanceController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new AttendanceController(attendanceService, attendanceReportService, employeeService);
+        controller = new AttendanceController(attendanceService, attendanceReportService, employeeService, attendanceAutoMarkService);
     }
 
     @Test
@@ -122,5 +126,17 @@ class AttendanceControllerTest {
                 LocalTime.of(9, 0), "Late", new RedirectAttributesModelMap(), request);
 
         assertEquals(200, response.getStatusCode().value());
+    }
+
+    @Test
+    void autoMarkToggle_updatesEnabledState() {
+        jakarta.servlet.http.HttpServletRequest request = mock(jakarta.servlet.http.HttpServletRequest.class);
+        when(attendanceAutoMarkService.isEnabled()).thenReturn(true);
+
+        var response = controller.updateAutoMark(true, request);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(Boolean.TRUE, response.getBody().get("enabled"));
+        assertEquals("Auto attendance enabled for 10:00 AM IST.", response.getBody().get("message"));
     }
 }

@@ -85,6 +85,16 @@ public class AttendanceService {
 
     @Transactional
     @CacheEvict(value = {"attendance-monthly", "attendance-summary", "dashboard-stats"}, allEntries = true)
+    public void markIfMissing(Long employeeId, LocalDate date, AttendanceStatus status, LocalTime checkIn, String notes) {
+        Attendance attendance = attendanceRepository.findByEmployeeIdAndAttendanceDate(employeeId, date).orElse(null);
+        if (attendance != null && attendance.getStatus() != null) {
+            return;
+        }
+        mark(employeeId, date, status, checkIn, notes);
+    }
+
+    @Transactional
+    @CacheEvict(value = {"attendance-monthly", "attendance-summary", "dashboard-stats"}, allEntries = true)
     public void saveMonthlyRow(Long employeeId, LocalDate monthStart, Map<LocalDate, AttendanceStatus> statuses, String notes) {
         log.info("Saving monthly attendance batch for employee [{}] in month [{}], entries [{}]", employeeId, monthStart, statuses.size());
         Employee employee = employeeService.get(employeeId);
