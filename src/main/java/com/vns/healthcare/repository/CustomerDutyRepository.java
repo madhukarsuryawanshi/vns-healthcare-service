@@ -2,6 +2,7 @@ package com.vns.healthcare.repository;
 
 import com.vns.healthcare.entity.CustomerDuty;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,4 +31,10 @@ public interface CustomerDutyRepository extends JpaRepository<CustomerDuty, Long
 
     @Query("SELECT d FROM CustomerDuty d LEFT JOIN FETCH d.employee LEFT JOIN FETCH d.customer WHERE d.dutyDate BETWEEN :fromDate AND :toDate")
     List<CustomerDuty> findInRange(@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
+
+    @Modifying
+    @Query("DELETE FROM CustomerDuty d WHERE d.customer.id = :customerId AND d.dutyDate BETWEEN :fromDate AND :toDate")
+    void deleteForCustomerInRange(@Param("customerId") Long customerId,
+                                @Param("fromDate") LocalDate fromDate,
+                                @Param("toDate") LocalDate toDate);
 }

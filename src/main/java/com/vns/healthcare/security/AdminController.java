@@ -90,8 +90,18 @@ public class AdminController {
             users.removeIf(user -> user.isEnabled() != Boolean.parseBoolean(normalized));
         }
         users.sort(sortUsers(sort, dir));
+        Map<Long, String> employeeNames = new LinkedHashMap<Long, String>();
+        for (AppUser user : users) {
+            if (user == null || user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+                continue;
+            }
+            String normalizedUsername = user.getUsername().trim();
+            employeeRepository.findByEmpCode(normalizedUsername.toUpperCase(Locale.ROOT))
+                    .ifPresent(employee -> employeeNames.put(user.getId(), employee.getFullName() == null ? employee.getEmpCode() : employee.getFullName()));
+        }
         model.addAttribute("page", "admin");
         model.addAttribute("users", users);
+        model.addAttribute("employeeNames", employeeNames);
         model.addAttribute("status", status == null ? "" : status);
         model.addAttribute("sort", sort);
         model.addAttribute("dir", dir);

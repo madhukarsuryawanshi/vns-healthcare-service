@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,9 +81,27 @@ class CustomerDutyServiceTest {
         when(customerRepository.findByAssignedEmployeeId(20L)).thenReturn(Collections.singletonList(closedCustomer));
         when(dutyRepository.findByEmployeeIdAndDutyDateBetween(eq(20L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(Collections.emptyList());
-        when(dutyRepository.findByCustomerIdAndDutyDate(10L, LocalDate.of(2026, 9, 10))).thenReturn(Optional.empty());
 
         assertDoesNotThrow(() -> customerDutyService.applyRange(10L, LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 10), 20L, false));
+    }
+
+    @Test
+    void applyRange_replacesAnyExistingAssignmentsInSelectedDates() {
+        Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
+        Employee employee = employee(20L, "EMP-1007", "Madhukar");
+
+        when(customerService.get(10L)).thenReturn(customer);
+        when(employeeService.get(20L)).thenReturn(employee);
+        when(customerRepository.findByAssignedEmployeeId(20L)).thenReturn(Collections.emptyList());
+        when(dutyRepository.findByEmployeeIdAndDutyDateBetween(eq(20L), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(Collections.emptyList());
+
+        LocalDate from = LocalDate.of(2026, 10, 1);
+        LocalDate to = LocalDate.of(2026, 10, 3);
+
+        customerDutyService.applyRange(10L, from, to, 20L, false);
+
+        verify(dutyRepository).deleteForCustomerInRange(10L, from, to);
     }
 
     @Test

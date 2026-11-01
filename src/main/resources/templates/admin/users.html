@@ -30,6 +30,7 @@
             <thead>
             <tr>
                 <th><a th:href="@{/admin/users(status=${status}, sort='username', dir=${sort == 'username' and dir == 'asc' ? 'desc' : 'asc'})}">Username <span th:if="${sort == 'username'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
+                <th>Emp Name</th>
                 <th>Roles</th>
                 <th><a th:href="@{/admin/users(status=${status}, sort='enabled', dir=${sort == 'enabled' and dir == 'asc' ? 'desc' : 'asc'})}">Status <span th:if="${sort == 'enabled'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
                 <th><a th:href="@{/admin/users(status=${status}, sort='updatedAt', dir=${sort == 'updatedAt' and dir == 'asc' ? 'desc' : 'asc'})}">Last updated <span th:if="${sort == 'updatedAt'}" th:text="${dir == 'asc' ? '↑' : '↓'}">↑</span></a></th>
@@ -38,6 +39,7 @@
             <tbody>
             <tr th:each="user : ${users}">
                 <td th:text="${user.username}">admin</td>
+                <td th:text="${employeeNames != null && employeeNames[user.id] != null ? employeeNames[user.id] : '-'}">-</td>
                 <td>
                     <span class="badge" th:each="role : ${user.roles}" th:text="${role.name}">ADMIN</span>
                 </td>
