@@ -67,10 +67,11 @@ public class CustomerDutyService {
         Employee employee = hold ? null : employeeService.get(employeeId);
         validateEmployeeAvailability(customer, employee, from, to);
 
+        dutyRepository.deleteForCustomerInRange(customerId, from, to);
+
         LocalDate day = from;
         while (!day.isAfter(to)) {
-            CustomerDuty duty = dutyRepository.findByCustomerIdAndDutyDate(customerId, day)
-                    .orElse(new CustomerDuty());
+            CustomerDuty duty = new CustomerDuty();
             duty.setCustomer(customer);
             duty.setDutyDate(day);
             duty.setHold(hold);
