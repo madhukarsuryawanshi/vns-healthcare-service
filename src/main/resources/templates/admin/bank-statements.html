@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Bank Statements', ~{::section})}">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Finance</p>
+            <h2 class="page-title">Bank Statements</h2>
+            <p class="sub">Create named tables and add statement rows.</p>
+        </div>
+        <div class="row-actions compact">
+            <button class="btn" type="button" onclick="document.getElementById('add-table-dialog').showModal()">Add Table</button>
+            <a class="btn ghost" th:href="@{/admin/bank-accounts}">Back</a>
+        </div>
+    </div>
+
+    <div th:if="${success}" class="alert success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert error" th:text="${error}"></div>
+
+    <dialog id="add-table-dialog">
+        <form th:action="@{/admin/bank-statements/tables}" method="post" class="form-grid">
+            <div class="field full">
+                <label class="req" for="tableName">Table name</label>
+                <input id="tableName" name="tableName" type="text" maxlength="200" required placeholder="Enter table name" />
+            </div>
+            <div class="field full actions">
+                <button class="btn" type="submit">Create Table</button>
+                <button class="btn ghost" type="button" onclick="document.getElementById('add-table-dialog').close()">Cancel</button>
+            </div>
+        </form>
+    </dialog>
+
+    <style>
+        .credit-value { color: #15803d; font-weight: 600; }
+        .debit-value { color: #dc2626; font-weight: 600; }
+        .balance-value { color: inherit; font-weight: 700; }
+        .bank-month-heading { width: 100%; border: 0; background: transparent; padding: 0.5rem 0; margin: 0; cursor: pointer; color: inherit; text-align: left; }
+        .bank-month-heading::before { content: '▾ '; }
+        .bank-month-panel.collapsed .bank-month-heading::before { content: '▸ '; }
+        .bank-month-panel.collapsed .bank-month-body { display: none; }
+        .bank-table-title { border: 0; background: transparent; padding: 0; margin: 0; cursor: pointer; color: inherit; text-align: left; }
+        .bank-table-title::before { content: '▾ '; }
+        .bank-table-panel.collapsed .bank-table-title::before { content: '▸ '; }
+        .bank-table-panel.collapsed .bank-table-body { display: none; }
+    </style>
+
+    <div class="row-actions compact" style="margin-bottom: 0.75rem;">
+        <a class="btn ghost small" th:href="@{/admin/bank-statements(monthSort=${monthSort == 'asc' ? 'desc' : 'asc'})}"
+           th:text="${monthSort == 'asc' ? 'Show newest months first' : 'Show oldest months first'}">Sort months</a>
+    </div>
+
+    <div th:each="monthGroup : ${monthGroups}" class="bank-month-panel" style="margin-bottom: 1.25rem;">
+        <h2 class="page-title">
+            <button type="button" class="bank-month-heading" th:text="${monthGroup.label}"
+                    th:attr="aria-expanded=true,data-toggle-month=${monthGroup.month}">Month</button>
+        </h2>
+        <div class="bank-month-body">
+            <div th:each="table : ${monthGroup.tables}" class="panel bank-table-panel" style="margin-bottom: 1.25rem;">
+        <div class="topbar">
+            <h3 class="page-title">
+                <button type="button" class="bank-table-title" th:text="${table.tableName}" th:attr="data-toggle-table=${table.id}" aria-expanded="true">Table name</button>
+            </h3>
+            <form th:action="@{/admin/bank-statements/tables/{id}/delete(id=${table.id})}" method="post" onsubmit="return confirm('Delete this table and all its rows?');">
+                <button class="btn coral small" type="submit">Delete Table</button>
+            </form>
+        </div>
+        <div class="bank-table-body">
+        <form th:action="@{/admin/bank-statements/tables/{id}/opening-balance(id=${table.id})}" method="post" th:attr="onsubmit=|submitOpeningBalance(event, ${table.id})|" class="form-grid" style="margin-bottom: 1rem; max-width: 420px;">
+            <div class="field">
+                <label for="openingBalance-${table.id}">Opening Balance</label>
+                <input th:id="|openingBalance-${table.id}|" name="openingBalance" type="number" step="0.01" th:value="${table.openingBalance}" th:disabled="${table.openingBalanceSaved}" required />
+            </div>
+            <div class="field actions">
+                <button class="btn small" type="submit" th:disabled="${table.openingBalanceSaved}">Save Opening Balance</button>
+                <button class="btn ghost small opening-balance-edit-button" type="button" th:if="${table.openingBalanceSaved}" th:attr="data-table-id=${table.id}">Edit</button>
+            </div>
+        </form>
+
+        <table>
+            <thead><tr>
+                <th>Sr No</th><th>Date</th><th>Transaction</th><th>Credit</th><th>Debit</th>
+                <th>Current Balance</th><th>Description</th><th>Action</th>
+            </tr></thead>
+            <tbody>
+            <tr class="opening-balance-row">
+                <td>-</td>
+                <td>-</td>
+                <td>Opening balance</td>
+                <td>-</td>
+                <td>-</td>
+                <td class="balance-value" th:text="${table.openingBalance != null ? #numbers.formatDecimal(table.openingBalance, 1, 'COMMA', 2, 'POINT') : '0.00'}">0.00</td>
+                <td>-</td>
+                <td>-</td>
+            </tr>
+            <tr th:each="row, iter : ${table.rows}" th:attr="data-row-id=${row.id},data-transaction-date=${row.transactionDate},data-transaction=${row.transaction},data-credit=${row.credit},data-debit=${row.debit},data-description=${row.description},data-original-date=${row.transactionDate != null ? #temporals.format(row.transactionDate, 'dd-MM-yyyy') : '-'},data-original-transaction=${row.transaction != null ? row.transaction : '-'},data-original-credit=${row.credit != null ? #numbers.formatDecimal(row.credit, 1, 'COMMA', 2, 'POINT') : '-'},data-original-debit=${row.debit != null ? #numbers.formatDecimal(row.debit, 1, 'COMMA', 2, 'POINT') : '-'},data-original-balance=${row.currentBalance != null ? #numbers.formatDecimal(row.currentBalance, 1, 'COMMA', 2, 'POINT') : '-'},data-original-description=${row.description != null && !#strings.isEmpty(row.description) ? row.description : '-'}">
+                <td th:text="${iter.count}">1</td>
+                <td th:text="${row.transactionDate != null ? #temporals.format(row.transactionDate, 'dd-MM-yyyy') : '-'}">Date</td>
+                <td th:text="${row.transaction != null ? row.transaction : '-'}">Transaction</td>
+                <td class="credit-value" th:text="${row.credit != null ? #numbers.formatDecimal(row.credit, 1, 'COMMA', 2, 'POINT') : '-'}">0.00</td>
+                <td class="debit-value" th:text="${row.debit != null ? #numbers.formatDecimal(row.debit, 1, 'COMMA', 2, 'POINT') : '-'}">0.00</td>
+                <td class="balance-value" th:text="${row.currentBalance != null ? #numbers.formatDecimal(row.currentBalance, 1, 'COMMA', 2, 'POINT') : '-'}">0.00</td>
+                <td th:text="${row.description != null && !#strings.isEmpty(row.description) ? row.description : '-'}">Description</td>
+                <td>
+                    <button class="btn small bank-row-edit-button" type="button">Edit</button>
+                    <form class="bank-row-delete-form" th:action="@{/admin/bank-statements/tables/{tableId}/rows/{rowId}/delete(tableId=${table.id},rowId=${row.id})}" method="post" style="display:inline">
+                        <button class="btn coral small" type="submit">Delete</button>
+                    </form>
+                    <form class="bank-row-edit-form" th:action="@{/admin/bank-statements/tables/{tableId}/rows/{rowId}(tableId=${table.id},rowId=${row.id})}" method="post" th:attr="onsubmit=|submitBankRowEdit(event, ${table.id})|" style="display:none">
+                        <input name="transactionDate" type="hidden" th:value="${row.transactionDate}" />
+                        <input name="transaction" type="hidden" th:value="${row.transaction}" />
+                        <input name="credit" type="hidden" th:value="${row.credit}" />
+                        <input name="debit" type="hidden" th:value="${row.debit}" />
+                        <input name="description" type="hidden" th:value="${row.description}" />
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <td th:text="${table.rows != null ? table.rows.size() + 1 : 1}">1</td>
+                <td><input th:form="|inline-row-${table.id}|" name="transactionDate" type="date" required /></td>
+                <td><input th:form="|inline-row-${table.id}|" name="transaction" type="text" maxlength="200" required /></td>
+                <td><input th:form="|inline-row-${table.id}|" th:name="credit" th:attr="oninput=|updateBankPreview(this, ${table.id})|" type="number" min="0" step="0.01" /></td>
+                <td><input th:form="|inline-row-${table.id}|" th:name="debit" th:attr="oninput=|updateBankPreview(this, ${table.id})|" type="number" min="0" step="0.01" /></td>
+                <td><output class="balance-value" th:id="|bank-preview-${table.id}|" th:text="${table.rows != null and !table.rows.isEmpty() and table.rows.get(table.rows.size()-1).currentBalance != null ? #numbers.formatDecimal(table.rows.get(table.rows.size()-1).currentBalance, 1, 'COMMA', 2, 'POINT') : #numbers.formatDecimal(table.openingBalance, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+                <td><input th:form="|inline-row-${table.id}|" name="description" type="text" maxlength="1000" /></td>
+                <td>
+                    <form th:id="|inline-row-${table.id}|" th:action="@{/admin/bank-statements/tables/{id}/rows(id=${table.id})}" method="post" th:attr="onsubmit=|submitBankRow(event, ${table.id})|" style="display:inline">
+                        <button class="btn small" type="submit">Add</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <p class="empty" th:if="${tables == null or tables.isEmpty()}">No named tables added yet.</p>
+
+    <script th:inline="javascript">
+        document.querySelectorAll('.bank-month-heading').forEach(function (titleButton) {
+            titleButton.addEventListener('click', function () {
+                const panel = titleButton.closest('.bank-month-panel');
+                const collapsed = panel.classList.toggle('collapsed');
+                titleButton.setAttribute('aria-expanded', String(!collapsed));
+            });
+        });
+
+        function bindOpeningBalanceEditButton(editButton) {
+            editButton.addEventListener('click', function () {
+                const form = editButton.closest('form');
+                const openingInput = form.querySelector('input[name="openingBalance"]');
+                const saveButton = form.querySelector('button[type="submit"]');
+                openingInput.disabled = false;
+                saveButton.disabled = false;
+                editButton.style.display = 'none';
+                openingInput.focus();
+                openingInput.select();
+            });
+        }
+
+        document.querySelectorAll('.opening-balance-edit-button').forEach(bindOpeningBalanceEditButton);
+
+        document.querySelectorAll('.bank-table-title').forEach(function (titleButton) {
+            titleButton.addEventListener('click', function () {
+                const panel = titleButton.closest('.bank-table-panel');
+                const collapsed = panel.classList.toggle('collapsed');
+                titleButton.setAttribute('aria-expanded', String(!collapsed));
+            });
+        });
+
+        function updateBankPreview(changedInput, tableId) {
+            const row = changedInput.closest('tr');
+            const credit = parseFloat(row.querySelector('input[name="credit"]').value || '0');
+            const debit = parseFloat(row.querySelector('input[name="debit"]').value || '0');
+            const output = document.getElementById('bank-preview-' + tableId);
+            const panel = output.closest('.panel');
+            const openingInput = panel.querySelector('input[name="openingBalance"]');
+            const opening = parseFloat(openingInput.value || '0');
+
+            let running = opening;
+            const dataRows = Array.from(panel.querySelectorAll('tbody tr')).filter(tr => !tr.classList.contains('opening-balance-row'));
+            const entryRow = dataRows[dataRows.length - 1];
+            dataRows.forEach(tr => {
+                if (tr !== entryRow) {
+                    const text = tr.children[5].textContent.replace(/,/g, '').trim();
+                    if (text && text !== '-') running = parseFloat(text) || running;
+                }
+            });
+            running = running + credit - debit;
+            output.textContent = running.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        function ajaxHeaders() {
+            const headers = {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'};
+            const token = document.querySelector('meta[name="_csrf"]');
+            const header = document.querySelector('meta[name="_csrf_header"]');
+            if (token && header) headers[header.content] = token.content;
+            return headers;
+        }
+
+        document.querySelectorAll('.bank-row-delete-form').forEach(function (form) {
+            form.addEventListener('submit', submitBankRowDelete);
+        });
+
+        document.querySelectorAll('.bank-row-edit-button').forEach(function (button) {
+            button.addEventListener('click', startBankRowEdit);
+        });
+
+        function showAjaxError(message) {
+            let alert = document.querySelector('main > .alert.error');
+            if (!alert) {
+                alert = document.createElement('div');
+                alert.className = 'alert error';
+                const topbar = document.querySelector('section > .topbar');
+                topbar.after(alert);
+            }
+            alert.textContent = message;
+        }
+
+        async function submitOpeningBalance(event, tableId) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: ajaxHeaders(),
+                body: new FormData(form)
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                showAjaxError(data.message || 'Unable to save opening balance.');
+                return;
+            }
+            const panel = form.closest('.panel');
+            const openingInput = panel.querySelector('input[name="openingBalance"]');
+            openingInput.value = data.openingBalance;
+            if (data.openingBalanceSaved) {
+                openingInput.disabled = true;
+                form.querySelector('button[type="submit"]').disabled = true;
+                let editButton = form.querySelector('.opening-balance-edit-button');
+                if (!editButton) {
+                    editButton = document.createElement('button');
+                    editButton.type = 'button';
+                    editButton.className = 'btn ghost small opening-balance-edit-button';
+                    editButton.textContent = 'Edit';
+                    form.querySelector('.field.actions').appendChild(editButton);
+                }
+                editButton.style.display = '';
+                bindOpeningBalanceEditButton(editButton);
+            }
+            panel.querySelector('.opening-balance-row td:nth-child(6)').textContent =
+                Number(data.openingBalance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            Object.entries(data.rowBalances || {}).forEach(([id, balance]) => {
+                const row = Array.from(panel.querySelectorAll('tbody tr')).find(tr => tr.dataset.rowId === id);
+                if (row) row.children[5].textContent = Number(balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            });
+        }
+
+        function formatDateInput(value) {
+            if (!value) return '';
+            if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+            const parts = value.match(/(\d{2})-(\d{2})-(\d{4})/);
+            return parts ? parts[3] + '-' + parts[2] + '-' + parts[1] : value;
+        }
+
+        function startBankRowEdit(event) {
+            const button = event.currentTarget;
+            const tr = button.closest('tr');
+            if (tr.querySelector('.bank-row-edit-inputs')) return;
+            const original = Array.from(tr.children).slice(1, 7).map(td => td.cloneNode(true));
+            tr.dataset.originalHtml = JSON.stringify(original.map(td => td.outerHTML));
+
+            tr.children[1].innerHTML = '<input class="bank-row-edit-inputs" name="transactionDate" type="date" required>';
+            tr.children[2].innerHTML = '<input class="bank-row-edit-inputs" name="transaction" type="text" maxlength="200" required>';
+            tr.children[3].innerHTML = '<input class="bank-row-edit-inputs" name="credit" type="number" min="0" step="0.01">';
+            tr.children[4].innerHTML = '<input class="bank-row-edit-inputs" name="debit" type="number" min="0" step="0.01">';
+            tr.children[6].innerHTML = '<input class="bank-row-edit-inputs" name="description" type="text" maxlength="1000">';
+
+            tr.querySelector('[name="transactionDate"]').value = formatDateInput(tr.dataset.transactionDate || original[0].textContent.trim());
+            tr.querySelector('[name="transaction"]').value = tr.dataset.transaction || (original[1].textContent === '-' ? '' : original[1].textContent.trim());
+            tr.querySelector('[name="credit"]').value = tr.dataset.credit || (original[2].textContent === '-' ? '' : original[2].textContent.replace(/,/g, '').trim());
+            tr.querySelector('[name="debit"]').value = tr.dataset.debit || (original[3].textContent === '-' ? '' : original[3].textContent.replace(/,/g, '').trim());
+            tr.querySelector('[name="description"]').value = tr.dataset.description || (original[5].textContent === '-' ? '' : original[5].textContent.trim());
+
+            const actionCell = tr.children[7];
+            actionCell.querySelector('.bank-row-edit-button').style.display = 'none';
+            actionCell.querySelector('.bank-row-delete-form').style.display = 'none';
+            const editForm = actionCell.querySelector('.bank-row-edit-form');
+            editForm.style.display = 'inline';
+            editForm.insertAdjacentHTML('beforeend', '<button class="btn small" type="submit">Save</button><button class="btn ghost small bank-row-cancel" type="button">Cancel</button>');
+            editForm.querySelector('.bank-row-cancel').addEventListener('click', function () { cancelBankRowEdit(tr); });
+        }
+
+        function cancelBankRowEdit(tr) {
+            tr.querySelectorAll('.bank-row-edit-inputs').forEach(function (input) { input.remove(); });
+            tr.children[1].textContent = tr.dataset.originalDate || '-';
+            tr.children[2].textContent = tr.dataset.originalTransaction || '-';
+            tr.children[3].textContent = tr.dataset.originalCredit || '-';
+            tr.children[4].textContent = tr.dataset.originalDebit || '-';
+            tr.children[5].textContent = tr.dataset.originalBalance || '-';
+            tr.children[6].textContent = tr.dataset.originalDescription || '-';
+
+            tr.children[3].className = tr.dataset.originalCredit === '-' ? '' : 'credit-value';
+            tr.children[4].className = tr.dataset.originalDebit === '-' ? '' : 'debit-value';
+            tr.children[5].className = 'balance-value';
+            tr.children[7].querySelector('.bank-row-edit-button').style.display = '';
+            tr.children[7].querySelector('.bank-row-delete-form').style.display = 'inline';
+            const editForm = tr.children[7].querySelector('.bank-row-edit-form');
+            editForm.style.display = 'none';
+            editForm.querySelectorAll('.btn').forEach(function (btn) { btn.remove(); });
+        }
+
+        async function submitBankRowEdit(event, tableId) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const tr = form.closest('tr');
+            const inputs = tr.querySelectorAll('.bank-row-edit-inputs');
+            if (!tr.querySelector('[name="transactionDate"]').value || !tr.querySelector('[name="transaction"]').value.trim()) {
+                showAjaxError('Date and Transaction are required.');
+                return;
+            }
+            inputs.forEach(function (input) {
+                let hidden = form.querySelector('input[name="' + input.name + '"]');
+                if (hidden) hidden.value = input.value;
+            });
+            const response = await fetch(form.action, {method: 'POST', headers: ajaxHeaders(), body: new FormData(form)});
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                showAjaxError(data.message || 'Unable to update row.');
+                return;
+            }
+            const rowData = data.row;
+            tr.children[1].textContent = rowData.transactionDate ? new Date(rowData.transactionDate + 'T00:00:00').toLocaleDateString('en-GB') : '-';
+            tr.children[2].textContent = rowData.transaction || '-';
+            tr.children[3].textContent = rowData.credit == null ? '-' : Number(rowData.credit).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            tr.children[3].className = rowData.credit == null ? '' : 'credit-value';
+            tr.children[4].textContent = rowData.debit == null ? '-' : Number(rowData.debit).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            tr.children[4].className = rowData.debit == null ? '' : 'debit-value';
+            tr.children[6].textContent = rowData.description || '-';
+
+            const panel = tr.closest('.panel');
+            Object.entries(data.rowBalances || {}).forEach(([id, balance]) => {
+                const row = Array.from(panel.querySelectorAll('tbody tr')).find(candidate => candidate.dataset.rowId === id);
+                if (row) row.children[5].textContent = Number(balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            });
+            tr.querySelectorAll('.bank-row-edit-inputs').forEach(function (input) { input.remove(); });
+            tr.children[7].querySelector('.bank-row-edit-button').style.display = '';
+            tr.children[7].querySelector('.bank-row-delete-form').style.display = 'inline';
+            form.style.display = 'none';
+            form.querySelectorAll('.btn').forEach(function (button) { button.remove(); });
+        }
+
+        async function submitBankRowDelete(event) {
+            event.preventDefault();
+            if (!confirm('Delete this row?')) return;
+            const form = event.currentTarget;
+            const tr = form.closest('tr');
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: ajaxHeaders()
+            });
+            if (!response.ok) {
+                showAjaxError('Unable to delete row.');
+                return;
+            }
+            tr.remove();
+            const panel = form.closest('.panel');
+            const opening = parseFloat(panel.querySelector('input[name="openingBalance"]').value || '0');
+            let running = opening;
+            const rows = Array.from(panel.querySelectorAll('tbody tr')).filter(candidate => candidate.dataset.rowId);
+            rows.forEach((candidate, index) => {
+                candidate.children[0].textContent = index + 1;
+                const credit = parseFloat(candidate.children[3].textContent.replace(/,/g, '') || '0');
+                const debit = parseFloat(candidate.children[4].textContent.replace(/,/g, '') || '0');
+                running = running + (isNaN(credit) ? 0 : credit) - (isNaN(debit) ? 0 : debit);
+                candidate.children[5].textContent = running.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            });
+            const entryRow = panel.querySelector('tbody tr:last-child');
+            if (entryRow) entryRow.children[0].textContent = rows.length + 1;
+        }
+
+        async function submitBankRow(event, tableId) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: ajaxHeaders(),
+                body: new FormData(form)
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                showAjaxError(data.message || 'Unable to add row.');
+                return;
+            }
+            const panel = form.closest('.panel');
+            const tbody = panel.querySelector('tbody');
+            const entryRow = tbody.lastElementChild;
+            const rowData = data.row;
+            const tr = document.createElement('tr');
+            tr.dataset.rowId = String(rowData.id);
+            tr.innerHTML = '<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>';
+            tr.children[0].textContent = data.rowCount;
+            tr.children[1].textContent = rowData.transactionDate ? new Date(rowData.transactionDate + 'T00:00:00').toLocaleDateString('en-GB') : '-';
+            tr.children[2].textContent = rowData.transaction || '-';
+            tr.children[3].textContent = rowData.credit == null ? '-' : Number(rowData.credit).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            tr.children[3].className = 'credit-value';
+            tr.children[4].textContent = rowData.debit == null ? '-' : Number(rowData.debit).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            tr.children[4].className = 'debit-value';
+            tr.children[5].textContent = Number(rowData.currentBalance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            tr.children[5].className = 'balance-value';
+            tr.children[6].textContent = rowData.description || '-';
+            tr.dataset.transactionDate = rowData.transactionDate || '';
+            tr.dataset.transaction = rowData.transaction || '';
+            tr.dataset.credit = rowData.credit == null ? '' : String(rowData.credit);
+            tr.dataset.debit = rowData.debit == null ? '' : String(rowData.debit);
+            tr.dataset.description = rowData.description || '';
+            tr.dataset.originalDate = tr.children[1].textContent;
+            tr.dataset.originalTransaction = tr.children[2].textContent;
+            tr.dataset.originalCredit = tr.children[3].textContent;
+            tr.dataset.originalDebit = tr.children[4].textContent;
+            tr.dataset.originalBalance = tr.children[5].textContent;
+            tr.dataset.originalDescription = tr.children[6].textContent;
+            tr.children[7].innerHTML = '<button class="btn small bank-row-edit-button" type="button">Edit</button> <form method="post" class="bank-row-delete-form" style="display:inline"><button class="btn coral small" type="submit">Delete</button></form><form method="post" class="bank-row-edit-form" style="display:none"><input name="transactionDate" type="hidden"><input name="transaction" type="hidden"><input name="credit" type="hidden"><input name="debit" type="hidden"><input name="description" type="hidden"></form>';
+            tr.querySelector('.bank-row-edit-button').addEventListener('click', startBankRowEdit);
+            const deleteForm = tr.querySelector('.bank-row-delete-form');
+            deleteForm.action = '/admin/bank-statements/tables/' + tableId + '/rows/' + rowData.id + '/delete';
+            deleteForm.addEventListener('submit', submitBankRowDelete);
+            const editForm = tr.querySelector('.bank-row-edit-form');
+            editForm.action = '/admin/bank-statements/tables/' + tableId + '/rows/' + rowData.id;
+            editForm.addEventListener('submit', function (formEvent) { submitBankRowEdit(formEvent, tableId); });
+            tbody.insertBefore(tr, entryRow);
+            form.reset();
+            document.getElementById('bank-preview-' + tableId).textContent =
+                Number(data.currentBalance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+    </script>
+</section>
+</html>

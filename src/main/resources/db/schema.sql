@@ -178,3 +178,7 @@ CREATE TABLE IF NOT EXISTS salary_payments (
 -- Existing databases (Hibernate ddl-auto=update also adds these):
 -- ALTER TABLE employees ADD COLUMN salary DECIMAL(12,2) NULL;
 -- ALTER TABLE customers ADD COLUMN charges DECIMAL(12,2) NULL;
+-- PostgreSQL safe migration for bank statement opening balance lock:
+-- ALTER TABLE business_bank_statement_tables ADD COLUMN IF NOT EXISTS opening_balance_saved BOOLEAN DEFAULT FALSE;
+-- UPDATE business_bank_statement_tables SET opening_balance_saved = FALSE WHERE opening_balance_saved IS NULL;
+-- ALTER TABLE business_bank_statement_tables ALTER COLUMN opening_balance_saved SET DEFAULT FALSE, ALTER COLUMN opening_balance_saved SET NOT NULL;
