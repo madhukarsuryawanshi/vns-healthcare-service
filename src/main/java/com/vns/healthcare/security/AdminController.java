@@ -1,7 +1,11 @@
 package com.vns.healthcare.security;
 
 import com.vns.healthcare.entity.BusinessBankAccount;
+import com.vns.healthcare.entity.BusinessBankStatement;
+import com.vns.healthcare.entity.BusinessBankStatementTable;
 import com.vns.healthcare.repository.BusinessBankAccountRepository;
+import com.vns.healthcare.repository.BusinessBankStatementRepository;
+import com.vns.healthcare.repository.BusinessBankStatementTableRepository;
 import com.vns.healthcare.repository.EmployeeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +40,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.TextStyle;
+import java.math.BigDecimal;
+import org.springframework.transaction.annotation.Transactional;
 
 @Controller
 @RequestMapping("/admin")
@@ -56,6 +65,8 @@ public class AdminController {
     private final UserRepository userRepository;
     private final EmployeeRepository employeeRepository;
     private final BusinessBankAccountRepository businessBankAccountRepository;
+    private final BusinessBankStatementRepository businessBankStatementRepository;
+    private final BusinessBankStatementTableRepository businessBankStatementTableRepository;
     private final PasswordEncoder passwordEncoder;
     private final com.vns.healthcare.service.EmployeeService employeeService;
     private final UserActivityService userActivityService;
@@ -65,6 +76,8 @@ public class AdminController {
                           UserRepository userRepository,
                           EmployeeRepository employeeRepository,
                           BusinessBankAccountRepository businessBankAccountRepository,
+                          BusinessBankStatementRepository businessBankStatementRepository,
+                          BusinessBankStatementTableRepository businessBankStatementTableRepository,
                           PasswordEncoder passwordEncoder,
                           com.vns.healthcare.service.EmployeeService employeeService,
                           UserActivityService userActivityService,
@@ -73,6 +86,8 @@ public class AdminController {
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
         this.businessBankAccountRepository = businessBankAccountRepository;
+        this.businessBankStatementRepository = businessBankStatementRepository;
+        this.businessBankStatementTableRepository = businessBankStatementTableRepository;
         this.passwordEncoder = passwordEncoder;
         this.employeeService = employeeService;
         this.userActivityService = userActivityService;
@@ -209,6 +224,288 @@ public class AdminController {
         model.addAttribute("page", "admin");
         model.addAttribute("accounts", businessBankAccountRepository.findAll());
         return "admin/bank-accounts";
+    }
+
+    public String allBankStatements(Model model) {
+        return allBankStatements(model, "desc");
+    }
+
+    @GetMapping("/bank-statements")
+    public String allBankStatements(Model model,
+                                    @RequestParam(value = "monthSort", required = false, defaultValue = "desc") String monthSort) {
+        List<BusinessBankStatementTable> tables = businessBankStatementTableRepository.findAllByOrderByIdDesc();
+        YearMonth currentMonth = YearMonth.now();
+        Map<YearMonth, List<BusinessBankStatementTable>> grouped = new LinkedHashMap<>();
+
+        for (BusinessBankStatementTable table : tables) {
+            YearMonth month = findTableMonth(table, currentMonth);
+            grouped.computeIfAbsent(month, key -> new ArrayList<>()).add(table);
+        }
+
+        boolean chronological = "asc".equalsIgnoreCase(monthSort);
+        List<Map.Entry<YearMonth, List<BusinessBankStatementTable>>> monthEntries = new ArrayList<>(grouped.entrySet());
+        monthEntries.sort(chronological
+                ? Map.Entry.comparingByKey()
+                : Map.Entry.<YearMonth, List<BusinessBankStatementTable>>comparingByKey().reversed());
+
+        List<Map<String, Object>> monthGroups = new ArrayList<>();
+        for (Map.Entry<YearMonth, List<BusinessBankStatementTable>> entry : monthEntries) {
+            Map<String, Object> group = new LinkedHashMap<>();
+            YearMonth month = entry.getKey();
+            group.put("month", month);
+            group.put("label", month.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH) + "-" + month.getYear());
+            group.put("tables", entry.getValue());
+            monthGroups.add(group);
+        }
+
+        model.addAttribute("page", "admin");
+        model.addAttribute("tables", tables);
+        model.addAttribute("monthGroups", monthGroups);
+        model.addAttribute("monthSort", chronological ? "asc" : "desc");
+        return "admin/bank-statements";
+    }
+
+    YearMonth findTableMonth(BusinessBankStatementTable table, YearMonth fallback) {
+        if (table == null || table.getRows() == null) {
+            return fallback;
+        }
+        for (BusinessBankStatement row : table.getRows()) {
+            if (row != null && row.getTransactionDate() != null) {
+                return YearMonth.from(row.getTransactionDate());
+            }
+        }
+        return fallback;
+    }
+
+    @PostMapping("/bank-statements/tables")
+    public String addBankStatementTable(@RequestParam("tableName") String tableName,
+                                        RedirectAttributes redirectAttributes) {
+        String name = tableName == null ? "" : tableName.trim();
+        if (name.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Table name is required.");
+            return "redirect:/admin/bank-statements";
+        }
+        BusinessBankStatementTable table = new BusinessBankStatementTable();
+        table.setTableName(name);
+        BusinessBankStatementTable saved = businessBankStatementTableRepository.save(table);
+        userActivityService.logCurrentUser("CREATE", "BANK_STATEMENT_TABLE", saved.getId(),
+                "Created bank statement table " + name);
+        redirectAttributes.addFlashAttribute("success", "Table created successfully.");
+        return "redirect:/admin/bank-statements";
+    }
+
+    @PostMapping("/bank-statements/tables/{tableId}/opening-balance")
+    @Transactional
+    public Object saveBankStatementOpeningBalance(@PathVariable Long tableId,
+                                                   @RequestParam("openingBalance") BigDecimal openingBalance,
+                                                   RedirectAttributes redirectAttributes,
+                                                   @RequestHeader(value = "X-Requested-With", required = false) String requestedWith,
+                                                   @RequestHeader(value = "Accept", required = false) String accept) {
+        BusinessBankStatementTable table = businessBankStatementTableRepository.findById(tableId)
+                .orElseThrow(() -> new IllegalArgumentException("Bank statement table not found"));
+        if (openingBalance == null) {
+            redirectAttributes.addFlashAttribute("error", "Opening Balance is required.");
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.badRequest().body(Map.of("success", false,
+                        "message", "Opening Balance is required."));
+            }
+            return "redirect:/admin/bank-statements";
+        }
+        table.setOpeningBalance(openingBalance);
+        table.setOpeningBalanceSaved(true);
+        businessBankStatementTableRepository.save(table);
+        recalculateBankStatementBalances(table);
+        userActivityService.logCurrentUser("UPDATE", "BANK_STATEMENT_TABLE", tableId,
+                "Updated opening balance for bank statement table " + table.getTableName());
+        redirectAttributes.addFlashAttribute("success", "Opening balance saved successfully.");
+        if (isAjaxRequest(requestedWith, accept)) {
+            Map<String, Object> balances = new LinkedHashMap<>();
+            for (BusinessBankStatement row : table.getRows()) {
+                balances.put(String.valueOf(row.getId()), row.getCurrentBalance());
+            }
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("message", "Opening balance saved successfully.");
+            response.put("openingBalance", table.getOpeningBalance());
+            response.put("openingBalanceSaved", table.isOpeningBalanceSaved());
+            response.put("rowBalances", balances);
+            return ResponseEntity.ok(response);
+        }
+        return "redirect:/admin/bank-statements";
+    }
+
+    @PostMapping("/bank-statements/tables/{tableId}/rows")
+    @Transactional
+    public Object addBankStatementRow(@PathVariable Long tableId,
+                                      @RequestParam(value = "transactionDate", required = false) LocalDate transactionDate,
+                                      @RequestParam(value = "transaction", required = false) String transaction,
+                                      @RequestParam(value = "credit", required = false) BigDecimal credit,
+                                      @RequestParam(value = "debit", required = false) BigDecimal debit,
+                                      @RequestParam(value = "description", required = false) String description,
+                                      RedirectAttributes redirectAttributes,
+                                      @RequestHeader(value = "X-Requested-With", required = false) String requestedWith,
+                                      @RequestHeader(value = "Accept", required = false) String accept) {
+        BusinessBankStatementTable table = businessBankStatementTableRepository.findById(tableId)
+                .orElseThrow(() -> new IllegalArgumentException("Bank statement table not found"));
+        if (credit != null && credit.compareTo(BigDecimal.ZERO) < 0
+                || debit != null && debit.compareTo(BigDecimal.ZERO) < 0) {
+            redirectAttributes.addFlashAttribute("error", "Credit and Debit must be zero or positive.");
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.badRequest().body(Map.of("success", false,
+                        "message", "Credit and Debit must be zero or positive."));
+            }
+            return "redirect:/admin/bank-statements";
+        }
+        BusinessBankStatement row = new BusinessBankStatement();
+        row.setStatementTable(table);
+        row.setTransactionDate(transactionDate);
+        row.setTransaction(transaction == null ? null : transaction.trim());
+        row.setCredit(credit);
+        row.setDebit(debit);
+        row.setDescription(description == null ? null : description.trim());
+        table.getRows().add(row);
+        businessBankStatementRepository.save(row);
+        recalculateBankStatementBalances(table);
+        userActivityService.logCurrentUser("CREATE", "BANK_STATEMENT_ROW", row.getId(),
+                "Added row to bank statement table " + table.getTableName());
+        redirectAttributes.addFlashAttribute("success", "Row added successfully.");
+        if (isAjaxRequest(requestedWith, accept)) {
+            Map<String, Object> rowData = new LinkedHashMap<>();
+            rowData.put("id", row.getId());
+            rowData.put("transactionDate", row.getTransactionDate());
+            rowData.put("transaction", row.getTransaction());
+            rowData.put("credit", row.getCredit());
+            rowData.put("debit", row.getDebit());
+            rowData.put("currentBalance", row.getCurrentBalance());
+            rowData.put("description", row.getDescription());
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("message", "Row added successfully.");
+            response.put("openingBalance", table.getOpeningBalance());
+            response.put("currentBalance", row.getCurrentBalance());
+            response.put("rowCount", table.getRows().size());
+            response.put("row", rowData);
+            return ResponseEntity.ok(response);
+        }
+        return "redirect:/admin/bank-statements";
+    }
+
+    boolean isAjaxRequest(String requestedWith, String accept) {
+        return "XMLHttpRequest".equalsIgnoreCase(requestedWith)
+                || accept != null && accept.toLowerCase(Locale.ROOT).contains("application/json");
+    }
+
+    @PostMapping("/bank-statements/tables/{tableId}/rows/{rowId}")
+    @Transactional
+    public Object updateBankStatementRow(@PathVariable Long tableId,
+                                         @PathVariable Long rowId,
+                                         @RequestParam(value = "transactionDate", required = false) LocalDate transactionDate,
+                                         @RequestParam(value = "transaction", required = false) String transaction,
+                                         @RequestParam(value = "credit", required = false) BigDecimal credit,
+                                         @RequestParam(value = "debit", required = false) BigDecimal debit,
+                                         @RequestParam(value = "description", required = false) String description,
+                                         RedirectAttributes redirectAttributes,
+                                         @RequestHeader(value = "X-Requested-With", required = false) String requestedWith,
+                                         @RequestHeader(value = "Accept", required = false) String accept) {
+        BusinessBankStatement row = businessBankStatementRepository.findById(rowId)
+                .orElseThrow(() -> new IllegalArgumentException("Bank statement row not found"));
+        if (row.getStatementTable() == null || !tableId.equals(row.getStatementTable().getId())) {
+            throw new IllegalArgumentException("Bank statement row does not belong to this table");
+        }
+        if (transactionDate == null || transaction == null || transaction.trim().isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Date and Transaction are required.");
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.badRequest().body(Map.of("success", false,
+                        "message", "Date and Transaction are required."));
+            }
+            return "redirect:/admin/bank-statements";
+        }
+        if (credit != null && credit.compareTo(BigDecimal.ZERO) < 0
+                || debit != null && debit.compareTo(BigDecimal.ZERO) < 0) {
+            redirectAttributes.addFlashAttribute("error", "Credit and Debit must be zero or positive.");
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.badRequest().body(Map.of("success", false,
+                        "message", "Credit and Debit must be zero or positive."));
+            }
+            return "redirect:/admin/bank-statements";
+        }
+
+        row.setTransactionDate(transactionDate);
+        row.setTransaction(transaction.trim());
+        row.setCredit(credit);
+        row.setDebit(debit);
+        row.setDescription(description == null ? null : description.trim());
+        businessBankStatementRepository.save(row);
+        recalculateBankStatementBalances(row.getStatementTable());
+        userActivityService.logCurrentUser("UPDATE", "BANK_STATEMENT_ROW", rowId,
+                "Updated row in bank statement table " + row.getStatementTable().getTableName());
+        redirectAttributes.addFlashAttribute("success", "Row updated successfully.");
+
+        if (isAjaxRequest(requestedWith, accept)) {
+            Map<String, Object> rowData = new LinkedHashMap<>();
+            rowData.put("id", row.getId());
+            rowData.put("transactionDate", row.getTransactionDate());
+            rowData.put("transaction", row.getTransaction());
+            rowData.put("credit", row.getCredit());
+            rowData.put("debit", row.getDebit());
+            rowData.put("currentBalance", row.getCurrentBalance());
+            rowData.put("description", row.getDescription());
+
+            Map<String, Object> balances = new LinkedHashMap<>();
+            for (BusinessBankStatement statementRow : row.getStatementTable().getRows()) {
+                balances.put(String.valueOf(statementRow.getId()), statementRow.getCurrentBalance());
+            }
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("message", "Row updated successfully.");
+            response.put("row", rowData);
+            response.put("rowBalances", balances);
+            return ResponseEntity.ok(response);
+        }
+        return "redirect:/admin/bank-statements";
+    }
+
+    private void recalculateBankStatementBalances(BusinessBankStatementTable table) {
+        BigDecimal runningBalance = table.getOpeningBalance();
+        for (BusinessBankStatement row : table.getRows()) {
+            BigDecimal credit = row.getCredit() == null ? BigDecimal.ZERO : row.getCredit();
+            BigDecimal debit = row.getDebit() == null ? BigDecimal.ZERO : row.getDebit();
+            runningBalance = runningBalance.add(credit).subtract(debit);
+            row.setCurrentBalance(runningBalance);
+            businessBankStatementRepository.save(row);
+        }
+    }
+
+    @PostMapping("/bank-statements/tables/{tableId}/delete")
+    public String deleteBankStatementTable(@PathVariable Long tableId,
+                                           RedirectAttributes redirectAttributes) {
+        BusinessBankStatementTable table = businessBankStatementTableRepository.findById(tableId)
+                .orElseThrow(() -> new IllegalArgumentException("Bank statement table not found"));
+        businessBankStatementTableRepository.delete(table);
+        userActivityService.logCurrentUser("DELETE", "BANK_STATEMENT_TABLE", tableId,
+                "Deleted bank statement table " + table.getTableName());
+        redirectAttributes.addFlashAttribute("success", "Table deleted successfully.");
+        return "redirect:/admin/bank-statements";
+    }
+
+    @PostMapping("/bank-statements/tables/{tableId}/rows/{rowId}/delete")
+    @Transactional
+    public String deleteBankStatementRow(@PathVariable Long tableId,
+                                         @PathVariable Long rowId,
+                                         RedirectAttributes redirectAttributes) {
+        BusinessBankStatement row = businessBankStatementRepository.findById(rowId)
+                .orElseThrow(() -> new IllegalArgumentException("Bank statement row not found"));
+        if (row.getStatementTable() == null || !tableId.equals(row.getStatementTable().getId())) {
+            throw new IllegalArgumentException("Bank statement row does not belong to this table");
+        }
+        businessBankStatementRepository.delete(row);
+        row.getStatementTable().getRows().removeIf(candidate -> candidate.getId() != null && candidate.getId().equals(rowId));
+        recalculateBankStatementBalances(row.getStatementTable());
+        userActivityService.logCurrentUser("DELETE", "BANK_STATEMENT_ROW", rowId,
+                "Deleted row from bank statement table ID " + tableId);
+        redirectAttributes.addFlashAttribute("success", "Row deleted successfully.");
+        return "redirect:/admin/bank-statements";
     }
 
     @GetMapping("/bank-accounts/new")
