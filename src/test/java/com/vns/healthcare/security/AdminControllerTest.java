@@ -53,6 +53,8 @@ class AdminControllerTest {
     private UserActivityService userActivityService;
     @Mock
     private CacheManager cacheManager;
+    @Mock
+    private com.vns.healthcare.service.BankStatementExportService bankStatementExportService;
 
     private AdminController controller;
 
@@ -68,7 +70,8 @@ class AdminControllerTest {
                 passwordEncoder,
                 employeeService,
                 userActivityService,
-                cacheManager);
+                cacheManager,
+                bankStatementExportService);
     }
 
     @Test
@@ -201,6 +204,89 @@ class AdminControllerTest {
         assertEquals("redirect:/admin/bank-statements", view);
         assertEquals(1, table.getRows().size());
         assertEquals(new BigDecimal("75.00"), table.getRows().get(0).getCurrentBalance());
+    }
+
+    @Test
+    void downloadTable_excelReturnsXlsxAttachment() throws Exception {
+        BusinessBankStatementTable table = new BusinessBankStatementTable();
+        table.setId(9L);
+        table.setTableName("November-Account");
+        when(businessBankStatementTableRepository.findWithRowsById(9L)).thenReturn(Optional.of(table));
+        when(bankStatementExportService.exportExcel(table)).thenReturn(new byte[]{1, 2, 3});
+
+        ResponseEntity<byte[]> response = controller.downloadBankStatementTable(9L, "excel");
+
+        assertEquals(200, response.getStatusCode().value());
+        String filename = response.getHeaders().getContentDisposition().getFilename();
+        assertEquals(true, filename.endsWith(".xlsx"));
+    }
+
+    @Test
+    void downloadTable_pdfReturnsPdfAttachment() throws Exception {
+        BusinessBankStatementTable table = new BusinessBankStatementTable();
+        table.setId(10L);
+        table.setTableName("December-Account");
+        when(businessBankStatementTableRepository.findWithRowsById(10L)).thenReturn(Optional.of(table));
+        when(bankStatementExportService.exportPdf(table)).thenReturn(new byte[]{1, 2, 3});
+
+        ResponseEntity<byte[]> response = controller.downloadBankStatementTable(10L, "pdf");
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("application/pdf", response.getHeaders().getContentType().toString());
+    }
+
+    @Test
+    void downloadTable_rejectsUnsupportedFormat() {
+        BusinessBankStatementTable table = new BusinessBankStatementTable();
+        table.setId(11L);
+        when(businessBankStatementTableRepository.findWithRowsById(11L)).thenReturn(Optional.of(table));
+
+        ResponseEntity<byte[]> response = controller.downloadBankStatementTable(11L, "csv");
+
+        assertEquals(400, response.getStatusCode().value());
+    }
+
+    @Test
+    void deleteRow_rejectsRowThatDoesNotBelongToTable() {
+        BusinessBankStatementTable requestedTable = new BusinessBankStatementTable();
+        requestedTable.setId(1L);
+        BusinessBankStatementTable otherTable = new BusinessBankStatementTable();
+        otherTable.setId(2L);
+        BusinessBankStatement row = new BusinessBankStatement();
+        row.setId(10L);
+        row.setStatementTable(otherTable);
+        when(businessBankStatementRepository.findById(10L)).thenReturn(Optional.of(row));
+
+        Object result = controller.deleteBankStatementRow(1L, 10L,
+                new RedirectAttributesModelMap(), "XMLHttpRequest", "application/json");
+
+        ResponseEntity<?> response = (ResponseEntity<?>) result;
+        assertEquals(400, response.getStatusCode().value());
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals(false, body.get("success"));
+    }
+
+    @Test
+    void deleteRow_ajaxDeletesMatchingRowAndReturnsRecalculatedBalances() {
+        BusinessBankStatementTable table = new BusinessBankStatementTable();
+        table.setId(1L);
+        table.setOpeningBalance(new BigDecimal("100.00"));
+        BusinessBankStatement row = new BusinessBankStatement();
+        row.setId(10L);
+        row.setStatementTable(table);
+        row.setCredit(new BigDecimal("20.00"));
+        table.getRows().add(row);
+        when(businessBankStatementRepository.findById(10L)).thenReturn(Optional.of(row));
+
+        Object result = controller.deleteBankStatementRow(1L, 10L,
+                new RedirectAttributesModelMap(), "XMLHttpRequest", "application/json");
+
+        ResponseEntity<?> response = (ResponseEntity<?>) result;
+        assertEquals(200, response.getStatusCode().value());
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals(true, body.get("success"));
+        assertEquals(10L, body.get("rowId"));
+        verify(businessBankStatementRepository).delete(row);
     }
 
     @Test

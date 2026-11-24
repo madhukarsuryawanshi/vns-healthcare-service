@@ -7,6 +7,9 @@ import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import jakarta.mail.internet.MimeMessage;
+import java.util.List;
 
 @Service
 public class EmailService {
@@ -18,6 +21,39 @@ public class EmailService {
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
+
+    public boolean sendAttachments(List<String> recipients, String subject, String text,
+                                   List<Attachment> attachments) {
+        if (recipients == null || recipients.isEmpty()) {
+            log.warn("Cannot send email because no recipients were provided");
+            return false;
+        }
+        if (mailSender instanceof MailConfig.NoOpJavaMailSender) {
+            log.warn("Mail server is not configured. Attachment email sending is disabled.");
+            return false;
+        }
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(recipients.toArray(new String[0]));
+            helper.setSubject(subject);
+            helper.setText(text, false);
+            if (attachments != null) {
+                for (Attachment attachment : attachments) {
+                    helper.addAttachment(attachment.filename(), () -> new java.io.ByteArrayInputStream(attachment.data()), attachment.contentType());
+                }
+            }
+            mailSender.send(message);
+            log.info("Sent attachment email to [{}]", recipients);
+            return true;
+        } catch (Exception ex) {
+            log.error("Failed to send attachment email to [{}]", recipients, ex);
+            return false;
+        }
+    }
+
+    public record Attachment(String filename, byte[] data, String contentType) {}
 
     public boolean sendOtp(String toAddress, String otp) {
         if (toAddress == null || toAddress.trim().isEmpty()) {

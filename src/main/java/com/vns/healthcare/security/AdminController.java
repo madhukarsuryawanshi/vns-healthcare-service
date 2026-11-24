@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -58,6 +60,7 @@ public class AdminController {
             "customers",
             "attendance",
             "salary",
+            "bank-statements",
             "admin"
     );
 
@@ -71,6 +74,7 @@ public class AdminController {
     private final com.vns.healthcare.service.EmployeeService employeeService;
     private final UserActivityService userActivityService;
     private final CacheManager cacheManager;
+    private final com.vns.healthcare.service.BankStatementExportService bankStatementExportService;
 
     public AdminController(RoleRepository roleRepository,
                           UserRepository userRepository,
@@ -81,7 +85,8 @@ public class AdminController {
                           PasswordEncoder passwordEncoder,
                           com.vns.healthcare.service.EmployeeService employeeService,
                           UserActivityService userActivityService,
-                          CacheManager cacheManager) {
+                          CacheManager cacheManager,
+                          com.vns.healthcare.service.BankStatementExportService bankStatementExportService) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
@@ -92,6 +97,7 @@ public class AdminController {
         this.employeeService = employeeService;
         this.userActivityService = userActivityService;
         this.cacheManager = cacheManager;
+        this.bankStatementExportService = bankStatementExportService;
     }
 
     @GetMapping({"", "/users"})
@@ -231,6 +237,7 @@ public class AdminController {
     }
 
     @GetMapping("/bank-statements")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:read') or hasAuthority('bank-statements:write')")
     public String allBankStatements(Model model,
                                     @RequestParam(value = "monthSort", required = false, defaultValue = "desc") String monthSort) {
         List<BusinessBankStatementTable> tables = businessBankStatementTableRepository.findAllByOrderByIdDesc();
@@ -278,6 +285,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     public String addBankStatementTable(@RequestParam("tableName") String tableName,
                                         RedirectAttributes redirectAttributes) {
         String name = tableName == null ? "" : tableName.trim();
@@ -294,7 +302,94 @@ public class AdminController {
         return "redirect:/admin/bank-statements";
     }
 
+    @GetMapping("/bank-statements/months/{month}/download")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:read') or hasAuthority('bank-statements:write')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<byte[]> downloadBankStatementMonth(@PathVariable String month,
+                                                              @RequestParam(value = "format", required = false, defaultValue = "excel") String format) {
+        YearMonth yearMonth;
+        try {
+            yearMonth = YearMonth.parse(month);
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        YearMonth fallback = YearMonth.now();
+        List<BusinessBankStatementTable> allTables = businessBankStatementTableRepository.findAllByOrderByIdDesc();
+        List<BusinessBankStatementTable> monthTables = new ArrayList<>();
+        for (BusinessBankStatementTable table : allTables) {
+            if (yearMonth.equals(findTableMonth(table, fallback))) {
+                monthTables.add(table);
+            }
+        }
+        if (monthTables.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        String label = yearMonth.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH) + "-" + yearMonth.getYear();
+        try {
+            byte[] content;
+            String contentType;
+            String extension;
+            String normalized = format == null ? "excel" : format.trim().toLowerCase(Locale.ROOT);
+            if ("pdf".equals(normalized)) {
+                content = bankStatementExportService.exportMonthPdf(label, monthTables);
+                contentType = "application/pdf";
+                extension = "pdf";
+            } else if ("excel".equals(normalized) || "xlsx".equals(normalized)) {
+                content = bankStatementExportService.exportMonthExcel(label, monthTables);
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                extension = "xlsx";
+            } else {
+                return ResponseEntity.badRequest().build();
+            }
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + label + "." + extension + "\"")
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .body(content);
+        } catch (Exception ex) {
+            log.error("Failed to export bank statement month [{}]", month, ex);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/bank-statements/tables/{tableId}/download")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:read') or hasAuthority('bank-statements:write')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<byte[]> downloadBankStatementTable(@PathVariable Long tableId,
+                                                              @RequestParam(value = "format", required = false, defaultValue = "excel") String format) {
+        BusinessBankStatementTable table = businessBankStatementTableRepository.findWithRowsById(tableId)
+                .orElseThrow(() -> new IllegalArgumentException("Bank statement table not found"));
+        try {
+            String normalized = format == null ? "excel" : format.trim().toLowerCase(java.util.Locale.ROOT);
+            byte[] content;
+            String contentType;
+            String extension;
+            if ("pdf".equals(normalized)) {
+                content = bankStatementExportService.exportPdf(table);
+                contentType = "application/pdf";
+                extension = "pdf";
+            } else if ("excel".equals(normalized) || "xlsx".equals(normalized)) {
+                content = bankStatementExportService.exportExcel(table);
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                extension = "xlsx";
+            } else {
+                return ResponseEntity.badRequest().build();
+            }
+            String safeName = (table.getTableName() == null ? "bank-statement" : table.getTableName())
+                    .replaceAll("[^a-zA-Z0-9_-]", "-");
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeName + "." + extension + "\"")
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .body(content);
+        } catch (Exception ex) {
+            log.error("Failed to export bank statement table [{}]", tableId, ex);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
     @PostMapping("/bank-statements/tables/{tableId}/opening-balance")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     @Transactional
     public Object saveBankStatementOpeningBalance(@PathVariable Long tableId,
                                                    @RequestParam("openingBalance") BigDecimal openingBalance,
@@ -335,6 +430,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/rows")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     @Transactional
     public Object addBankStatementRow(@PathVariable Long tableId,
                                       @RequestParam(value = "transactionDate", required = false) LocalDate transactionDate,
@@ -397,6 +493,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/rows/{rowId}")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     @Transactional
     public Object updateBankStatementRow(@PathVariable Long tableId,
                                          @PathVariable Long rowId,
@@ -478,6 +575,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/delete")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     public String deleteBankStatementTable(@PathVariable Long tableId,
                                            RedirectAttributes redirectAttributes) {
         BusinessBankStatementTable table = businessBankStatementTableRepository.findById(tableId)
@@ -490,21 +588,60 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/rows/{rowId}/delete")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     @Transactional
-    public String deleteBankStatementRow(@PathVariable Long tableId,
+    public Object deleteBankStatementRow(@PathVariable Long tableId,
                                          @PathVariable Long rowId,
-                                         RedirectAttributes redirectAttributes) {
-        BusinessBankStatement row = businessBankStatementRepository.findById(rowId)
-                .orElseThrow(() -> new IllegalArgumentException("Bank statement row not found"));
-        if (row.getStatementTable() == null || !tableId.equals(row.getStatementTable().getId())) {
-            throw new IllegalArgumentException("Bank statement row does not belong to this table");
+                                         RedirectAttributes redirectAttributes,
+                                         @RequestHeader(value = "X-Requested-With", required = false) String requestedWith,
+                                         @RequestHeader(value = "Accept", required = false) String accept) {
+        if (tableId == null || rowId == null) {
+            String message = "Table ID and row ID are required.";
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "message", message));
+            }
+            redirectAttributes.addFlashAttribute("error", message);
+            return "redirect:/admin/bank-statements";
         }
+
+        BusinessBankStatement row = businessBankStatementRepository.findById(rowId).orElse(null);
+        if (row == null) {
+            String message = "Bank statement row not found.";
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.status(404).body(Map.of("success", false, "message", message));
+            }
+            redirectAttributes.addFlashAttribute("error", message);
+            return "redirect:/admin/bank-statements";
+        }
+        if (row.getStatementTable() == null || row.getStatementTable().getId() == null
+                || !tableId.equals(row.getStatementTable().getId())) {
+            String message = "Bank statement row does not belong to this table.";
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "message", message));
+            }
+            redirectAttributes.addFlashAttribute("error", message);
+            return "redirect:/admin/bank-statements";
+        }
+
+        BusinessBankStatementTable table = row.getStatementTable();
         businessBankStatementRepository.delete(row);
-        row.getStatementTable().getRows().removeIf(candidate -> candidate.getId() != null && candidate.getId().equals(rowId));
-        recalculateBankStatementBalances(row.getStatementTable());
+        table.getRows().removeIf(candidate -> candidate.getId() != null && candidate.getId().equals(rowId));
+        recalculateBankStatementBalances(table);
         userActivityService.logCurrentUser("DELETE", "BANK_STATEMENT_ROW", rowId,
                 "Deleted row from bank statement table ID " + tableId);
         redirectAttributes.addFlashAttribute("success", "Row deleted successfully.");
+
+        if (isAjaxRequest(requestedWith, accept)) {
+            Map<String, Object> balances = new LinkedHashMap<>();
+            for (BusinessBankStatement statementRow : table.getRows()) {
+                balances.put(String.valueOf(statementRow.getId()), statementRow.getCurrentBalance());
+            }
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Row deleted successfully.",
+                    "rowId", rowId,
+                    "rowBalances", balances));
+        }
         return "redirect:/admin/bank-statements";
     }
 
