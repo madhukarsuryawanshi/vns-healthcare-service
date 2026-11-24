@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -72,6 +74,7 @@ public class AdminController {
     private final com.vns.healthcare.service.EmployeeService employeeService;
     private final UserActivityService userActivityService;
     private final CacheManager cacheManager;
+    private final com.vns.healthcare.service.BankStatementExportService bankStatementExportService;
 
     public AdminController(RoleRepository roleRepository,
                           UserRepository userRepository,
@@ -82,7 +85,8 @@ public class AdminController {
                           PasswordEncoder passwordEncoder,
                           com.vns.healthcare.service.EmployeeService employeeService,
                           UserActivityService userActivityService,
-                          CacheManager cacheManager) {
+                          CacheManager cacheManager,
+                          com.vns.healthcare.service.BankStatementExportService bankStatementExportService) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
@@ -93,6 +97,7 @@ public class AdminController {
         this.employeeService = employeeService;
         this.userActivityService = userActivityService;
         this.cacheManager = cacheManager;
+        this.bankStatementExportService = bankStatementExportService;
     }
 
     @GetMapping({"", "/users"})
@@ -295,6 +300,41 @@ public class AdminController {
                 "Created bank statement table " + name);
         redirectAttributes.addFlashAttribute("success", "Table created successfully.");
         return "redirect:/admin/bank-statements";
+    }
+
+    @GetMapping("/bank-statements/tables/{tableId}/download")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:read') or hasAuthority('bank-statements:write')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<byte[]> downloadBankStatementTable(@PathVariable Long tableId,
+                                                              @RequestParam(value = "format", required = false, defaultValue = "excel") String format) {
+        BusinessBankStatementTable table = businessBankStatementTableRepository.findWithRowsById(tableId)
+                .orElseThrow(() -> new IllegalArgumentException("Bank statement table not found"));
+        try {
+            String normalized = format == null ? "excel" : format.trim().toLowerCase(java.util.Locale.ROOT);
+            byte[] content;
+            String contentType;
+            String extension;
+            if ("pdf".equals(normalized)) {
+                content = bankStatementExportService.exportPdf(table);
+                contentType = "application/pdf";
+                extension = "pdf";
+            } else if ("excel".equals(normalized) || "xlsx".equals(normalized)) {
+                content = bankStatementExportService.exportExcel(table);
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                extension = "xlsx";
+            } else {
+                return ResponseEntity.badRequest().build();
+            }
+            String safeName = (table.getTableName() == null ? "bank-statement" : table.getTableName())
+                    .replaceAll("[^a-zA-Z0-9_-]", "-");
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeName + "." + extension + "\"")
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .body(content);
+        } catch (Exception ex) {
+            log.error("Failed to export bank statement table [{}]", tableId, ex);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/opening-balance")

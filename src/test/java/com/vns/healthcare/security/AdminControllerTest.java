@@ -53,6 +53,8 @@ class AdminControllerTest {
     private UserActivityService userActivityService;
     @Mock
     private CacheManager cacheManager;
+    @Mock
+    private com.vns.healthcare.service.BankStatementExportService bankStatementExportService;
 
     private AdminController controller;
 
@@ -68,7 +70,8 @@ class AdminControllerTest {
                 passwordEncoder,
                 employeeService,
                 userActivityService,
-                cacheManager);
+                cacheManager,
+                bankStatementExportService);
     }
 
     @Test
@@ -201,6 +204,46 @@ class AdminControllerTest {
         assertEquals("redirect:/admin/bank-statements", view);
         assertEquals(1, table.getRows().size());
         assertEquals(new BigDecimal("75.00"), table.getRows().get(0).getCurrentBalance());
+    }
+
+    @Test
+    void downloadTable_excelReturnsXlsxAttachment() throws Exception {
+        BusinessBankStatementTable table = new BusinessBankStatementTable();
+        table.setId(9L);
+        table.setTableName("November-Account");
+        when(businessBankStatementTableRepository.findWithRowsById(9L)).thenReturn(Optional.of(table));
+        when(bankStatementExportService.exportExcel(table)).thenReturn(new byte[]{1, 2, 3});
+
+        ResponseEntity<byte[]> response = controller.downloadBankStatementTable(9L, "excel");
+
+        assertEquals(200, response.getStatusCode().value());
+        String filename = response.getHeaders().getContentDisposition().getFilename();
+        assertEquals(true, filename.endsWith(".xlsx"));
+    }
+
+    @Test
+    void downloadTable_pdfReturnsPdfAttachment() throws Exception {
+        BusinessBankStatementTable table = new BusinessBankStatementTable();
+        table.setId(10L);
+        table.setTableName("December-Account");
+        when(businessBankStatementTableRepository.findWithRowsById(10L)).thenReturn(Optional.of(table));
+        when(bankStatementExportService.exportPdf(table)).thenReturn(new byte[]{1, 2, 3});
+
+        ResponseEntity<byte[]> response = controller.downloadBankStatementTable(10L, "pdf");
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("application/pdf", response.getHeaders().getContentType().toString());
+    }
+
+    @Test
+    void downloadTable_rejectsUnsupportedFormat() {
+        BusinessBankStatementTable table = new BusinessBankStatementTable();
+        table.setId(11L);
+        when(businessBankStatementTableRepository.findWithRowsById(11L)).thenReturn(Optional.of(table));
+
+        ResponseEntity<byte[]> response = controller.downloadBankStatementTable(11L, "csv");
+
+        assertEquals(400, response.getStatusCode().value());
     }
 
     @Test

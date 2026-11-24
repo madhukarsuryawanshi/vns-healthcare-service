@@ -63,9 +63,18 @@
             <h3 class="page-title">
                 <button type="button" class="bank-table-title" th:text="${table.tableName}" th:attr="data-toggle-table=${table.id}" aria-expanded="true">Table name</button>
             </h3>
-            <form sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:write')" th:action="@{/admin/bank-statements/tables/{id}/delete(id=${table.id})}" method="post" onsubmit="return confirm('Delete this table and all its rows?');">
-                <button class="btn coral small" type="submit">Delete Table</button>
-            </form>
+            <div class="row-actions compact">
+                <form th:action="@{/admin/bank-statements/tables/{id}/download(id=${table.id})}" method="get" target="_blank" style="display:flex; align-items:center; gap:6px; margin:0;">
+                    <select name="format" aria-label="Download format" style="height:40px; min-width:110px; margin:0;">
+                        <option value="excel">Excel (.xlsx)</option>
+                        <option value="pdf">PDF</option>
+                    </select>
+                    <button class="btn secondary small" type="submit">Download</button>
+                </form>
+                <form sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:write')" th:action="@{/admin/bank-statements/tables/{id}/delete(id=${table.id})}" method="post" onsubmit="return confirm('Delete this table and all its rows?');">
+                    <button class="btn coral small" type="submit">Delete Table</button>
+                </form>
+            </div>
         </div>
         <div class="bank-table-body">
         <form sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:write')" th:id="|opening-balance-form-${table.id}|" th:action="@{/admin/bank-statements/tables/{id}/opening-balance(id=${table.id})}" method="post" th:attr="onsubmit=|submitOpeningBalance(event, ${table.id})|" class="form-grid opening-balance-form" style="margin-bottom: 1rem; max-width: 520px;">
