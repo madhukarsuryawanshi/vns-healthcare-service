@@ -53,10 +53,19 @@
     </div>
 
     <div th:each="monthGroup : ${monthGroups}" class="bank-month-panel" style="margin-bottom: 1.25rem;">
-        <h2 class="page-title">
-            <button type="button" class="bank-month-heading" th:text="${monthGroup.label}"
-                    th:attr="aria-expanded=true,data-toggle-month=${monthGroup.month}">Month</button>
-        </h2>
+        <div class="topbar" style="align-items:center;">
+            <h2 class="page-title">
+                <button type="button" class="bank-month-heading" th:text="${monthGroup.label}"
+                        th:attr="aria-expanded=true,data-toggle-month=${monthGroup.month}">Month</button>
+            </h2>
+            <form th:action="@{/admin/bank-statements/months/{month}/download(month=${monthGroup.month})}" method="get" target="_blank" style="display:flex; align-items:center; gap:6px; margin:0;">
+                <select name="format" aria-label="Month download format" style="height:40px; min-width:110px; margin:0;">
+                    <option value="excel">Excel (.xlsx)</option>
+                    <option value="pdf">PDF</option>
+                </select>
+                <button class="btn secondary small month-download-button" type="submit">Download</button>
+            </form>
+        </div>
         <div class="bank-month-body">
             <div th:each="table : ${monthGroup.tables}" class="panel bank-table-panel" style="margin-bottom: 1.25rem;">
         <div class="topbar">

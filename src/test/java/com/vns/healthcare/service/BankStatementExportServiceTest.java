@@ -51,6 +51,33 @@ class BankStatementExportServiceTest {
     }
 
     @Test
+    void monthExcelContainsASeparateSheetForEachTable() throws Exception {
+        BusinessBankStatementTable first = sampleTable();
+        BusinessBankStatementTable second = new BusinessBankStatementTable();
+        second.setTableName("VNS Healthcare");
+        second.setOpeningBalance(new BigDecimal("500.00"));
+
+        byte[] bytes = service.exportMonthExcel("November-2026", java.util.List.of(first, second));
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
+            assertEquals(2, workbook.getNumberOfSheets());
+            assertEquals("November Statement", workbook.getSheetAt(0).getSheetName());
+            assertEquals("VNS Healthcare", workbook.getSheetAt(1).getSheetName());
+        }
+    }
+
+    @Test
+    void monthPdfStartsWithPdfHeaderAndContainsMonthTitle() throws Exception {
+        byte[] bytes = service.exportMonthPdf("November-2026", java.util.List.of(sampleTable()));
+
+        assertTrue(bytes.length > 4);
+        assertEquals('%', (char) bytes[0]);
+        assertEquals('P', (char) bytes[1]);
+        assertEquals('D', (char) bytes[2]);
+        assertEquals('F', (char) bytes[3]);
+    }
+
+    @Test
     void pdfExportStartsWithPdfHeader() throws Exception {
         byte[] bytes = service.exportPdf(sampleTable());
 

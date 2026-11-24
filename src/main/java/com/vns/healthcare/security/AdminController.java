@@ -302,6 +302,57 @@ public class AdminController {
         return "redirect:/admin/bank-statements";
     }
 
+    @GetMapping("/bank-statements/months/{month}/download")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:read') or hasAuthority('bank-statements:write')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<byte[]> downloadBankStatementMonth(@PathVariable String month,
+                                                              @RequestParam(value = "format", required = false, defaultValue = "excel") String format) {
+        YearMonth yearMonth;
+        try {
+            yearMonth = YearMonth.parse(month);
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        YearMonth fallback = YearMonth.now();
+        List<BusinessBankStatementTable> allTables = businessBankStatementTableRepository.findAllByOrderByIdDesc();
+        List<BusinessBankStatementTable> monthTables = new ArrayList<>();
+        for (BusinessBankStatementTable table : allTables) {
+            if (yearMonth.equals(findTableMonth(table, fallback))) {
+                monthTables.add(table);
+            }
+        }
+        if (monthTables.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        String label = yearMonth.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH) + "-" + yearMonth.getYear();
+        try {
+            byte[] content;
+            String contentType;
+            String extension;
+            String normalized = format == null ? "excel" : format.trim().toLowerCase(Locale.ROOT);
+            if ("pdf".equals(normalized)) {
+                content = bankStatementExportService.exportMonthPdf(label, monthTables);
+                contentType = "application/pdf";
+                extension = "pdf";
+            } else if ("excel".equals(normalized) || "xlsx".equals(normalized)) {
+                content = bankStatementExportService.exportMonthExcel(label, monthTables);
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                extension = "xlsx";
+            } else {
+                return ResponseEntity.badRequest().build();
+            }
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + label + "." + extension + "\"")
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .body(content);
+        } catch (Exception ex) {
+            log.error("Failed to export bank statement month [{}]", month, ex);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
     @GetMapping("/bank-statements/tables/{tableId}/download")
     @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:read') or hasAuthority('bank-statements:write')")
     @Transactional(readOnly = true)

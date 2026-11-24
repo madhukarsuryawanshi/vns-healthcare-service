@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Service
 public class BankStatementExportService {
@@ -115,6 +116,20 @@ public class BankStatementExportService {
         }
     }
 
+    public byte[] exportMonthExcel(String monthLabel, List<BusinessBankStatementTable> tables) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            org.apache.poi.ss.usermodel.Font boldFont = workbook.createFont();
+            boldFont.setBold(true);
+
+            for (BusinessBankStatementTable table : tables) {
+                Sheet sheet = workbook.createSheet(safeSheetName(table.getTableName()));
+                createExcelTableSection(workbook, sheet, table, boldFont);
+            }
+            workbook.write(output);
+            return output.toByteArray();
+        }
+    }
+
     public byte[] exportPdf(BusinessBankStatementTable table) throws Exception {
         Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 36);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -154,6 +169,116 @@ public class BankStatementExportService {
         document.add(pdfTable);
         document.close();
         return output.toByteArray();
+    }
+
+    public byte[] exportMonthPdf(String monthLabel, List<BusinessBankStatementTable> tables) throws Exception {
+        Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 36);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PdfWriter.getInstance(document, output);
+        document.open();
+
+        Font monthTitleFont = new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD);
+        com.itextpdf.text.Paragraph monthTitle = new com.itextpdf.text.Paragraph(monthLabel, monthTitleFont);
+        monthTitle.setAlignment(Element.ALIGN_CENTER);
+        monthTitle.setSpacingAfter(12);
+        document.add(monthTitle);
+
+        Font tableTitleFont = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD);
+        Font pdfHeaderFont = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD);
+        for (BusinessBankStatementTable table : tables) {
+            com.itextpdf.text.Paragraph tableTitle = new com.itextpdf.text.Paragraph(table.getTableName(), tableTitleFont);
+            tableTitle.setSpacingBefore(8);
+            tableTitle.setSpacingAfter(4);
+            document.add(tableTitle);
+
+            com.itextpdf.text.Paragraph opening = new com.itextpdf.text.Paragraph("Opening Balance: " + number(table.getOpeningBalance()));
+            opening.setSpacingAfter(6);
+            document.add(opening);
+
+            PdfPTable pdfTable = new PdfPTable(7);
+            pdfTable.setWidthPercentage(100);
+            pdfTable.setWidths(new float[]{45, 75, 150, 75, 75, 90, 180});
+            String[] headers = {"Sr No", "Date", "Transaction", "Credit", "Debit", "Current Balance", "Description"};
+            for (String header : headers) {
+                PdfPCell cell = new PdfPCell(new Phrase(header, pdfHeaderFont));
+                cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+                pdfTable.addCell(cell);
+            }
+            int srNo = 1;
+            for (BusinessBankStatement statement : table.getRows()) {
+                pdfTable.addCell(String.valueOf(srNo++));
+                pdfTable.addCell(statement.getTransactionDate() == null ? "" : DATE_FORMAT.format(statement.getTransactionDate()));
+                pdfTable.addCell(statement.getTransaction() == null ? "" : statement.getTransaction());
+                pdfTable.addCell(statement.getCredit() == null ? "" : number(statement.getCredit()));
+                pdfTable.addCell(statement.getDebit() == null ? "" : number(statement.getDebit()));
+                pdfTable.addCell(statement.getCurrentBalance() == null ? "" : number(statement.getCurrentBalance()));
+                pdfTable.addCell(statement.getDescription() == null ? "" : statement.getDescription());
+            }
+            document.add(pdfTable);
+        }
+        document.close();
+        return output.toByteArray();
+    }
+
+    private void createExcelTableSection(Workbook workbook, Sheet sheet, BusinessBankStatementTable table, org.apache.poi.ss.usermodel.Font boldFont) {
+        for (int i = 0; i < 7; i++) {
+            sheet.setColumnWidth(i, new int[]{1800, 3000, 6000, 3500, 3500, 4500, 7000}[i]);
+        }
+
+        org.apache.poi.ss.usermodel.Font titleFontExcel = workbook.createFont();
+        titleFontExcel.setBold(true);
+        titleFontExcel.setFontHeightInPoints((short) 14);
+
+        CellStyle titleStyle = workbook.createCellStyle();
+        titleStyle.setFont(titleFontExcel);
+        applyBorders(titleStyle);
+
+        CellStyle openingStyle = workbook.createCellStyle();
+        openingStyle.setFont(boldFont);
+        applyBorders(openingStyle);
+
+        Row title = sheet.createRow(0);
+        title.createCell(0).setCellValue(table.getTableName());
+        title.getCell(0).setCellStyle(titleStyle);
+
+        Row opening = sheet.createRow(1);
+        opening.createCell(0).setCellValue("Opening Balance");
+        opening.createCell(4).setCellValue(number(table.getOpeningBalance()));
+        opening.getCell(0).setCellStyle(openingStyle);
+        opening.getCell(4).setCellStyle(openingStyle);
+
+        CellStyle headerStyle = workbook.createCellStyle();
+        headerStyle.setFont(boldFont);
+        headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        headerStyle.setAlignment(HorizontalAlignment.CENTER);
+        applyBorders(headerStyle);
+
+        CellStyle bodyStyle = workbook.createCellStyle();
+        applyBorders(bodyStyle);
+
+        Row header = sheet.createRow(3);
+        String[] headers = {"Sr No", "Date", "Transaction", "Credit", "Debit", "Current Balance", "Description"};
+        for (int i = 0; i < headers.length; i++) {
+            header.createCell(i).setCellValue(headers[i]);
+            header.getCell(i).setCellStyle(headerStyle);
+        }
+
+        int rowIndex = 4;
+        int srNo = 1;
+        for (BusinessBankStatement statement : table.getRows()) {
+            Row row = sheet.createRow(rowIndex++);
+            row.createCell(0).setCellValue(srNo++);
+            row.createCell(1).setCellValue(statement.getTransactionDate() == null ? "" : DATE_FORMAT.format(statement.getTransactionDate()));
+            row.createCell(2).setCellValue(statement.getTransaction() == null ? "" : statement.getTransaction());
+            row.createCell(3).setCellValue(statement.getCredit() == null ? 0 : statement.getCredit().doubleValue());
+            row.createCell(4).setCellValue(statement.getDebit() == null ? 0 : statement.getDebit().doubleValue());
+            row.createCell(5).setCellValue(statement.getCurrentBalance() == null ? 0 : statement.getCurrentBalance().doubleValue());
+            row.createCell(6).setCellValue(statement.getDescription() == null ? "" : statement.getDescription());
+            for (int i = 0; i < 7; i++) row.getCell(i).setCellStyle(bodyStyle);
+        }
+
+        sheet.createFreezePane(0, 4);
     }
 
     private void applyBorders(CellStyle style) {
