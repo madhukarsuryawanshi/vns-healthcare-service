@@ -8,7 +8,7 @@
             <p class="sub">Manage payment account details used for business transactions.</p>
         </div>
         <div class="row-actions compact">
-            <a class="btn ghost" th:href="@{/admin/bank-statements}">Bank Statements</a>
+            <a class="btn ghost" sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:read') or hasAuthority('bank-statements:write')" th:href="@{/admin/bank-statements}">Bank Statements</a>
             <a class="btn" th:href="@{/admin/bank-accounts/new}">Add bank account</a>
         </div>
     </div>

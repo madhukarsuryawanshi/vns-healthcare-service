@@ -58,6 +58,7 @@ public class AdminController {
             "customers",
             "attendance",
             "salary",
+            "bank-statements",
             "admin"
     );
 
@@ -231,6 +232,7 @@ public class AdminController {
     }
 
     @GetMapping("/bank-statements")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:read') or hasAuthority('bank-statements:write')")
     public String allBankStatements(Model model,
                                     @RequestParam(value = "monthSort", required = false, defaultValue = "desc") String monthSort) {
         List<BusinessBankStatementTable> tables = businessBankStatementTableRepository.findAllByOrderByIdDesc();
@@ -278,6 +280,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     public String addBankStatementTable(@RequestParam("tableName") String tableName,
                                         RedirectAttributes redirectAttributes) {
         String name = tableName == null ? "" : tableName.trim();
@@ -295,6 +298,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/opening-balance")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     @Transactional
     public Object saveBankStatementOpeningBalance(@PathVariable Long tableId,
                                                    @RequestParam("openingBalance") BigDecimal openingBalance,
@@ -335,6 +339,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/rows")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     @Transactional
     public Object addBankStatementRow(@PathVariable Long tableId,
                                       @RequestParam(value = "transactionDate", required = false) LocalDate transactionDate,
@@ -397,6 +402,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/rows/{rowId}")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     @Transactional
     public Object updateBankStatementRow(@PathVariable Long tableId,
                                          @PathVariable Long rowId,
@@ -478,6 +484,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/delete")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     public String deleteBankStatementTable(@PathVariable Long tableId,
                                            RedirectAttributes redirectAttributes) {
         BusinessBankStatementTable table = businessBankStatementTableRepository.findById(tableId)
@@ -490,6 +497,7 @@ public class AdminController {
     }
 
     @PostMapping("/bank-statements/tables/{tableId}/rows/{rowId}/delete")
+    @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     @Transactional
     public String deleteBankStatementRow(@PathVariable Long tableId,
                                          @PathVariable Long rowId,

@@ -8,7 +8,7 @@
             <p class="sub">Create named tables and add statement rows.</p>
         </div>
         <div class="row-actions compact">
-            <button class="btn" type="button" onclick="document.getElementById('add-table-dialog').showModal()">Add Table</button>
+            <button class="btn" type="button" sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:write')" onclick="document.getElementById('add-table-dialog').showModal()">Add Table</button>
             <a class="btn ghost" th:href="@{/admin/bank-accounts}">Back</a>
         </div>
     </div>
@@ -63,19 +63,20 @@
             <h3 class="page-title">
                 <button type="button" class="bank-table-title" th:text="${table.tableName}" th:attr="data-toggle-table=${table.id}" aria-expanded="true">Table name</button>
             </h3>
-            <form th:action="@{/admin/bank-statements/tables/{id}/delete(id=${table.id})}" method="post" onsubmit="return confirm('Delete this table and all its rows?');">
+            <form sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:write')" th:action="@{/admin/bank-statements/tables/{id}/delete(id=${table.id})}" method="post" onsubmit="return confirm('Delete this table and all its rows?');">
                 <button class="btn coral small" type="submit">Delete Table</button>
             </form>
         </div>
         <div class="bank-table-body">
-        <form th:action="@{/admin/bank-statements/tables/{id}/opening-balance(id=${table.id})}" method="post" th:attr="onsubmit=|submitOpeningBalance(event, ${table.id})|" class="form-grid opening-balance-form" style="margin-bottom: 1rem; max-width: 520px;">
+        <form sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:write')" th:id="|opening-balance-form-${table.id}|" th:action="@{/admin/bank-statements/tables/{id}/opening-balance(id=${table.id})}" method="post" th:attr="onsubmit=|submitOpeningBalance(event, ${table.id})|" class="form-grid opening-balance-form" style="margin-bottom: 1rem; max-width: 520px;">
             <div class="field">
                 <label for="openingBalance-${table.id}">Opening Balance</label>
-                <input th:id="|openingBalance-${table.id}|" name="openingBalance" type="number" step="0.01" th:value="${table.openingBalance}" th:disabled="${table.openingBalanceSaved}" required />
+                <input th:id="|openingBalance-${table.id}|" name="openingBalance" type="number" step="0.01" th:value="${table.openingBalance}" th:attr="data-saved-value=${table.openingBalance}" th:disabled="${table.openingBalanceSaved}" required />
             </div>
             <div class="field actions">
                 <button class="btn small" type="submit" th:disabled="${table.openingBalanceSaved}">Save Opening Balance</button>
-                <button class="btn ghost small opening-balance-edit-button" type="button" th:if="${table.openingBalanceSaved}" th:attr="data-table-id=${table.id}">Edit</button>
+                <button class="btn ghost small opening-balance-edit-button" type="button" th:attr="data-table-id=${table.id},data-saved=${table.openingBalanceSaved}" th:style="${table.openingBalanceSaved} ? '' : 'display:none'">Edit</button>
+                <button class="btn ghost small opening-balance-cancel-button" type="button" th:attr="data-table-id=${table.id}" style="display:none">Cancel</button>
             </div>
         </form>
 
@@ -104,8 +105,8 @@
                 <td class="balance-value" th:text="${row.currentBalance != null ? #numbers.formatDecimal(row.currentBalance, 1, 'COMMA', 2, 'POINT') : '-'}">0.00</td>
                 <td th:text="${row.description != null && !#strings.isEmpty(row.description) ? row.description : '-'}">Description</td>
                 <td>
-                    <button class="btn small bank-row-edit-button" type="button">Edit</button>
-                    <form class="bank-row-delete-form" th:action="@{/admin/bank-statements/tables/{tableId}/rows/{rowId}/delete(tableId=${table.id},rowId=${row.id})}" method="post" style="display:inline">
+                    <button sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:write')" class="btn small bank-row-edit-button" type="button">Edit</button>
+                    <form sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:write')" class="bank-row-delete-form" th:action="@{/admin/bank-statements/tables/{tableId}/rows/{rowId}/delete(tableId=${table.id},rowId=${row.id})}" method="post" style="display:inline">
                         <button class="btn coral small" type="submit">Delete</button>
                     </form>
                     <form class="bank-row-edit-form" th:action="@{/admin/bank-statements/tables/{tableId}/rows/{rowId}(tableId=${table.id},rowId=${row.id})}" method="post" th:attr="onsubmit=|submitBankRowEdit(event, ${table.id})|" style="display:none">
@@ -126,7 +127,7 @@
                 <td><output class="balance-value" th:id="|bank-preview-${table.id}|" th:text="${table.rows != null and !table.rows.isEmpty() and table.rows.get(table.rows.size()-1).currentBalance != null ? #numbers.formatDecimal(table.rows.get(table.rows.size()-1).currentBalance, 1, 'COMMA', 2, 'POINT') : #numbers.formatDecimal(table.openingBalance, 1, 'COMMA', 2, 'POINT')}">0.00</td>
                 <td><input th:form="|inline-row-${table.id}|" name="description" type="text" maxlength="1000" /></td>
                 <td>
-                    <form th:id="|inline-row-${table.id}|" th:action="@{/admin/bank-statements/tables/{id}/rows(id=${table.id})}" method="post" th:attr="onsubmit=|submitBankRow(event, ${table.id})|" style="display:inline">
+                    <form sec:authorize="authentication.name == 'admin' or hasAuthority('bank-statements:write')" th:id="|inline-row-${table.id}|" th:action="@{/admin/bank-statements/tables/{id}/rows(id=${table.id})}" method="post" th:attr="onsubmit=|submitBankRow(event, ${table.id})|" style="display:inline">
                         <button class="btn small" type="submit">Add</button>
                     </form>
                 </td>
@@ -141,6 +142,89 @@
     <p class="empty" th:if="${tables == null or tables.isEmpty()}">No named tables added yet.</p>
 
     <script th:inline="javascript">
+        function toggleBankTable(titleButton) {
+            const panel = titleButton.closest('.bank-table-panel');
+            if (!panel) return;
+            const collapsed = panel.classList.toggle('collapsed');
+            titleButton.setAttribute('aria-expanded', String(!collapsed));
+        }
+
+        function startOpeningBalanceEdit(editButton) {
+            const form = editButton.closest('form');
+            const openingInput = form.querySelector('input[name="openingBalance"]');
+            const saveButton = form.querySelector('button[type="submit"]');
+            const cancelButton = form.querySelector('.opening-balance-cancel-button');
+            openingInput.disabled = false;
+            openingInput.removeAttribute('disabled');
+            openingInput.readOnly = false;
+            saveButton.disabled = false;
+            saveButton.removeAttribute('disabled');
+            editButton.disabled = true;
+            editButton.style.display = 'none';
+            if (cancelButton) {
+                cancelButton.disabled = false;
+                cancelButton.removeAttribute('disabled');
+                cancelButton.style.display = '';
+            }
+            setTimeout(function () {
+                openingInput.focus();
+                openingInput.select();
+            }, 0);
+        }
+
+        function cancelOpeningBalanceEdit(cancelButton) {
+            const form = cancelButton.closest('form');
+            const openingInput = form.querySelector('input[name="openingBalance"]');
+            const saveButton = form.querySelector('button[type="submit"]');
+            const editButton = form.querySelector('.opening-balance-edit-button');
+            openingInput.value = openingInput.dataset.savedValue || '0';
+            openingInput.disabled = true;
+            openingInput.setAttribute('disabled', 'disabled');
+            saveButton.disabled = true;
+            saveButton.setAttribute('disabled', 'disabled');
+            cancelButton.style.display = 'none';
+            if (editButton) {
+                editButton.disabled = false;
+                editButton.removeAttribute('disabled');
+                editButton.style.display = '';
+            }
+        }
+
+        document.querySelectorAll('.bank-table-title').forEach(function (titleButton) {
+            titleButton.addEventListener('click', function () {
+                const panel = titleButton.closest('.bank-table-panel');
+                if (!panel) return;
+                const collapsed = panel.classList.toggle('collapsed');
+                titleButton.setAttribute('aria-expanded', String(!collapsed));
+            });
+        });
+
+        document.querySelectorAll('.opening-balance-form').forEach(function (form) {
+            const openingInput = form.querySelector('input[name="openingBalance"]');
+            const editButton = form.querySelector('.opening-balance-edit-button');
+            if (!editButton) return;
+            if (openingInput.disabled) {
+                editButton.disabled = false;
+                editButton.removeAttribute('disabled');
+                editButton.style.display = '';
+            } else {
+                editButton.disabled = true;
+                editButton.style.display = 'none';
+            }
+        });
+
+        document.querySelectorAll('.opening-balance-edit-button').forEach(function (editButton) {
+            editButton.addEventListener('click', function () {
+                startOpeningBalanceEdit(editButton);
+            });
+        });
+
+        document.querySelectorAll('.opening-balance-cancel-button').forEach(function (cancelButton) {
+            cancelButton.addEventListener('click', function () {
+                cancelOpeningBalanceEdit(cancelButton);
+            });
+        });
+
         document.querySelectorAll('.bank-month-heading').forEach(function (titleButton) {
             titleButton.addEventListener('click', function () {
                 const panel = titleButton.closest('.bank-month-panel');
@@ -149,28 +233,6 @@
             });
         });
 
-        function bindOpeningBalanceEditButton(editButton) {
-            editButton.addEventListener('click', function () {
-                const form = editButton.closest('form');
-                const openingInput = form.querySelector('input[name="openingBalance"]');
-                const saveButton = form.querySelector('button[type="submit"]');
-                openingInput.disabled = false;
-                saveButton.disabled = false;
-                editButton.style.display = 'none';
-                openingInput.focus();
-                openingInput.select();
-            });
-        }
-
-        document.querySelectorAll('.opening-balance-edit-button').forEach(bindOpeningBalanceEditButton);
-
-        document.querySelectorAll('.bank-table-title').forEach(function (titleButton) {
-            titleButton.addEventListener('click', function () {
-                const panel = titleButton.closest('.bank-table-panel');
-                const collapsed = panel.classList.toggle('collapsed');
-                titleButton.setAttribute('aria-expanded', String(!collapsed));
-            });
-        });
 
         function updateBankPreview(changedInput, tableId) {
             const row = changedInput.closest('tr');
@@ -202,12 +264,14 @@
             return headers;
         }
 
-        document.querySelectorAll('.bank-row-delete-form').forEach(function (form) {
-            form.addEventListener('submit', submitBankRowDelete);
+        document.addEventListener('submit', function (event) {
+            const deleteForm = event.target.closest('.bank-row-delete-form');
+            if (deleteForm) submitBankRowDelete(event);
         });
 
-        document.querySelectorAll('.bank-row-edit-button').forEach(function (button) {
-            button.addEventListener('click', startBankRowEdit);
+        document.addEventListener('click', function (event) {
+            const editButton = event.target.closest('.bank-row-edit-button');
+            if (editButton) startBankRowEdit(editButton);
         });
 
         function showAjaxError(message) {
@@ -237,9 +301,12 @@
             const panel = form.closest('.panel');
             const openingInput = panel.querySelector('input[name="openingBalance"]');
             openingInput.value = data.openingBalance;
+            openingInput.dataset.savedValue = data.openingBalance;
             if (data.openingBalanceSaved) {
                 openingInput.disabled = true;
                 form.querySelector('button[type="submit"]').disabled = true;
+                const cancelButton = form.querySelector('.opening-balance-cancel-button');
+                if (cancelButton) cancelButton.style.display = 'none';
                 let editButton = form.querySelector('.opening-balance-edit-button');
                 if (!editButton) {
                     editButton = document.createElement('button');
@@ -248,8 +315,27 @@
                     editButton.textContent = 'Edit';
                     form.querySelector('.field.actions').appendChild(editButton);
                 }
+                editButton.disabled = false;
+                editButton.removeAttribute('disabled');
+                editButton.dataset.saved = 'true';
                 editButton.style.display = '';
-                bindOpeningBalanceEditButton(editButton);
+
+                let dynamicCancelButton = form.querySelector('.opening-balance-cancel-button');
+                if (!dynamicCancelButton) {
+                    dynamicCancelButton = document.createElement('button');
+                    dynamicCancelButton.type = 'button';
+                    dynamicCancelButton.className = 'btn ghost small opening-balance-cancel-button';
+                    dynamicCancelButton.textContent = 'Cancel';
+                    dynamicCancelButton.style.display = 'none';
+                    form.querySelector('.field.actions').appendChild(dynamicCancelButton);
+                }
+                dynamicCancelButton.addEventListener('click', function () {
+                    openingInput.value = openingInput.dataset.savedValue || '0';
+                    openingInput.disabled = true;
+                    form.querySelector('button[type="submit"]').disabled = true;
+                    dynamicCancelButton.style.display = 'none';
+                    editButton.style.display = '';
+                });
             }
             panel.querySelector('.opening-balance-row td:nth-child(6)').textContent =
                 Number(data.openingBalance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -266,8 +352,13 @@
             return parts ? parts[3] + '-' + parts[2] + '-' + parts[1] : value;
         }
 
-        function startBankRowEdit(event) {
-            const button = event.currentTarget;
+        function startBankRowEdit(source) {
+            const button = source && typeof source.closest === 'function'
+                ? source
+                : (source && source.currentTarget && typeof source.currentTarget.closest === 'function'
+                    ? source.currentTarget
+                    : null);
+            if (!button) return;
             const tr = button.closest('tr');
             if (tr.querySelector('.bank-row-edit-inputs')) return;
             const original = Array.from(tr.children).slice(1, 7).map(td => td.cloneNode(true));
@@ -310,7 +401,7 @@
             tr.children[7].querySelector('.bank-row-delete-form').style.display = 'inline';
             const editForm = tr.children[7].querySelector('.bank-row-edit-form');
             editForm.style.display = 'none';
-            editForm.querySelectorAll('.btn').forEach(function (btn) { btn.remove(); });
+            editForm.querySelectorAll('button').forEach(function (btn) { btn.remove(); });
         }
 
         async function submitBankRowEdit(event, tableId) {
@@ -355,7 +446,7 @@
 
         async function submitBankRowDelete(event) {
             event.preventDefault();
-            if (!confirm('Delete this row?')) return;
+            if (!window.confirm('Delete this row?')) return;
             const form = event.currentTarget;
             const tr = form.closest('tr');
             const response = await fetch(form.action, {
@@ -424,7 +515,9 @@
             tr.dataset.originalBalance = tr.children[5].textContent;
             tr.dataset.originalDescription = tr.children[6].textContent;
             tr.children[7].innerHTML = '<button class="btn small bank-row-edit-button" type="button">Edit</button> <form method="post" class="bank-row-delete-form" style="display:inline"><button class="btn coral small" type="submit">Delete</button></form><form method="post" class="bank-row-edit-form" style="display:none"><input name="transactionDate" type="hidden"><input name="transaction" type="hidden"><input name="credit" type="hidden"><input name="debit" type="hidden"><input name="description" type="hidden"></form>';
-            tr.querySelector('.bank-row-edit-button').addEventListener('click', startBankRowEdit);
+            tr.querySelector('.bank-row-edit-button').addEventListener('click', function (rowEditEvent) {
+                startBankRowEdit(rowEditEvent.currentTarget);
+            });
             const deleteForm = tr.querySelector('.bank-row-delete-form');
             deleteForm.action = '/admin/bank-statements/tables/' + tableId + '/rows/' + rowData.id + '/delete';
             deleteForm.addEventListener('submit', submitBankRowDelete);
