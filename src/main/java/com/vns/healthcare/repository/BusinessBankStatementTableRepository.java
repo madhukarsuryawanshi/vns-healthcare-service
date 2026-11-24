@@ -13,4 +13,7 @@ public interface BusinessBankStatementTableRepository extends JpaRepository<Busi
 
     @EntityGraph(attributePaths = "rows")
     Optional<BusinessBankStatementTable> findWithRowsById(Long id);
+
+    @EntityGraph(attributePaths = "rows")
+    List<BusinessBankStatementTable> findAll();
 }
