@@ -204,6 +204,49 @@ class AdminControllerTest {
     }
 
     @Test
+    void deleteRow_rejectsRowThatDoesNotBelongToTable() {
+        BusinessBankStatementTable requestedTable = new BusinessBankStatementTable();
+        requestedTable.setId(1L);
+        BusinessBankStatementTable otherTable = new BusinessBankStatementTable();
+        otherTable.setId(2L);
+        BusinessBankStatement row = new BusinessBankStatement();
+        row.setId(10L);
+        row.setStatementTable(otherTable);
+        when(businessBankStatementRepository.findById(10L)).thenReturn(Optional.of(row));
+
+        Object result = controller.deleteBankStatementRow(1L, 10L,
+                new RedirectAttributesModelMap(), "XMLHttpRequest", "application/json");
+
+        ResponseEntity<?> response = (ResponseEntity<?>) result;
+        assertEquals(400, response.getStatusCode().value());
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals(false, body.get("success"));
+    }
+
+    @Test
+    void deleteRow_ajaxDeletesMatchingRowAndReturnsRecalculatedBalances() {
+        BusinessBankStatementTable table = new BusinessBankStatementTable();
+        table.setId(1L);
+        table.setOpeningBalance(new BigDecimal("100.00"));
+        BusinessBankStatement row = new BusinessBankStatement();
+        row.setId(10L);
+        row.setStatementTable(table);
+        row.setCredit(new BigDecimal("20.00"));
+        table.getRows().add(row);
+        when(businessBankStatementRepository.findById(10L)).thenReturn(Optional.of(row));
+
+        Object result = controller.deleteBankStatementRow(1L, 10L,
+                new RedirectAttributesModelMap(), "XMLHttpRequest", "application/json");
+
+        ResponseEntity<?> response = (ResponseEntity<?>) result;
+        assertEquals(200, response.getStatusCode().value());
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals(true, body.get("success"));
+        assertEquals(10L, body.get("rowId"));
+        verify(businessBankStatementRepository).delete(row);
+    }
+
+    @Test
     void ajaxDetection_acceptsRequestedWithOrJsonAcceptHeader() {
         assertEquals(true, controller.isAjaxRequest("XMLHttpRequest", null));
         assertEquals(true, controller.isAjaxRequest(null, "text/html,application/json;q=0.9"));

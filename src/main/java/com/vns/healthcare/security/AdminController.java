@@ -499,20 +499,58 @@ public class AdminController {
     @PostMapping("/bank-statements/tables/{tableId}/rows/{rowId}/delete")
     @PreAuthorize("authentication.name == 'admin' or hasAuthority('bank-statements:write')")
     @Transactional
-    public String deleteBankStatementRow(@PathVariable Long tableId,
+    public Object deleteBankStatementRow(@PathVariable Long tableId,
                                          @PathVariable Long rowId,
-                                         RedirectAttributes redirectAttributes) {
-        BusinessBankStatement row = businessBankStatementRepository.findById(rowId)
-                .orElseThrow(() -> new IllegalArgumentException("Bank statement row not found"));
-        if (row.getStatementTable() == null || !tableId.equals(row.getStatementTable().getId())) {
-            throw new IllegalArgumentException("Bank statement row does not belong to this table");
+                                         RedirectAttributes redirectAttributes,
+                                         @RequestHeader(value = "X-Requested-With", required = false) String requestedWith,
+                                         @RequestHeader(value = "Accept", required = false) String accept) {
+        if (tableId == null || rowId == null) {
+            String message = "Table ID and row ID are required.";
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "message", message));
+            }
+            redirectAttributes.addFlashAttribute("error", message);
+            return "redirect:/admin/bank-statements";
         }
+
+        BusinessBankStatement row = businessBankStatementRepository.findById(rowId).orElse(null);
+        if (row == null) {
+            String message = "Bank statement row not found.";
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.status(404).body(Map.of("success", false, "message", message));
+            }
+            redirectAttributes.addFlashAttribute("error", message);
+            return "redirect:/admin/bank-statements";
+        }
+        if (row.getStatementTable() == null || row.getStatementTable().getId() == null
+                || !tableId.equals(row.getStatementTable().getId())) {
+            String message = "Bank statement row does not belong to this table.";
+            if (isAjaxRequest(requestedWith, accept)) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "message", message));
+            }
+            redirectAttributes.addFlashAttribute("error", message);
+            return "redirect:/admin/bank-statements";
+        }
+
+        BusinessBankStatementTable table = row.getStatementTable();
         businessBankStatementRepository.delete(row);
-        row.getStatementTable().getRows().removeIf(candidate -> candidate.getId() != null && candidate.getId().equals(rowId));
-        recalculateBankStatementBalances(row.getStatementTable());
+        table.getRows().removeIf(candidate -> candidate.getId() != null && candidate.getId().equals(rowId));
+        recalculateBankStatementBalances(table);
         userActivityService.logCurrentUser("DELETE", "BANK_STATEMENT_ROW", rowId,
                 "Deleted row from bank statement table ID " + tableId);
         redirectAttributes.addFlashAttribute("success", "Row deleted successfully.");
+
+        if (isAjaxRequest(requestedWith, accept)) {
+            Map<String, Object> balances = new LinkedHashMap<>();
+            for (BusinessBankStatement statementRow : table.getRows()) {
+                balances.put(String.valueOf(statementRow.getId()), statementRow.getCurrentBalance());
+            }
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Row deleted successfully.",
+                    "rowId", rowId,
+                    "rowBalances", balances));
+        }
         return "redirect:/admin/bank-statements";
     }
 

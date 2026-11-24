@@ -265,7 +265,9 @@
         }
 
         document.addEventListener('submit', function (event) {
-            const deleteForm = event.target.closest('.bank-row-delete-form');
+            const deleteForm = event.target && typeof event.target.closest === 'function'
+                ? event.target.closest('.bank-row-delete-form')
+                : null;
             if (deleteForm) submitBankRowDelete(event);
         });
 
@@ -446,8 +448,11 @@
 
         async function submitBankRowDelete(event) {
             event.preventDefault();
-            if (!window.confirm('Delete this row?')) return;
-            const form = event.currentTarget;
+            if (!window.confirm('Delete this bank statement row?')) return;
+            const form = event.target && typeof event.target.closest === 'function'
+                ? event.target.closest('.bank-row-delete-form')
+                : null;
+            if (!form) return;
             const tr = form.closest('tr');
             const response = await fetch(form.action, {
                 method: 'POST',
