@@ -40,6 +40,17 @@ class BankStatementExportServiceTest {
     }
 
     @Test
+    void excelColumnsUseCompactCappedWidths() throws Exception {
+        byte[] bytes = service.exportExcel(sampleTable());
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
+            var sheet = workbook.getSheetAt(0);
+            assertTrue(sheet.getColumnWidth(0) <= 1800);
+            assertTrue(sheet.getColumnWidth(6) <= 10000);
+        }
+    }
+
+    @Test
     void pdfExportStartsWithPdfHeader() throws Exception {
         byte[] bytes = service.exportPdf(sampleTable());
 

@@ -34,13 +34,13 @@ public class BankStatementExportService {
     public byte[] exportExcel(BusinessBankStatementTable table) throws Exception {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet(safeSheetName(table.getTableName()));
-            sheet.setColumnWidth(0, 3000);
-            sheet.setColumnWidth(1, 7000);
-            sheet.setColumnWidth(2, 4000);
-            sheet.setColumnWidth(3, 4000);
-            sheet.setColumnWidth(4, 5000);
-            sheet.setColumnWidth(5, 8000);
-            sheet.setColumnWidth(6, 9000);
+            sheet.setColumnWidth(0, 1800);
+            sheet.setColumnWidth(1, 3000);
+            sheet.setColumnWidth(2, 6000);
+            sheet.setColumnWidth(3, 3500);
+            sheet.setColumnWidth(4, 3500);
+            sheet.setColumnWidth(5, 4500);
+            sheet.setColumnWidth(6, 7000);
 
             org.apache.poi.ss.usermodel.Font boldFont = workbook.createFont();
             boldFont.setBold(true);
@@ -101,6 +101,14 @@ public class BankStatementExportService {
                 for (int i = 0; i < 7; i++) {
                     row.getCell(i).setCellStyle(bodyStyle);
                 }
+            }
+
+            int[] maximumWidths = {1800, 3200, 9000, 5000, 5000, 6500, 10000};
+            int[] minimumWidths = {1800, 3000, 3500, 3000, 3000, 4000, 5000};
+            for (int column = 0; column < 7; column++) {
+                sheet.autoSizeColumn(column);
+                int fittedWidth = sheet.getColumnWidth(column);
+                sheet.setColumnWidth(column, Math.max(minimumWidths[column], Math.min(fittedWidth, maximumWidths[column])));
             }
             workbook.write(output);
             return output.toByteArray();
