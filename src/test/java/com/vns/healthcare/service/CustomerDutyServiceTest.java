@@ -154,14 +154,11 @@ class CustomerDutyServiceTest {
 
         when(dutyRepository.findInRange(LocalDate.of(2026, 11, 26), LocalDate.of(2026, 11, 28)))
                 .thenReturn(java.util.Arrays.asList(nov26, nov28));
-        when(dutyRepository.findBeforeForCustomer(eq(10L), eq(LocalDate.of(2026, 11, 26))))
-                .thenReturn(Collections.emptyList());
-
         Map<String, CustomerDuty> index = customerDutyService.indexInRange(
                 LocalDate.of(2026, 11, 26), LocalDate.of(2026, 11, 28));
 
         assertEquals(employee, index.get("10|2026-11-26").getEmployee());
-        assertEquals(employee, index.get("10|2026-11-27").getEmployee());
+        assertEquals(null, index.get("10|2026-11-27"));
         assertTrue(index.get("10|2026-11-28").isHold());
     }
 

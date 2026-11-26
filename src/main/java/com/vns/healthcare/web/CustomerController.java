@@ -165,6 +165,12 @@ public class CustomerController {
             customerPage = customerService.listPage(pageable);
         }
 
+        for (Customer customer : customerPage.getContent()) {
+            if (!customer.isClosed()) {
+                dutyService.continueFromLatestRow(customer);
+            }
+        }
+
         java.util.List<String> customerSuggestions = java.util.Collections.emptyList();
         if (query != null && !query.trim().isEmpty()) {
             customerSuggestions = customerService.search(query.trim(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
@@ -789,18 +795,34 @@ public class CustomerController {
 
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
     @PostMapping("/{id:\\d+}/duties")
-    public String applyDuty(@PathVariable Long id,
+    public Object applyDuty(@PathVariable Long id,
                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                             @RequestParam(required = false) Long employeeId,
                             @RequestParam(value = "hold", required = false) boolean hold,
-                            RedirectAttributes redirectAttributes) {
+                            RedirectAttributes redirectAttributes,
+                            jakarta.servlet.http.HttpServletRequest request) {
         try {
             dutyService.applyRange(id, from, to, employeeId, hold);
             redirectAttributes.addFlashAttribute("success",
                     hold ? "Hold saved for the selected days." : "Employee assigned for the selected days.");
+            boolean ajax = "XMLHttpRequest".equalsIgnoreCase(request.getHeader("X-Requested-With"))
+                    || (request.getHeader("Accept") != null && request.getHeader("Accept").contains("application/json"));
+            if (ajax) {
+                java.util.Map<String, Object> result = new java.util.LinkedHashMap<String, Object>();
+                result.put("success", true);
+                result.put("message", hold ? "Hold saved for the selected days." : "Employee assigned for the selected days.");
+                result.put("from", from.toString());
+                result.put("to", to.toString());
+                return ResponseEntity.ok(result);
+            }
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
+            boolean ajax = "XMLHttpRequest".equalsIgnoreCase(request.getHeader("X-Requested-With"))
+                    || (request.getHeader("Accept") != null && request.getHeader("Accept").contains("application/json"));
+            if (ajax) {
+                return ResponseEntity.badRequest().body(java.util.Map.of("success", false, "message", ex.getMessage()));
+            }
         }
         String month = from == null ? "" : from.getYear() + "-" + String.format("%02d", from.getMonthValue());
         StringBuilder redirect = new StringBuilder("redirect:/customers/").append(id);

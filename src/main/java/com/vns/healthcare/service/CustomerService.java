@@ -430,7 +430,12 @@ public class CustomerService {
         detached.setPatientName(customer.getPatientName());
         detached.setMobileNo(customer.getMobileNo());
         detached.setAddress(customer.getAddress());
+        detached.setServiceStartDate(customer.getServiceStartDate());
         detached.setServiceType(customer.getServiceType());
+        detached.setCharges(customer.getCharges());
+        detached.setAdvancePayment(customer.getAdvancePayment());
+        detached.setBilledAmount(customer.getBilledAmount());
+        detached.setServiceClosedDate(customer.getServiceClosedDate());
         detached.setStatus(customer.getStatus());
         detached.setAssignedEmployee(customer.getAssignedEmployee() == null ? null : detachEmployeeForCache(customer.getAssignedEmployee()));
         detached.setDocuments(new java.util.ArrayList<CustomerDocument>());

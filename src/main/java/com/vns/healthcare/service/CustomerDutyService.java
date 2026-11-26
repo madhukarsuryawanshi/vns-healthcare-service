@@ -94,14 +94,26 @@ public class CustomerDutyService {
         }
 
         List<CustomerDuty> latestRows = dutyRepository.findByCustomerIdOrderByDutyDateDesc(customer.getId());
+        if (latestRows == null || latestRows.isEmpty()) {
+            return;
+        }
+
+        LocalDate end = LocalDate.now();
+        if (customer.getServiceClosedDate() != null && !customer.getServiceClosedDate().isAfter(end)) {
+            end = customer.getServiceClosedDate();
+        }
+        if (customer.getServiceStartDate() != null && end.isBefore(customer.getServiceStartDate())) {
+            return;
+        }
+
         Employee continuationEmployee = null;
         LocalDate latestDate = null;
         for (CustomerDuty row : latestRows) {
-            if (row == null) {
+            if (row == null || row.getDutyDate() == null) {
                 continue;
             }
             if (row.isHold()) {
-                return;
+                continue;
             }
             if (row.getEmployee() != null) {
                 continuationEmployee = row.getEmployee();
@@ -113,20 +125,17 @@ public class CustomerDutyService {
             return;
         }
 
-        LocalDate end = LocalDate.now();
-        if (customer.getServiceClosedDate() != null && customer.getServiceClosedDate().isBefore(end)) {
-            end = customer.getServiceClosedDate();
-        }
-        if (customer.getServiceStartDate() != null && end.isBefore(customer.getServiceStartDate())) {
-            return;
-        }
-
         LocalDate day = latestDate.plusDays(1);
         while (!day.isAfter(end)) {
             Optional<CustomerDuty> existing = dutyRepository.findByCustomerIdAndDutyDate(customer.getId(), day);
             if (existing.isPresent()) {
                 CustomerDuty existingRow = existing.get();
-                if (existingRow.isHold() || existingRow.getEmployee() != null) {
+                if (existingRow.isHold()) {
+                    day = day.plusDays(1);
+                    continue;
+                }
+                if (existingRow.getEmployee() != null) {
+                    continuationEmployee = existingRow.getEmployee();
                     day = day.plusDays(1);
                     continue;
                 }
@@ -262,51 +271,16 @@ public class CustomerDutyService {
         }
 
         List<CustomerDuty> duties = dutyRepository.findInRange(from, to);
-        Map<Long, Map<LocalDate, CustomerDuty>> explicitByCustomer = new LinkedHashMap<Long, Map<LocalDate, CustomerDuty>>();
+        Map<String, CustomerDuty> byKey = new LinkedHashMap<String, CustomerDuty>();
         for (CustomerDuty duty : duties) {
             if (duty == null || duty.getCustomer() == null || duty.getDutyDate() == null) {
                 continue;
             }
-            Map<LocalDate, CustomerDuty> customerDuties = explicitByCustomer.computeIfAbsent(
-                    duty.getCustomer().getId(), id -> new LinkedHashMap<LocalDate, CustomerDuty>()) ;
-            customerDuties.put(duty.getDutyDate(), duty);
+            String key = duty.getCustomer().getId() + "|" + duty.getDutyDate().toString();
+            byKey.put(key, duty);
         }
 
-        Map<String, CustomerDuty> byKey = new LinkedHashMap<String, CustomerDuty>();
-        java.util.Set<Long> customerIds = new java.util.LinkedHashSet<Long>(explicitByCustomer.keySet());
-
-        LocalDate day;
-        for (Long customerId : customerIds) {
-            Map<LocalDate, CustomerDuty> explicit = explicitByCustomer.get(customerId);
-            CustomerDuty carry = null;
-            List<CustomerDuty> priorRows = dutyRepository.findBeforeForCustomer(customerId, from);
-            if (priorRows != null && !priorRows.isEmpty()) {
-                carry = priorRows.get(0);
-            }
-
-            day = from;
-            while (!day.isAfter(to)) {
-                CustomerDuty explicitDuty = explicit.get(day);
-                if (explicitDuty != null) {
-                    carry = explicitDuty;
-                } else if (carry != null) {
-                    CustomerDuty carriedDuty = new CustomerDuty();
-                    carriedDuty.setCustomer(carry.getCustomer());
-                    carriedDuty.setDutyDate(day);
-                    carriedDuty.setHold(carry.isHold());
-                    carriedDuty.setEmployee(carry.isHold() ? null : carry.getEmployee());
-                    carry = carriedDuty;
-                }
-
-                if (carry != null) {
-                    String key = customerId + "|" + day.toString();
-                    byKey.put(key, carry);
-                }
-                day = day.plusDays(1);
-            }
-        }
-
-        log.debug("Indexed {} customer duties (including carry-forward) in range [{}] to [{}]", byKey.size(), from, to);
+        log.debug("Indexed {} explicit customer duties in range [{}] to [{}]", byKey.size(), from, to);
         return byKey;
     }
 }

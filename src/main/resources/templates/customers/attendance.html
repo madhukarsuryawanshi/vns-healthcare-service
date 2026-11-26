@@ -17,7 +17,7 @@
             <a class="btn ghost small" th:href="@{/customers/attendance(date=${nextMonth})}">Next month ›</a>
         </div>
         <div class="sub" style="margin-top:10px;">
-            P = Present · A = Absent · HALF = Half-day · BENCH = Bench · HOLD = Hold · blank = no duty
+            P = Present · HOLD = Absent
         </div>
     </div>
 
@@ -27,20 +27,57 @@
         #patient-attendance-table th:nth-child(n+3),
         #patient-attendance-table td:nth-child(n+3) { width:96px; min-width:96px; max-width:96px; }
         #patient-attendance-table td:nth-child(n+3) strong { display:block; }
+        #patient-attendance-table th,
+        #patient-attendance-table td { border-right:1px solid #cbd5e1; }
+        #patient-attendance-table th:last-child,
+        #patient-attendance-table td:last-child { border-right:0; }
+        #patient-attendance-table thead th {
+            background:#e5e7eb;
+            color:#1f2937;
+            font-weight:700;
+        }
+        #patient-attendance-table tbody tr:nth-child(even) td {
+            background:#f5f7fa;
+        }
+        #patient-attendance-table tbody tr:nth-child(odd) td {
+            background:#eef2f6;
+        }
+        #patient-attendance-table th:nth-child(1),
+        #patient-attendance-table td:nth-child(1) {
+            position:sticky;
+            left:0;
+            z-index:4;
+            background:#e5e7eb;
+        }
+        #patient-attendance-table th:nth-child(2),
+        #patient-attendance-table td:nth-child(2) {
+            position:sticky;
+            left:110px;
+            z-index:4;
+            background:#e5e7eb;
+        }
+        #patient-attendance-table tbody td:nth-child(1),
+        #patient-attendance-table tbody td:nth-child(2) {
+            background:#eef2f6;
+        }
+        #patient-attendance-table tbody tr:nth-child(even) td:nth-child(1),
+        #patient-attendance-table tbody tr:nth-child(even) td:nth-child(2) {
+            background:#f5f7fa;
+        }
     </style>
     <div class="panel" style="overflow:auto;">
         <table id="patient-attendance-table" th:if="${!customers.isEmpty()}" style="min-width:max-content;">
             <thead>
             <tr>
-                <th style="position:sticky; left:0; background:var(--panel); z-index:2;">Patient ID</th>
-                <th style="position:sticky; left:110px; background:var(--panel); z-index:2;">Patient Name</th>
+                <th>Patient ID</th>
+                <th>Patient Name</th>
                 <th th:each="day : ${monthDays}" th:text="${day.dayOfMonth}" style="text-align:center; min-width:85px;">1</th>
             </tr>
             </thead>
             <tbody>
             <tr th:each="customer : ${customers}">
-                <td th:text="${customer.custCode}" style="position:sticky; left:0; background:var(--panel); z-index:1;">CUS-1001</td>
-                <td th:text="${customer.patientName}" style="position:sticky; left:110px; background:var(--panel); z-index:1; min-width:180px;">Patient</td>
+                <td th:text="${customer.custCode}" style="min-width:110px;">CUS-1001</td>
+                <td style="min-width:180px;"><a th:href="@{/customers/{id}(id=${customer.id})}" th:text="${customer.patientName}" style="text-decoration:none; color:inherit; font-weight:600;">Patient</a></td>
                 <td th:each="day : ${monthDays}" style="text-align:center; vertical-align:middle; width:96px; min-width:96px; max-width:96px; height:64px; padding:6px 4px; overflow:hidden;">
                     <th:block th:with="duty=${dutiesByKey.get(customer.id + '|' + #temporals.format(day, 'yyyy-MM-dd'))}">
                         <div th:if="${duty == null or (duty.hold == false and duty.employee == null)}">&nbsp;</div>

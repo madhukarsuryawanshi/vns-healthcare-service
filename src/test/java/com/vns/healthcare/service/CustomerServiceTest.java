@@ -63,6 +63,27 @@ class CustomerServiceTest {
     }
 
     @Test
+    void create_persistsServiceStartDateAndCharges() {
+        CustomerForm form = new CustomerForm();
+        form.setPatientName("Malti Pande");
+        form.setMobileNo("9876543211");
+        form.setAddress("Pune");
+        form.setAge(60);
+        form.setServiceStartDate(LocalDate.of(2026, 11, 26));
+        form.setServiceType("HOURS_24");
+        form.setCharges(new BigDecimal("1000.00"));
+        form.setAdvancePayment(BigDecimal.ZERO);
+
+        when(codeGeneratorService.nextCustomerCode()).thenReturn("CUS-1002");
+        when(customerRepository.save(any(Customer.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Customer saved = customerService.create(form);
+
+        assertEquals(LocalDate.of(2026, 11, 26), saved.getServiceStartDate());
+        assertEquals(new BigDecimal("1000.00"), saved.getCharges());
+    }
+
+    @Test
     void assignEmployee_releasesAssignmentWhenUnassigned() {
         Employee employee = new Employee();
         employee.setId(7L);

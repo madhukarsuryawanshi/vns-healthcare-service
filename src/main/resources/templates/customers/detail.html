@@ -367,7 +367,7 @@
     <div class="panel">
         <h3>Duty roster (date range)</h3>
         <p class="sub">Example: Day-01 to Day-04 Employee A, then Day-05 to Day-10 Employee B. Tick Hold for unpaid days.</p>
-        <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/duties(id=${customer.id})}" method="post" class="form-grid">
+        <form id="customer-duty-range-form" th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/duties(id=${customer.id})}" method="post" class="form-grid">
             <div class="field">
                 <label class="req">From</label>
                 <input type="date" name="from" required="required"/>
@@ -606,7 +606,76 @@
                 });
             }
 
+            function bindDutyRangeForm() {
+                var rangeForm = document.getElementById('customer-duty-range-form');
+                if (!rangeForm || rangeForm.dataset.ajaxBound === 'true') {
+                    return;
+                }
+                rangeForm.dataset.ajaxBound = 'true';
+                rangeForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    var submitButton = rangeForm.querySelector('button[type="submit"]');
+                    if (submitButton) submitButton.disabled = true;
+                    var csrfInput = rangeForm.querySelector('input[name="_csrf"]');
+                    var csrfMeta = document.querySelector('meta[name="_csrf_header"]');
+                    var headers = {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    };
+                    if (csrfInput && csrfMeta) {
+                        headers[csrfMeta.getAttribute('content')] = csrfInput.value;
+                    }
+
+                    fetch(rangeForm.action, {
+                        method: 'POST',
+                        body: new FormData(rangeForm),
+                        headers: headers
+                    })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                return response.json().then(function (data) {
+                                    throw new Error(data.message || 'Unable to save duty range');
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(function (data) {
+                            if (window.showVnsFlash) {
+                                showVnsFlash(data.message, 'success');
+                            }
+                            var params = new URLSearchParams(window.location.search);
+                            var monthValue = data.from ? data.from.substring(0, 7) : '';
+                            if (monthValue) params.set('month', monthValue);
+                            params.set('tab', 'duty');
+                            var url = window.location.pathname + '?' + params.toString();
+                            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
+                                .then(function (response) { return response.text(); })
+                                .then(function (html) {
+                                    var parser = new DOMParser();
+                                    var doc = parser.parseFromString(html, 'text/html');
+                                    var replacement = doc.getElementById('duty-tab');
+                                    var currentSection = document.getElementById('duty-tab');
+                                    if (replacement && currentSection) {
+                                        currentSection.innerHTML = replacement.innerHTML;
+                                        bindDutyRangeForm();
+                                        bindDutyMonthForm();
+                                        activateTab('duty-tab');
+                                    }
+                                });
+                        })
+                        .catch(function (error) {
+                            if (window.showVnsFlash) {
+                                showVnsFlash(error.message || 'Unable to save duty range', 'error');
+                            }
+                        })
+                        .finally(function () {
+                            if (submitButton) submitButton.disabled = false;
+                        });
+                });
+            }
+
             bindAjaxUploadForms();
+            bindDutyRangeForm();
             if (requestedTab) {
                 var existingTarget = document.getElementById(requestedTab);
                 if (existingTarget) {
