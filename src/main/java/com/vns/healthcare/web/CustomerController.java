@@ -65,6 +65,7 @@ public class CustomerController {
     private final CustomerService customerService;
     private final EmployeeService employeeService;
     private final CustomerDutyService dutyService;
+    private final com.vns.healthcare.service.AttendanceService attendanceService;
     private static final long SUGGESTION_CACHE_TTL_MS = 5000L;
 
     private final CustomerReportService reportService;
@@ -79,6 +80,7 @@ public class CustomerController {
     public CustomerController(CustomerService customerService,
                               EmployeeService employeeService,
                               CustomerDutyService dutyService,
+                              com.vns.healthcare.service.AttendanceService attendanceService,
                               CustomerReportService reportService,
                               FileStorageService fileStorageService,
                               BusinessBankAccountRepository businessBankAccountRepository,
@@ -89,6 +91,7 @@ public class CustomerController {
         this.customerService = customerService;
         this.employeeService = employeeService;
         this.dutyService = dutyService;
+        this.attendanceService = attendanceService;
         this.reportService = reportService;
         this.fileStorageService = fileStorageService;
         this.businessBankAccountRepository = businessBankAccountRepository;
@@ -293,6 +296,33 @@ public class CustomerController {
         }
     }
 
+    @PreAuthorize("hasAuthority('customers:read') or hasAuthority('customers:write') or hasRole('ADMIN')")
+    @GetMapping("/attendance")
+    public String patientAttendance(@RequestParam(value = "date", required = false)
+                                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                                    Model model) {
+        LocalDate monthStart = (date == null ? LocalDate.now() : date).withDayOfMonth(1);
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+
+        Page<Customer> customerPage = customerService.listPage(PageRequest.of(0, 1000, Sort.by(Sort.Direction.ASC, "custCode")));
+        List<Customer> customers = new ArrayList<Customer>(customerPage.getContent());
+        customers.sort(comparatorForCustomer("custCode"));
+
+        Map<String, CustomerDuty> dutiesByKey = dutyService.indexInRange(monthStart, monthEnd);
+        Map<Long, Map<String, com.vns.healthcare.entity.Attendance>> attendanceByEmployee = attendanceService.monthlyRoster(monthStart);
+        List<LocalDate> monthDays = dutyService.daysInRange(monthStart, monthEnd);
+
+        model.addAttribute("page", "customers");
+        model.addAttribute("date", monthStart);
+        model.addAttribute("monthDays", monthDays);
+        model.addAttribute("customers", customers);
+        model.addAttribute("dutiesByKey", dutiesByKey);
+        model.addAttribute("attendanceByEmployee", attendanceByEmployee);
+        model.addAttribute("previousMonth", monthStart.minusMonths(1));
+        model.addAttribute("nextMonth", monthStart.plusMonths(1));
+        return "customers/attendance";
+    }
+
     @GetMapping("/report")
     public ResponseEntity<byte[]> report(
             @RequestParam(value = "from", required = false)
@@ -366,6 +396,7 @@ public class CustomerController {
                          Model model) {
         Customer customer = customerService.get(id);
         customer.setAssignedEmployee(dutyService.resolveCurrentAssignedEmployee(customer));
+        dutyService.continueFromLatestRow(customer);
         YearMonth yearMonth = parseMonth(month);
         int selectedChargeYear = chargeYear == null ? YearMonth.now().getYear() : chargeYear;
         LocalDate from = yearMonth.atDay(1);

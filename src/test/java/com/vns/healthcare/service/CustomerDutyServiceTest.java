@@ -5,6 +5,7 @@ import com.vns.healthcare.domain.Gender;
 import com.vns.healthcare.domain.ServiceType;
 import com.vns.healthcare.entity.Customer;
 import com.vns.healthcare.entity.Employee;
+import com.vns.healthcare.entity.CustomerDuty;
 import com.vns.healthcare.exception.BusinessException;
 import com.vns.healthcare.repository.CustomerDutyRepository;
 import com.vns.healthcare.repository.CustomerRepository;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -27,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -102,6 +105,153 @@ class CustomerDutyServiceTest {
         customerDutyService.applyRange(10L, from, to, 20L, false);
 
         verify(dutyRepository).deleteForCustomerInRange(10L, from, to);
+    }
+
+    @Test
+    void daysInRange_returnsEveryDayInMonthForDerivedAttendance() {
+        List<LocalDate> days = customerDutyService.daysInRange(
+                LocalDate.of(2028, 2, 1), LocalDate.of(2028, 2, 29));
+
+        assertEquals(29, days.size());
+        assertEquals(LocalDate.of(2028, 2, 1), days.get(0));
+        assertEquals(LocalDate.of(2028, 2, 29), days.get(28));
+    }
+
+    @Test
+    void indexInRange_buildsCustomerAndDateKeyForAttendance() {
+        Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
+        Employee employee = employee(20L, "EMP-1007", "Madhukar");
+        CustomerDuty duty = new CustomerDuty();
+        duty.setCustomer(customer);
+        duty.setDutyDate(LocalDate.of(2026, 11, 5));
+        duty.setEmployee(employee);
+        duty.setHold(false);
+
+        when(dutyRepository.findInRange(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 30)))
+                .thenReturn(Collections.singletonList(duty));
+
+        Map<String, CustomerDuty> index = customerDutyService.indexInRange(
+                LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 30));
+
+        assertEquals(employee, index.get("10|2026-11-05").getEmployee());
+    }
+
+    @Test
+    void indexInRange_carriesEmployeeThroughMissingDatesAndPreservesHolds() {
+        Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
+        Employee employee = employee(20L, "EMP-1007", "Madhukar");
+
+        CustomerDuty nov26 = new CustomerDuty();
+        nov26.setCustomer(customer);
+        nov26.setDutyDate(LocalDate.of(2026, 11, 26));
+        nov26.setEmployee(employee);
+        nov26.setHold(false);
+
+        CustomerDuty nov28 = new CustomerDuty();
+        nov28.setCustomer(customer);
+        nov28.setDutyDate(LocalDate.of(2026, 11, 28));
+        nov28.setHold(true);
+
+        when(dutyRepository.findInRange(LocalDate.of(2026, 11, 26), LocalDate.of(2026, 11, 28)))
+                .thenReturn(java.util.Arrays.asList(nov26, nov28));
+        when(dutyRepository.findBeforeForCustomer(eq(10L), eq(LocalDate.of(2026, 11, 26))))
+                .thenReturn(Collections.emptyList());
+
+        Map<String, CustomerDuty> index = customerDutyService.indexInRange(
+                LocalDate.of(2026, 11, 26), LocalDate.of(2026, 11, 28));
+
+        assertEquals(employee, index.get("10|2026-11-26").getEmployee());
+        assertEquals(employee, index.get("10|2026-11-27").getEmployee());
+        assertTrue(index.get("10|2026-11-28").isHold());
+    }
+
+    @Test
+    void continueFromLatestRow_createsOnlyMissingDaysThroughToday() {
+        Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
+        Employee employee = employee(20L, "EMP-1007", "Madhukar");
+
+        CustomerDuty latest = new CustomerDuty();
+        latest.setCustomer(customer);
+        latest.setDutyDate(LocalDate.now().minusDays(2));
+        latest.setEmployee(employee);
+        latest.setHold(false);
+        when(dutyRepository.findByCustomerIdOrderByDutyDateDesc(10L))
+                .thenReturn(Collections.singletonList(latest));
+        when(dutyRepository.findByCustomerIdAndDutyDate(eq(10L), any(LocalDate.class)))
+                .thenReturn(Optional.empty());
+        when(customerRepository.findByAssignedEmployeeId(20L)).thenReturn(Collections.emptyList());
+        when(dutyRepository.findByEmployeeIdAndDutyDateBetween(eq(20L), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(Collections.emptyList());
+
+        customerDutyService.continueFromLatestRow(customer);
+
+        verify(dutyRepository, org.mockito.Mockito.atLeastOnce()).save(any(CustomerDuty.class));
+    }
+
+    @Test
+    void continueFromLatestRow_preservesHoldAndOtherEmployeeRows() {
+        Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
+        Employee employee = employee(20L, "EMP-1007", "Madhukar");
+
+        CustomerDuty latest = new CustomerDuty();
+        latest.setCustomer(customer);
+        latest.setDutyDate(LocalDate.now().minusDays(3));
+        latest.setEmployee(employee);
+        latest.setHold(false);
+        when(dutyRepository.findByCustomerIdOrderByDutyDateDesc(10L))
+                .thenReturn(Collections.singletonList(latest));
+
+        CustomerDuty hold = new CustomerDuty();
+        hold.setDutyDate(LocalDate.now().minusDays(2));
+        hold.setHold(true);
+        hold.setEmployee(employee);
+        when(dutyRepository.findByCustomerIdAndDutyDate(eq(10L), eq(LocalDate.now().minusDays(2))))
+                .thenReturn(Optional.of(hold));
+
+        when(dutyRepository.findByCustomerIdAndDutyDate(eq(10L), eq(LocalDate.now().minusDays(1))))
+                .thenReturn(Optional.empty());
+        when(customerRepository.findByAssignedEmployeeId(20L)).thenReturn(Collections.emptyList());
+        when(dutyRepository.findByEmployeeIdAndDutyDateBetween(eq(20L), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(Collections.emptyList());
+
+        customerDutyService.continueFromLatestRow(customer);
+
+        verify(dutyRepository, org.mockito.Mockito.never()).save(argThat(duty ->
+                duty != null && duty.getDutyDate().equals(LocalDate.now().minusDays(2))));
+    }
+
+    @Test
+    void continueFromLatestRow_doesNotCreateAfterServiceClosedDate() {
+        Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
+        customer.setStatus(CustomerStatus.CLOSED);
+        customer.setServiceClosedDate(LocalDate.now().minusDays(1));
+
+        customerDutyService.continueFromLatestRow(customer);
+
+        verify(dutyRepository, org.mockito.Mockito.never()).findByCustomerIdOrderByDutyDateDesc(any());
+    }
+
+    @Test
+    void continueFromLatestRow_rejectsEmployeeOverlapBeforeSaving() {
+        Customer customer = customer(10L, "CUS-1001", "Sarla Malhotra");
+        Employee employee = employee(20L, "EMP-1007", "Madhukar");
+
+        CustomerDuty latest = new CustomerDuty();
+        latest.setCustomer(customer);
+        latest.setDutyDate(LocalDate.now().minusDays(1));
+        latest.setEmployee(employee);
+        latest.setHold(false);
+        when(dutyRepository.findByCustomerIdOrderByDutyDateDesc(10L))
+                .thenReturn(Collections.singletonList(latest));
+        when(dutyRepository.findByCustomerIdAndDutyDate(eq(10L), any(LocalDate.class)))
+                .thenReturn(Optional.empty());
+
+        Customer other = customer(11L, "CUS-2002", "Ramesh");
+        other.setAssignedEmployee(employee);
+        when(customerRepository.findByAssignedEmployeeId(20L)).thenReturn(Collections.singletonList(other));
+
+        assertThrows(BusinessException.class, () -> customerDutyService.continueFromLatestRow(customer));
+        verify(dutyRepository, org.mockito.Mockito.never()).save(any(CustomerDuty.class));
     }
 
     @Test

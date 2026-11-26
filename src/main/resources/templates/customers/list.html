@@ -7,7 +7,10 @@
             <h2 class="page-title">Patients</h2>
             <p class="sub">Search by customer name, mobile, patient name, or customer ID.</p>
         </div>
-        <a class="btn" th:if="${canWriteCustomers}" th:href="@{/customers/new}">Add customer</a>
+        <div class="actions">
+            <a class="btn ghost" th:if="${canReadCustomers}" th:href="@{/customers/attendance}">Attendance</a>
+            <a class="btn" th:if="${canWriteCustomers}" th:href="@{/customers/new}">Add customer</a>
+        </div>
     </div>
 
     <style>

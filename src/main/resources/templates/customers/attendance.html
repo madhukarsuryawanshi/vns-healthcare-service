@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Patient Attendance', ~{::section})}">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Patients</p>
+            <h2 class="page-title">Patient Attendance</h2>
+            <p class="sub">Read-only attendance derived from CustomerDuty roster data.</p>
+        </div>
+        <a class="btn ghost" th:href="@{/customers}">Back to Patients</a>
+    </div>
+
+    <div class="panel">
+        <div class="search" style="justify-content:space-between; align-items:center;">
+            <a class="btn ghost small" th:href="@{/customers/attendance(date=${previousMonth})}">‹ Previous month</a>
+            <h3 th:text="${#temporals.format(date, 'MMMM yyyy')}">November 2026</h3>
+            <a class="btn ghost small" th:href="@{/customers/attendance(date=${nextMonth})}">Next month ›</a>
+        </div>
+        <div class="sub" style="margin-top:10px;">
+            P = Present · A = Absent · HALF = Half-day · BENCH = Bench · HOLD = Hold · blank = no duty
+        </div>
+    </div>
+
+    <style>
+        #patient-attendance-table tbody tr { height:64px; }
+        #patient-attendance-table tbody td { box-sizing:border-box; }
+        #patient-attendance-table th:nth-child(n+3),
+        #patient-attendance-table td:nth-child(n+3) { width:96px; min-width:96px; max-width:96px; }
+        #patient-attendance-table td:nth-child(n+3) strong { display:block; }
+    </style>
+    <div class="panel" style="overflow:auto;">
+        <table id="patient-attendance-table" th:if="${!customers.isEmpty()}" style="min-width:max-content;">
+            <thead>
+            <tr>
+                <th style="position:sticky; left:0; background:var(--panel); z-index:2;">Patient ID</th>
+                <th style="position:sticky; left:110px; background:var(--panel); z-index:2;">Patient Name</th>
+                <th th:each="day : ${monthDays}" th:text="${day.dayOfMonth}" style="text-align:center; min-width:85px;">1</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="customer : ${customers}">
+                <td th:text="${customer.custCode}" style="position:sticky; left:0; background:var(--panel); z-index:1;">CUS-1001</td>
+                <td th:text="${customer.patientName}" style="position:sticky; left:110px; background:var(--panel); z-index:1; min-width:180px;">Patient</td>
+                <td th:each="day : ${monthDays}" style="text-align:center; vertical-align:middle; width:96px; min-width:96px; max-width:96px; height:64px; padding:6px 4px; overflow:hidden;">
+                    <th:block th:with="duty=${dutiesByKey.get(customer.id + '|' + #temporals.format(day, 'yyyy-MM-dd'))}">
+                        <div th:if="${duty == null or (duty.hold == false and duty.employee == null)}">&nbsp;</div>
+                        <div th:if="${duty != null and duty.hold}" style="line-height:1.2;">
+                            <strong>HOLD</strong>
+                        </div>
+                        <div th:if="${duty != null and !duty.hold and duty.employee != null}" style="line-height:1.2;">
+                            <th:block th:with="employeeAttendance=${attendanceByEmployee.get(duty.employee.id) != null ? attendanceByEmployee.get(duty.employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) : null}">
+                                <strong th:if="${employeeAttendance == null or employeeAttendance.status.name() == 'PRESENT'}">P</strong>
+                                <strong th:if="${employeeAttendance != null and employeeAttendance.status.name() == 'ABSENT'}">A</strong>
+                                <strong th:if="${employeeAttendance != null and employeeAttendance.status.name() == 'HALF_DAY'}">HALF</strong>
+                                <strong th:if="${employeeAttendance != null and employeeAttendance.status.name() == 'LEAVE'}">BENCH</strong>
+                            </th:block>
+                            <br/><span th:text="${duty.employee.fullName}" style="display:block; max-width:88px; margin:2px auto 0; overflow:hidden; text-overflow:ellipsis; white-space:normal; line-height:1.15; word-break:normal;">Employee</span>
+                        </div>
+                    </th:block>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${customers.isEmpty()}">No patients found.</p>
+    </div>
+</section>
+</html>

@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class CustomerDutyService {
@@ -82,7 +83,64 @@ public class CustomerDutyService {
         if (employee != null) {
             customer.setAssignedEmployee(employee);
         }
+        continueFromLatestRow(customer);
         log.info("Customer duty range applied successfully for customer [{}]", customerId);
+    }
+
+    @Transactional
+    public void continueFromLatestRow(Customer customer) {
+        if (customer == null || customer.getId() == null || customer.isClosed()) {
+            return;
+        }
+
+        List<CustomerDuty> latestRows = dutyRepository.findByCustomerIdOrderByDutyDateDesc(customer.getId());
+        Employee continuationEmployee = null;
+        LocalDate latestDate = null;
+        for (CustomerDuty row : latestRows) {
+            if (row == null) {
+                continue;
+            }
+            if (row.isHold()) {
+                return;
+            }
+            if (row.getEmployee() != null) {
+                continuationEmployee = row.getEmployee();
+                latestDate = row.getDutyDate();
+                break;
+            }
+        }
+        if (continuationEmployee == null || latestDate == null) {
+            return;
+        }
+
+        LocalDate end = LocalDate.now();
+        if (customer.getServiceClosedDate() != null && customer.getServiceClosedDate().isBefore(end)) {
+            end = customer.getServiceClosedDate();
+        }
+        if (customer.getServiceStartDate() != null && end.isBefore(customer.getServiceStartDate())) {
+            return;
+        }
+
+        LocalDate day = latestDate.plusDays(1);
+        while (!day.isAfter(end)) {
+            Optional<CustomerDuty> existing = dutyRepository.findByCustomerIdAndDutyDate(customer.getId(), day);
+            if (existing.isPresent()) {
+                CustomerDuty existingRow = existing.get();
+                if (existingRow.isHold() || existingRow.getEmployee() != null) {
+                    day = day.plusDays(1);
+                    continue;
+                }
+            }
+
+            validateEmployeeAvailability(customer, continuationEmployee, day, day);
+            CustomerDuty duty = existing.orElseGet(CustomerDuty::new);
+            duty.setCustomer(customer);
+            duty.setDutyDate(day);
+            duty.setHold(false);
+            duty.setEmployee(continuationEmployee);
+            dutyRepository.save(duty);
+            day = day.plusDays(1);
+        }
     }
 
     private void validateEmployeeAvailability(Customer customer, Employee employee, LocalDate from, LocalDate to) {
@@ -199,12 +257,56 @@ public class CustomerDutyService {
     @Transactional(readOnly = true)
     public Map<String, CustomerDuty> indexInRange(LocalDate from, LocalDate to) {
         log.debug("Indexing customer duties for range [{}] to [{}]", from, to);
-        List<CustomerDuty> duties = dutyRepository.findInRange(from, to);
-        Map<String, CustomerDuty> byKey = new LinkedHashMap<String, CustomerDuty>();
-        for (CustomerDuty duty : duties) {
-            byKey.put(duty.getCustomer().getId() + "|" + duty.getDutyDate(), duty);
+        if (from == null || to == null || from.isAfter(to)) {
+            return new LinkedHashMap<String, CustomerDuty>();
         }
-        log.debug("Indexed {} customer duties in range [{}] to [{}]", duties.size(), from, to);
+
+        List<CustomerDuty> duties = dutyRepository.findInRange(from, to);
+        Map<Long, Map<LocalDate, CustomerDuty>> explicitByCustomer = new LinkedHashMap<Long, Map<LocalDate, CustomerDuty>>();
+        for (CustomerDuty duty : duties) {
+            if (duty == null || duty.getCustomer() == null || duty.getDutyDate() == null) {
+                continue;
+            }
+            Map<LocalDate, CustomerDuty> customerDuties = explicitByCustomer.computeIfAbsent(
+                    duty.getCustomer().getId(), id -> new LinkedHashMap<LocalDate, CustomerDuty>()) ;
+            customerDuties.put(duty.getDutyDate(), duty);
+        }
+
+        Map<String, CustomerDuty> byKey = new LinkedHashMap<String, CustomerDuty>();
+        java.util.Set<Long> customerIds = new java.util.LinkedHashSet<Long>(explicitByCustomer.keySet());
+
+        LocalDate day;
+        for (Long customerId : customerIds) {
+            Map<LocalDate, CustomerDuty> explicit = explicitByCustomer.get(customerId);
+            CustomerDuty carry = null;
+            List<CustomerDuty> priorRows = dutyRepository.findBeforeForCustomer(customerId, from);
+            if (priorRows != null && !priorRows.isEmpty()) {
+                carry = priorRows.get(0);
+            }
+
+            day = from;
+            while (!day.isAfter(to)) {
+                CustomerDuty explicitDuty = explicit.get(day);
+                if (explicitDuty != null) {
+                    carry = explicitDuty;
+                } else if (carry != null) {
+                    CustomerDuty carriedDuty = new CustomerDuty();
+                    carriedDuty.setCustomer(carry.getCustomer());
+                    carriedDuty.setDutyDate(day);
+                    carriedDuty.setHold(carry.isHold());
+                    carriedDuty.setEmployee(carry.isHold() ? null : carry.getEmployee());
+                    carry = carriedDuty;
+                }
+
+                if (carry != null) {
+                    String key = customerId + "|" + day.toString();
+                    byKey.put(key, carry);
+                }
+                day = day.plusDays(1);
+            }
+        }
+
+        log.debug("Indexed {} customer duties (including carry-forward) in range [{}] to [{}]", byKey.size(), from, to);
         return byKey;
     }
 }
