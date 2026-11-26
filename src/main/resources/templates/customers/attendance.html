@@ -94,7 +94,7 @@
                                 <strong th:if="${employeeAttendance != null and employeeAttendance.status.name() == 'HALF_DAY'}">HALF</strong>
                                 <strong th:if="${employeeAttendance != null and employeeAttendance.status.name() == 'LEAVE'}">BENCH</strong>
                             </th:block>
-                            <br/><span th:text="${duty.employee.fullName}" style="display:block; max-width:88px; margin:2px auto 0; overflow:hidden; text-overflow:ellipsis; white-space:normal; line-height:1.15; word-break:normal;">Employee</span>
+                            <br/><a th:href="@{/employees/{id}(id=${duty.employee.id}, returnUrl=@{/customers/attendance(date=${#temporals.format(day, 'yyyy-MM-dd')})})}" th:text="${duty.employee.fullName}" style="display:block; max-width:88px; margin:2px auto 0; overflow:hidden; text-overflow:ellipsis; white-space:normal; line-height:1.15; word-break:normal; color:inherit; text-decoration:none;">Employee</a>
                         </div>
                     </th:block>
                 </td>

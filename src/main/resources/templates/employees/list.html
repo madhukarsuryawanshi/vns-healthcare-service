@@ -152,6 +152,13 @@
                 applyTextHighlight(results);
             }
         });
+        document.addEventListener('click', function (event) {
+            var profileLink = event.target.closest ? event.target.closest('a[href*="/employees/"]') : null;
+            if (!profileLink) return;
+            var href = profileLink.getAttribute('href') || '';
+            if (!href.match(/^\/employees\/\d+(?:\?|$)/)) return;
+            sessionStorage.setItem('employee-list-return-url', window.location.href);
+        });
     </script>
 
     <div id="employee-results" class="panel">
@@ -252,7 +259,7 @@
                 </td>
                 <td>
                     <div class="row-actions">
-                        <a class="btn secondary small" th:href="@{/employees/{id}(id=${e.id})}">Profile</a>
+                        <a class="btn secondary small" th:href="@{/employees/{id}(id=${e.id}, returnUrl=${'/employees' + ('?' + (q != null ? 'q=' + q : '') + '&status=' + (status != null ? status : '') + '&designation=' + (designation != null ? designation : '') + '&attendance=' + (attendance != null ? attendance : '') + '&sort=' + (sort != null ? sort : 'empCode') + '&dir=' + (dir != null ? dir : 'asc') + '&page=' + pagination.number + '&size=' + pageSize)})}">Profile</a>
                         <a class="btn ghost small" th:if="${canWriteEmployees}" th:href="@{/employees/{id}/edit(id=${e.id})}">Edit</a>
                         <form th:if="${canWriteEmployees}" th:action="@{/employees/{id}/delete(id=${e.id})}" method="post" onsubmit="return confirm('Delete this employee?');">
                             <button class="btn coral small" type="submit">Delete</button>

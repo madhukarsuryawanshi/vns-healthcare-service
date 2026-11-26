@@ -8,6 +8,7 @@
             <p class="sub" th:text="'Patient: ' + ${customer.patientName} + ' · ' + ${customer.mobileNo}">Contact</p>
         </div>
         <div class="actions">
+            <a class="btn ghost" href="/customers" data-back-to-patients="true">Back</a>
             <a class="btn ghost" th:if="${canWriteCustomers and !customer.closed}" th:href="@{/customers/{id}/edit(id=${customer.id})}">Edit</a>
             <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/close(id=${customer.id})}" method="post"
                   onsubmit="return confirm('Close this service? Charges will be calculated from the 1st of this month to today. Hold days are unpaid.');">
@@ -79,7 +80,7 @@
             <div th:if="${customer.assignedEmployee != null}" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
                 <p style="margin:0;">
                     Current staff:
-                    <a th:href="@{/employees/{id}(id=${customer.assignedEmployee.id})}"
+                    <a th:href="@{/employees/{id}(id=${customer.assignedEmployee.id}, returnUrl=@{/customers/{customerId}(customerId=${customer.id}, tab='duty-tab')})}"
                        th:text="${customer.assignedEmployee.empCode} + ' · ' + ${customer.assignedEmployee.fullName}">EMP</a>
                 </p>
                 <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/assign(id=${customer.id})}" method="post" style="margin:0;">
@@ -2259,6 +2260,14 @@
             populateDefaultInvoiceRows();
             updateInvoice();
         });
+    </script>
+    <script>
+        (function () {
+            var backLink = document.querySelector('[data-back-to-patients="true"]');
+            if (!backLink) return;
+            var saved = sessionStorage.getItem('customer-list-return-url');
+            if (saved) backLink.setAttribute('href', saved);
+        })();
     </script>
 </section>
 </html>

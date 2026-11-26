@@ -161,6 +161,11 @@
         });
 
         document.addEventListener('click', function (event) {
+            var profileLink = event.target.closest('a[href*="/customers/"]');
+            if (profileLink && /^\/customers\/\d+(?:\?|$)/.test(profileLink.getAttribute('href') || '')) {
+                sessionStorage.setItem('customer-list-return-url', window.location.href);
+            }
+
             var link = event.target.closest('a.js-page-link');
             if (!link) return;
 

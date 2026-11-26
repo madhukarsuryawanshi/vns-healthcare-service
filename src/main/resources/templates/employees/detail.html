@@ -9,6 +9,8 @@
             <p class="sub" th:if="${employee.email != null}"><strong>Email:</strong> <span th:text="${employee.email}">name@example.com</span></p>
         </div>
         <div class="actions">
+            <a class="btn ghost" th:if="${returnUrl != null and returnUrl != ''}" th:href="@{${returnUrl}}">Back</a>
+            <a class="btn ghost" th:if="${returnUrl == null or returnUrl == ''}" href="/employees" data-back-to-employees="true">Back to Employees</a>
             <button type="button" class="btn secondary" th:attr="data-brochure-url=@{/employees/{id}/brochure(id=${employee.id})}">Share profile / brochure</button>
             <a class="btn ghost" th:if="${canWriteEmployees}" th:href="@{/employees/{id}/edit(id=${employee.id})}">Edit</a>
             <form th:if="${canWriteEmployees and employee.status != T(com.vns.healthcare.domain.EmployeeStatus).RESIGNED}" th:action="@{/employees/{id}/resign(id=${employee.id})}" method="post" style="margin:0;">
@@ -344,6 +346,16 @@
             var initialTarget = window.location.hash ? window.location.hash.substring(1) : 'personal-tab';
             applyTab(document.querySelector('.employee-tab[data-target="' + initialTarget + '"]') ? initialTarget : 'personal-tab');
         });
+    </script>
+    <script>
+        (function () {
+            var backLink = document.querySelector('[data-back-to-employees="true"]');
+            if (!backLink) return;
+            var savedListUrl = sessionStorage.getItem('employee-list-return-url');
+            if (savedListUrl) {
+                backLink.setAttribute('href', savedListUrl);
+            }
+        })();
     </script>
 </section>
 </html>
