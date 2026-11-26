@@ -10,10 +10,6 @@
         <div class="actions">
             <a class="btn ghost" href="/customers" data-back-to-patients="true">Back</a>
             <a class="btn ghost" th:if="${canWriteCustomers and !customer.closed}" th:href="@{/customers/{id}/edit(id=${customer.id})}">Edit</a>
-            <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/close(id=${customer.id})}" method="post"
-                  onsubmit="return confirm('Close this service? Charges will be calculated from the 1st of this month to today. Hold days are unpaid.');">
-                <button class="btn coral" type="submit">Close Service</button>
-            </form>
         </div>
     </div>
 
@@ -132,6 +128,17 @@
             </tbody>
         </table>
         <p class="empty" th:if="${customer.documents.isEmpty()}">No documents uploaded.</p>
+    </div>
+
+    <div class="panel" style="margin-top:18px;" th:if="${canWriteCustomers and !customer.closed}">
+        <h3>Service close</h3>
+        <p class="sub">Select the date on which the patient service should close.</p>
+        <form th:action="@{/customers/{id}/close(id=${customer.id})}" method="post"
+              onsubmit="return confirm('Close this service on the selected date? Hold days are unpaid.');"
+              style="display:flex; align-items:center; gap:8px; margin:0;">
+            <input type="date" name="closeDate" th:value="${today}" th:attr="min=${customer.serviceStartDate != null ? #temporals.format(customer.serviceStartDate, 'yyyy-MM-dd') : null}, max=${today}" required="required" style="width:150px; max-width:150px; min-width:150px;"/>
+            <button class="btn coral" type="submit">Close Service</button>
+        </form>
     </div>
     </div>
 

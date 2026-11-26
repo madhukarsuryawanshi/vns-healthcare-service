@@ -103,6 +103,51 @@ class CustomerServiceTest {
     }
 
     @Test
+    void closeService_usesSelectedCloseDateAndReleasesEmployee() {
+        Customer customer = new Customer();
+        customer.setId(15L);
+        customer.setStatus(CustomerStatus.ASSIGNED);
+        customer.setServiceStartDate(LocalDate.of(2026, 11, 1));
+        customer.setAssignedEmployee(new Employee());
+
+        CustomerDutyService dutyServiceMock = org.mockito.Mockito.mock(CustomerDutyService.class);
+        org.mockito.Mockito.when(dutyServiceMock.calculateCharges(any(Customer.class), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(BigDecimal.valueOf(3000.00));
+        when(customerRepository.findWithEmployee(15L)).thenReturn(java.util.Optional.of(customer));
+        when(customerRepository.save(customer)).thenReturn(customer);
+
+        Customer closed = customerService.closeService(15L, LocalDate.of(2026, 11, 27), dutyServiceMock);
+
+        assertEquals(CustomerStatus.CLOSED, closed.getStatus());
+        assertEquals(LocalDate.of(2026, 11, 27), closed.getServiceClosedDate());
+        assertNull(closed.getAssignedEmployee());
+        assertEquals(BigDecimal.valueOf(3000.00), closed.getBilledAmount());
+    }
+
+    @Test
+    void closeService_detachesEmployeeWithoutKnownLanguagesLazyLoad() {
+        Customer customer = new Customer();
+        customer.setId(15L);
+        customer.setStatus(CustomerStatus.ASSIGNED);
+        customer.setServiceStartDate(LocalDate.of(2026, 11, 1));
+        Employee employee = new Employee();
+        employee.setId(9L);
+        employee.setFullName("Harish");
+        customer.setAssignedEmployee(employee);
+
+        CustomerDutyService dutyServiceMock = org.mockito.Mockito.mock(CustomerDutyService.class);
+        org.mockito.Mockito.when(dutyServiceMock.calculateCharges(any(Customer.class), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(BigDecimal.valueOf(1000.00));
+        when(customerRepository.findWithEmployee(15L)).thenReturn(java.util.Optional.of(customer));
+        when(customerRepository.save(customer)).thenReturn(customer);
+
+        Customer closed = customerService.closeService(15L, LocalDate.of(2026, 11, 27), dutyServiceMock);
+
+        assertEquals(CustomerStatus.CLOSED, closed.getStatus());
+        assertNull(closed.getAssignedEmployee());
+    }
+
+    @Test
     void closeService_clearsAssignedEmployeeAndMarksCustomerClosed() {
         Employee employee = new Employee();
         employee.setId(9L);

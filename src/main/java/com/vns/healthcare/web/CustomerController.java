@@ -424,6 +424,7 @@ public class CustomerController {
         BigDecimal invoiceDailyRate = customer.getCharges() == null ? BigDecimal.ZERO : customer.getCharges();
 
         model.addAttribute("page", "customers");
+        model.addAttribute("today", LocalDate.now());
         model.addAttribute("customer", customer);
         model.addAttribute("staff", employeeService.activeCareStaffAvailable(customer.getId()));
         model.addAttribute("month", yearMonth.toString());
@@ -836,9 +837,11 @@ public class CustomerController {
 
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
     @PostMapping("/{id:\\d+}/close")
-    public String close(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String close(@PathVariable Long id,
+                        @RequestParam("closeDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate closeDate,
+                        RedirectAttributes redirectAttributes) {
         try {
-            Customer closed = customerService.closeService(id, dutyService);
+            Customer closed = customerService.closeService(id, closeDate, dutyService);
             redirectAttributes.addFlashAttribute("success",
                     "Service closed. Billed amount for " + closed.getServiceClosedDate().withDayOfMonth(1)
                             + " to " + closed.getServiceClosedDate() + ": " + closed.getBilledAmount());

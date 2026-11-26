@@ -261,10 +261,23 @@ public class CustomerService {
     @Transactional
     @CacheEvict(value = {"customer-lists", "customer-pages", "customerById"}, allEntries = true)
     public Customer closeService(Long id, CustomerDutyService dutyService) {
+        return closeService(id, LocalDate.now(), dutyService);
+    }
+
+    public Customer closeService(Long id, LocalDate closeDate, CustomerDutyService dutyService) {
         Customer customer = get(id);
         log.info("Closing service for customer id [{}]", id);
         assertOpen(customer);
-        LocalDate end = LocalDate.now();
+        if (closeDate == null) {
+            throw new BusinessException("Please select the service close date");
+        }
+        if (customer.getServiceStartDate() != null && closeDate.isBefore(customer.getServiceStartDate())) {
+            throw new BusinessException("Close date cannot be before the service start date");
+        }
+        if (closeDate.isAfter(LocalDate.now())) {
+            throw new BusinessException("Close date cannot be in the future");
+        }
+        LocalDate end = closeDate;
         LocalDate start = end.withDayOfMonth(1);
         customer.setBilledAmount(dutyService.calculateCharges(customer, start, end));
         customer.setServiceClosedDate(end);
@@ -453,7 +466,7 @@ public class CustomerService {
         detached.setMobileNo(employee.getMobileNo());
         detached.setDesignation(employee.getDesignation());
         detached.setStatus(employee.getStatus());
-        detached.setKnownLanguages(employee.getKnownLanguages() == null ? new java.util.HashSet<String>() : new java.util.HashSet<String>(employee.getKnownLanguages()));
+        detached.setKnownLanguages(new java.util.HashSet<String>());
         detached.setDocuments(new java.util.ArrayList<com.vns.healthcare.entity.EmployeeDocument>());
         return detached;
     }
