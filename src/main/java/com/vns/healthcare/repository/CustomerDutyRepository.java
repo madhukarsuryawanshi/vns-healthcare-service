@@ -32,6 +32,12 @@ public interface CustomerDutyRepository extends JpaRepository<CustomerDuty, Long
     @Query("SELECT d FROM CustomerDuty d LEFT JOIN FETCH d.employee LEFT JOIN FETCH d.customer WHERE d.dutyDate BETWEEN :fromDate AND :toDate")
     List<CustomerDuty> findInRange(@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
+    @Query("SELECT d FROM CustomerDuty d LEFT JOIN FETCH d.employee LEFT JOIN FETCH d.customer WHERE d.customer.id = :customerId AND d.dutyDate < :fromDate ORDER BY d.dutyDate DESC")
+    List<CustomerDuty> findBeforeForCustomer(@Param("customerId") Long customerId, @Param("fromDate") LocalDate fromDate);
+
+    @Query("SELECT d FROM CustomerDuty d LEFT JOIN FETCH d.employee WHERE d.customer.id = :customerId ORDER BY d.dutyDate DESC")
+    List<CustomerDuty> findByCustomerIdOrderByDutyDateDesc(@Param("customerId") Long customerId);
+
     @Modifying
     @Query("DELETE FROM CustomerDuty d WHERE d.customer.id = :customerId AND d.dutyDate BETWEEN :fromDate AND :toDate")
     void deleteForCustomerInRange(@Param("customerId") Long customerId,

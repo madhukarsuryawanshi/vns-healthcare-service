@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class CustomerDutyService {
@@ -82,7 +83,73 @@ public class CustomerDutyService {
         if (employee != null) {
             customer.setAssignedEmployee(employee);
         }
+        continueFromLatestRow(customer);
         log.info("Customer duty range applied successfully for customer [{}]", customerId);
+    }
+
+    @Transactional
+    public void continueFromLatestRow(Customer customer) {
+        if (customer == null || customer.getId() == null || customer.isClosed()) {
+            return;
+        }
+
+        List<CustomerDuty> latestRows = dutyRepository.findByCustomerIdOrderByDutyDateDesc(customer.getId());
+        if (latestRows == null || latestRows.isEmpty()) {
+            return;
+        }
+
+        LocalDate end = LocalDate.now();
+        if (customer.getServiceClosedDate() != null && !customer.getServiceClosedDate().isAfter(end)) {
+            end = customer.getServiceClosedDate();
+        }
+        if (customer.getServiceStartDate() != null && end.isBefore(customer.getServiceStartDate())) {
+            return;
+        }
+
+        Employee continuationEmployee = null;
+        LocalDate latestDate = null;
+        for (CustomerDuty row : latestRows) {
+            if (row == null || row.getDutyDate() == null) {
+                continue;
+            }
+            if (row.isHold()) {
+                continue;
+            }
+            if (row.getEmployee() != null) {
+                continuationEmployee = row.getEmployee();
+                latestDate = row.getDutyDate();
+                break;
+            }
+        }
+        if (continuationEmployee == null || latestDate == null) {
+            return;
+        }
+
+        LocalDate day = latestDate.plusDays(1);
+        while (!day.isAfter(end)) {
+            Optional<CustomerDuty> existing = dutyRepository.findByCustomerIdAndDutyDate(customer.getId(), day);
+            if (existing.isPresent()) {
+                CustomerDuty existingRow = existing.get();
+                if (existingRow.isHold()) {
+                    day = day.plusDays(1);
+                    continue;
+                }
+                if (existingRow.getEmployee() != null) {
+                    continuationEmployee = existingRow.getEmployee();
+                    day = day.plusDays(1);
+                    continue;
+                }
+            }
+
+            validateEmployeeAvailability(customer, continuationEmployee, day, day);
+            CustomerDuty duty = existing.orElseGet(CustomerDuty::new);
+            duty.setCustomer(customer);
+            duty.setDutyDate(day);
+            duty.setHold(false);
+            duty.setEmployee(continuationEmployee);
+            dutyRepository.save(duty);
+            day = day.plusDays(1);
+        }
     }
 
     private void validateEmployeeAvailability(Customer customer, Employee employee, LocalDate from, LocalDate to) {
@@ -199,12 +266,21 @@ public class CustomerDutyService {
     @Transactional(readOnly = true)
     public Map<String, CustomerDuty> indexInRange(LocalDate from, LocalDate to) {
         log.debug("Indexing customer duties for range [{}] to [{}]", from, to);
+        if (from == null || to == null || from.isAfter(to)) {
+            return new LinkedHashMap<String, CustomerDuty>();
+        }
+
         List<CustomerDuty> duties = dutyRepository.findInRange(from, to);
         Map<String, CustomerDuty> byKey = new LinkedHashMap<String, CustomerDuty>();
         for (CustomerDuty duty : duties) {
-            byKey.put(duty.getCustomer().getId() + "|" + duty.getDutyDate(), duty);
+            if (duty == null || duty.getCustomer() == null || duty.getDutyDate() == null) {
+                continue;
+            }
+            String key = duty.getCustomer().getId() + "|" + duty.getDutyDate().toString();
+            byKey.put(key, duty);
         }
-        log.debug("Indexed {} customer duties in range [{}] to [{}]", duties.size(), from, to);
+
+        log.debug("Indexed {} explicit customer duties in range [{}] to [{}]", byKey.size(), from, to);
         return byKey;
     }
 }

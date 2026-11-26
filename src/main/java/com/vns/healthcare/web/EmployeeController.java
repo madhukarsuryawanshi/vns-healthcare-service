@@ -442,11 +442,17 @@ public class EmployeeController {
     @GetMapping("/{id}")
     public String detail(@PathVariable Long id,
                          @RequestParam(value = "year", required = false) Integer year,
+                         @RequestParam(value = "returnUrl", required = false) String returnUrl,
                          Model model) {
         log.info("Viewing employee detail for id [{}] year [{}]", id, year);
         Employee employee = employeeService.get(id);
         int y = year == null ? YearMonth.now().getYear() : year;
         model.addAttribute("page", "employees");
+        String safeReturnUrl = returnUrl == null ? "" : returnUrl.trim();
+        if (!safeReturnUrl.startsWith("/")) {
+            safeReturnUrl = "";
+        }
+        model.addAttribute("returnUrl", safeReturnUrl);
         model.addAttribute("employee", employee);
         model.addAttribute("passportPhoto", employeeService.getPassportPhoto(id));
         model.addAttribute("documentsForDisplay", employeeService.getDocuments(id, "DOCUMENT"));

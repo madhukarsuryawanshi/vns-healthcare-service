@@ -8,11 +8,8 @@
             <p class="sub" th:text="'Patient: ' + ${customer.patientName} + ' · ' + ${customer.mobileNo}">Contact</p>
         </div>
         <div class="actions">
+            <a class="btn ghost" href="/customers" data-back-to-patients="true">Back</a>
             <a class="btn ghost" th:if="${canWriteCustomers and !customer.closed}" th:href="@{/customers/{id}/edit(id=${customer.id})}">Edit</a>
-            <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/close(id=${customer.id})}" method="post"
-                  onsubmit="return confirm('Close this service? Charges will be calculated from the 1st of this month to today. Hold days are unpaid.');">
-                <button class="btn coral" type="submit">Close Service</button>
-            </form>
         </div>
     </div>
 
@@ -79,7 +76,7 @@
             <div th:if="${customer.assignedEmployee != null}" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
                 <p style="margin:0;">
                     Current staff:
-                    <a th:href="@{/employees/{id}(id=${customer.assignedEmployee.id})}"
+                    <a th:href="@{/employees/{id}(id=${customer.assignedEmployee.id}, returnUrl=@{/customers/{customerId}(customerId=${customer.id}, tab='duty-tab')})}"
                        th:text="${customer.assignedEmployee.empCode} + ' · ' + ${customer.assignedEmployee.fullName}">EMP</a>
                 </p>
                 <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/assign(id=${customer.id})}" method="post" style="margin:0;">
@@ -131,6 +128,17 @@
             </tbody>
         </table>
         <p class="empty" th:if="${customer.documents.isEmpty()}">No documents uploaded.</p>
+    </div>
+
+    <div class="panel" style="margin-top:18px;" th:if="${canWriteCustomers and !customer.closed}">
+        <h3>Service close</h3>
+        <p class="sub">Select the date on which the patient service should close.</p>
+        <form th:action="@{/customers/{id}/close(id=${customer.id})}" method="post"
+              onsubmit="return confirm('Close this service on the selected date? Hold days are unpaid.');"
+              style="display:flex; align-items:center; gap:8px; margin:0;">
+            <input type="date" name="closeDate" th:value="${today}" th:attr="min=${customer.serviceStartDate != null ? #temporals.format(customer.serviceStartDate, 'yyyy-MM-dd') : null}, max=${today}" required="required" style="width:150px; max-width:150px; min-width:150px;"/>
+            <button class="btn coral" type="submit">Close Service</button>
+        </form>
     </div>
     </div>
 
@@ -367,7 +375,7 @@
     <div class="panel">
         <h3>Duty roster (date range)</h3>
         <p class="sub">Example: Day-01 to Day-04 Employee A, then Day-05 to Day-10 Employee B. Tick Hold for unpaid days.</p>
-        <form th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/duties(id=${customer.id})}" method="post" class="form-grid">
+        <form id="customer-duty-range-form" th:if="${canWriteCustomers and !customer.closed}" th:action="@{/customers/{id}/duties(id=${customer.id})}" method="post" class="form-grid">
             <div class="field">
                 <label class="req">From</label>
                 <input type="date" name="from" required="required"/>
@@ -606,7 +614,76 @@
                 });
             }
 
+            function bindDutyRangeForm() {
+                var rangeForm = document.getElementById('customer-duty-range-form');
+                if (!rangeForm || rangeForm.dataset.ajaxBound === 'true') {
+                    return;
+                }
+                rangeForm.dataset.ajaxBound = 'true';
+                rangeForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    var submitButton = rangeForm.querySelector('button[type="submit"]');
+                    if (submitButton) submitButton.disabled = true;
+                    var csrfInput = rangeForm.querySelector('input[name="_csrf"]');
+                    var csrfMeta = document.querySelector('meta[name="_csrf_header"]');
+                    var headers = {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    };
+                    if (csrfInput && csrfMeta) {
+                        headers[csrfMeta.getAttribute('content')] = csrfInput.value;
+                    }
+
+                    fetch(rangeForm.action, {
+                        method: 'POST',
+                        body: new FormData(rangeForm),
+                        headers: headers
+                    })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                return response.json().then(function (data) {
+                                    throw new Error(data.message || 'Unable to save duty range');
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(function (data) {
+                            if (window.showVnsFlash) {
+                                showVnsFlash(data.message, 'success');
+                            }
+                            var params = new URLSearchParams(window.location.search);
+                            var monthValue = data.from ? data.from.substring(0, 7) : '';
+                            if (monthValue) params.set('month', monthValue);
+                            params.set('tab', 'duty');
+                            var url = window.location.pathname + '?' + params.toString();
+                            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
+                                .then(function (response) { return response.text(); })
+                                .then(function (html) {
+                                    var parser = new DOMParser();
+                                    var doc = parser.parseFromString(html, 'text/html');
+                                    var replacement = doc.getElementById('duty-tab');
+                                    var currentSection = document.getElementById('duty-tab');
+                                    if (replacement && currentSection) {
+                                        currentSection.innerHTML = replacement.innerHTML;
+                                        bindDutyRangeForm();
+                                        bindDutyMonthForm();
+                                        activateTab('duty-tab');
+                                    }
+                                });
+                        })
+                        .catch(function (error) {
+                            if (window.showVnsFlash) {
+                                showVnsFlash(error.message || 'Unable to save duty range', 'error');
+                            }
+                        })
+                        .finally(function () {
+                            if (submitButton) submitButton.disabled = false;
+                        });
+                });
+            }
+
             bindAjaxUploadForms();
+            bindDutyRangeForm();
             if (requestedTab) {
                 var existingTarget = document.getElementById(requestedTab);
                 if (existingTarget) {
@@ -2190,6 +2267,14 @@
             populateDefaultInvoiceRows();
             updateInvoice();
         });
+    </script>
+    <script>
+        (function () {
+            var backLink = document.querySelector('[data-back-to-patients="true"]');
+            if (!backLink) return;
+            var saved = sessionStorage.getItem('customer-list-return-url');
+            if (saved) backLink.setAttribute('href', saved);
+        })();
     </script>
 </section>
 </html>

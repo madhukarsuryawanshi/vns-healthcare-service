@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Patient Attendance', ~{::section})}">
+<section>
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Patients</p>
+            <h2 class="page-title">Patient Attendance</h2>
+            <p class="sub">Read-only attendance derived from CustomerDuty roster data.</p>
+        </div>
+        <a class="btn ghost" th:href="@{/customers}">Back to Patients</a>
+    </div>
+
+    <div class="panel">
+        <div class="search" style="justify-content:space-between; align-items:center;">
+            <a class="btn ghost small" th:href="@{/customers/attendance(date=${previousMonth})}">‹ Previous month</a>
+            <h3 th:text="${#temporals.format(date, 'MMMM yyyy')}">November 2026</h3>
+            <a class="btn ghost small" th:href="@{/customers/attendance(date=${nextMonth})}">Next month ›</a>
+        </div>
+        <div class="sub" style="margin-top:10px;">
+            P = Present · HOLD = Absent
+        </div>
+    </div>
+
+    <style>
+        #patient-attendance-table tbody tr { height:64px; }
+        #patient-attendance-table tbody td { box-sizing:border-box; }
+        #patient-attendance-table th:nth-child(n+3),
+        #patient-attendance-table td:nth-child(n+3) { width:96px; min-width:96px; max-width:96px; }
+        #patient-attendance-table td:nth-child(n+3) strong { display:block; }
+        #patient-attendance-table th,
+        #patient-attendance-table td { border-right:1px solid #cbd5e1; }
+        #patient-attendance-table th:last-child,
+        #patient-attendance-table td:last-child { border-right:0; }
+        #patient-attendance-table thead th {
+            position:sticky;
+            top:0;
+            z-index:6;
+            background:#e5e7eb;
+            color:#1f2937;
+            font-weight:700;
+        }
+        #patient-attendance-table tbody tr:nth-child(even) td {
+            background:#f5f7fa;
+        }
+        #patient-attendance-table tbody tr:nth-child(odd) td {
+            background:#eef2f6;
+        }
+        #patient-attendance-table th:nth-child(1),
+        #patient-attendance-table td:nth-child(1) {
+            position:sticky;
+            left:0;
+            z-index:8;
+            background:#e5e7eb;
+        }
+        #patient-attendance-table th:nth-child(2),
+        #patient-attendance-table td:nth-child(2) {
+            position:sticky;
+            left:110px;
+            z-index:8;
+            background:#e5e7eb;
+        }
+        #patient-attendance-table tbody td:nth-child(1),
+        #patient-attendance-table tbody td:nth-child(2) {
+            background:#eef2f6;
+        }
+        #patient-attendance-table tbody tr:nth-child(even) td:nth-child(1),
+        #patient-attendance-table tbody tr:nth-child(even) td:nth-child(2) {
+            background:#f5f7fa;
+        }
+    </style>
+    <div class="panel" style="overflow:auto; max-height:calc(100vh - 240px);">
+        <table id="patient-attendance-table" th:if="${!customers.isEmpty()}" style="min-width:max-content;">
+            <thead>
+            <tr>
+                <th>Patient ID</th>
+                <th>Patient Name</th>
+                <th th:each="day : ${monthDays}" th:text="${day.dayOfMonth}" style="text-align:center; min-width:85px;">1</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="customer : ${customers}">
+                <td th:text="${customer.custCode}" style="min-width:110px;">CUS-1001</td>
+                <td style="min-width:180px;"><a th:href="@{/customers/{id}(id=${customer.id})}" th:text="${customer.patientName}" style="text-decoration:none; color:inherit; font-weight:600;">Patient</a></td>
+                <td th:each="day : ${monthDays}" style="text-align:center; vertical-align:middle; width:96px; min-width:96px; max-width:96px; height:64px; padding:6px 4px; overflow:hidden;">
+                    <th:block th:with="duty=${dutiesByKey.get(customer.id + '|' + #temporals.format(day, 'yyyy-MM-dd'))}">
+                        <div th:if="${duty == null or (duty.hold == false and duty.employee == null)}">&nbsp;</div>
+                        <div th:if="${duty != null and duty.hold}" style="line-height:1.2;">
+                            <strong>HOLD</strong>
+                        </div>
+                        <div th:if="${duty != null and !duty.hold and duty.employee != null}" style="line-height:1.2;">
+                            <th:block th:with="employeeAttendance=${attendanceByEmployee.get(duty.employee.id) != null ? attendanceByEmployee.get(duty.employee.id).get(#temporals.format(day, 'yyyy-MM-dd')) : null}">
+                                <strong th:if="${employeeAttendance == null or employeeAttendance.status.name() == 'PRESENT'}">P</strong>
+                                <strong th:if="${employeeAttendance != null and employeeAttendance.status.name() == 'ABSENT'}">A</strong>
+                                <strong th:if="${employeeAttendance != null and employeeAttendance.status.name() == 'HALF_DAY'}">HALF</strong>
+                                <strong th:if="${employeeAttendance != null and employeeAttendance.status.name() == 'LEAVE'}">BENCH</strong>
+                            </th:block>
+                            <br/><a th:href="@{/employees/{id}(id=${duty.employee.id}, returnUrl=@{/customers/attendance(date=${#temporals.format(day, 'yyyy-MM-dd')})})}" th:text="${duty.employee.fullName}" style="display:block; max-width:88px; margin:2px auto 0; overflow:hidden; text-overflow:ellipsis; white-space:normal; line-height:1.15; word-break:normal; color:inherit; text-decoration:none;">Employee</a>
+                        </div>
+                    </th:block>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="empty" th:if="${customers.isEmpty()}">No patients found.</p>
+    </div>
+</section>
+</html>

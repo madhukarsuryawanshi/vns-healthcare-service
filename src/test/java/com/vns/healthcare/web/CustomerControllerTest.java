@@ -58,6 +58,8 @@ class CustomerControllerTest {
     private CustomerChargeStatusService chargeStatusService;
     @Mock
     private UserActivityService userActivityService;
+    @Mock
+    private com.vns.healthcare.service.AttendanceService attendanceService;
 
     private CustomerController controller;
 
@@ -67,6 +69,7 @@ class CustomerControllerTest {
                 customerService,
                 employeeService,
                 dutyService,
+                attendanceService,
                 reportService,
                 fileStorageService,
                 businessBankAccountRepository,
@@ -115,6 +118,38 @@ class CustomerControllerTest {
         assertEquals("customers/form", view);
         assertArrayEquals(new CustomerStatus[]{CustomerStatus.ACTIVE, CustomerStatus.CLOSED},
                 (CustomerStatus[]) model.getAttribute("statuses"));
+    }
+
+    @Test
+    void patientAttendance_buildsDynamicMonthModelFromDutyIndex() {
+        Customer customer = new Customer();
+        customer.setId(12L);
+        customer.setCustCode("CUS-1001");
+        customer.setPatientName("Anita");
+
+        org.springframework.data.domain.Page<Customer> page =
+                new org.springframework.data.domain.PageImpl<Customer>(java.util.Collections.singletonList(customer));
+        when(customerService.listPage(any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+        when(dutyService.indexInRange(LocalDate.of(2028, 2, 1), LocalDate.of(2028, 2, 29)))
+                .thenReturn(java.util.Collections.emptyMap());
+        when(dutyService.daysInRange(LocalDate.of(2028, 2, 1), LocalDate.of(2028, 2, 29)))
+                .thenReturn(java.util.stream.IntStream.rangeClosed(1, 29)
+                        .mapToObj(day -> LocalDate.of(2028, 2, day))
+                        .collect(java.util.stream.Collectors.toList()));
+        java.util.Map<Long, java.util.Map<String, com.vns.healthcare.entity.Attendance>> monthlyRoster =
+                new java.util.LinkedHashMap<>();
+        when(attendanceService.monthlyRoster(LocalDate.of(2028, 2, 1))).thenReturn(monthlyRoster);
+
+        ExtendedModelMap model = new ExtendedModelMap();
+        String view = controller.patientAttendance(LocalDate.of(2028, 2, 17), model);
+
+        assertEquals("customers/attendance", view);
+        assertEquals(LocalDate.of(2028, 2, 1), model.getAttribute("date"));
+        assertEquals(29, ((java.util.List<?>) model.getAttribute("monthDays")).size());
+        assertEquals(LocalDate.of(2028, 1, 1), model.getAttribute("previousMonth"));
+        assertEquals(LocalDate.of(2028, 3, 1), model.getAttribute("nextMonth"));
+        assertEquals(monthlyRoster, model.getAttribute("attendanceByEmployee"));
+        assertEquals(java.util.Collections.emptyMap(), model.getAttribute("dutiesByKey"));
     }
 
     @Test

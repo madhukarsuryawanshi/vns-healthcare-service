@@ -65,6 +65,7 @@ public class CustomerController {
     private final CustomerService customerService;
     private final EmployeeService employeeService;
     private final CustomerDutyService dutyService;
+    private final com.vns.healthcare.service.AttendanceService attendanceService;
     private static final long SUGGESTION_CACHE_TTL_MS = 5000L;
 
     private final CustomerReportService reportService;
@@ -79,6 +80,7 @@ public class CustomerController {
     public CustomerController(CustomerService customerService,
                               EmployeeService employeeService,
                               CustomerDutyService dutyService,
+                              com.vns.healthcare.service.AttendanceService attendanceService,
                               CustomerReportService reportService,
                               FileStorageService fileStorageService,
                               BusinessBankAccountRepository businessBankAccountRepository,
@@ -89,6 +91,7 @@ public class CustomerController {
         this.customerService = customerService;
         this.employeeService = employeeService;
         this.dutyService = dutyService;
+        this.attendanceService = attendanceService;
         this.reportService = reportService;
         this.fileStorageService = fileStorageService;
         this.businessBankAccountRepository = businessBankAccountRepository;
@@ -162,6 +165,12 @@ public class CustomerController {
             customerPage = customerService.listPage(pageable);
         }
 
+        for (Customer customer : customerPage.getContent()) {
+            if (!customer.isClosed()) {
+                dutyService.continueFromLatestRow(customer);
+            }
+        }
+
         java.util.List<String> customerSuggestions = java.util.Collections.emptyList();
         if (query != null && !query.trim().isEmpty()) {
             customerSuggestions = customerService.search(query.trim(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent().stream()
@@ -232,8 +241,8 @@ public class CustomerController {
             case "fullName":
             case "patientName":
                 return "patientName";
-            case "serviceType":
-                return "serviceType";
+            case "serviceStartDate":
+                return "serviceStartDate";
             case "charges":
                 return "charges";
             case "status":
@@ -277,8 +286,8 @@ public class CustomerController {
             case "fullName":
             case "patientName":
                 return Comparator.comparing(c -> c.getPatientName() == null ? "" : c.getPatientName(), Comparator.nullsLast(String::compareToIgnoreCase));
-            case "serviceType":
-                return Comparator.comparing(c -> c.getServiceType() == null ? "" : c.getServiceType().name(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "serviceStartDate":
+                return Comparator.comparing(Customer::getServiceStartDate, Comparator.nullsLast(java.time.LocalDate::compareTo));
             case "charges":
                 return Comparator.comparing(Customer::getCharges, Comparator.nullsLast(BigDecimal::compareTo));
             case "status":
@@ -291,6 +300,33 @@ public class CustomerController {
             default:
                 return Comparator.comparing(Customer::getCustCode, Comparator.nullsLast(String::compareToIgnoreCase));
         }
+    }
+
+    @PreAuthorize("hasAuthority('customers:read') or hasAuthority('customers:write') or hasRole('ADMIN')")
+    @GetMapping("/attendance")
+    public String patientAttendance(@RequestParam(value = "date", required = false)
+                                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                                    Model model) {
+        LocalDate monthStart = (date == null ? LocalDate.now() : date).withDayOfMonth(1);
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+
+        Page<Customer> customerPage = customerService.listPage(PageRequest.of(0, 1000, Sort.by(Sort.Direction.ASC, "custCode")));
+        List<Customer> customers = new ArrayList<Customer>(customerPage.getContent());
+        customers.sort(comparatorForCustomer("custCode"));
+
+        Map<String, CustomerDuty> dutiesByKey = dutyService.indexInRange(monthStart, monthEnd);
+        Map<Long, Map<String, com.vns.healthcare.entity.Attendance>> attendanceByEmployee = attendanceService.monthlyRoster(monthStart);
+        List<LocalDate> monthDays = dutyService.daysInRange(monthStart, monthEnd);
+
+        model.addAttribute("page", "customers");
+        model.addAttribute("date", monthStart);
+        model.addAttribute("monthDays", monthDays);
+        model.addAttribute("customers", customers);
+        model.addAttribute("dutiesByKey", dutiesByKey);
+        model.addAttribute("attendanceByEmployee", attendanceByEmployee);
+        model.addAttribute("previousMonth", monthStart.minusMonths(1));
+        model.addAttribute("nextMonth", monthStart.plusMonths(1));
+        return "customers/attendance";
     }
 
     @GetMapping("/report")
@@ -366,6 +402,7 @@ public class CustomerController {
                          Model model) {
         Customer customer = customerService.get(id);
         customer.setAssignedEmployee(dutyService.resolveCurrentAssignedEmployee(customer));
+        dutyService.continueFromLatestRow(customer);
         YearMonth yearMonth = parseMonth(month);
         int selectedChargeYear = chargeYear == null ? YearMonth.now().getYear() : chargeYear;
         LocalDate from = yearMonth.atDay(1);
@@ -387,6 +424,7 @@ public class CustomerController {
         BigDecimal invoiceDailyRate = customer.getCharges() == null ? BigDecimal.ZERO : customer.getCharges();
 
         model.addAttribute("page", "customers");
+        model.addAttribute("today", LocalDate.now());
         model.addAttribute("customer", customer);
         model.addAttribute("staff", employeeService.activeCareStaffAvailable(customer.getId()));
         model.addAttribute("month", yearMonth.toString());
@@ -758,18 +796,34 @@ public class CustomerController {
 
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
     @PostMapping("/{id:\\d+}/duties")
-    public String applyDuty(@PathVariable Long id,
+    public Object applyDuty(@PathVariable Long id,
                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                             @RequestParam(required = false) Long employeeId,
                             @RequestParam(value = "hold", required = false) boolean hold,
-                            RedirectAttributes redirectAttributes) {
+                            RedirectAttributes redirectAttributes,
+                            jakarta.servlet.http.HttpServletRequest request) {
         try {
             dutyService.applyRange(id, from, to, employeeId, hold);
             redirectAttributes.addFlashAttribute("success",
                     hold ? "Hold saved for the selected days." : "Employee assigned for the selected days.");
+            boolean ajax = "XMLHttpRequest".equalsIgnoreCase(request.getHeader("X-Requested-With"))
+                    || (request.getHeader("Accept") != null && request.getHeader("Accept").contains("application/json"));
+            if (ajax) {
+                java.util.Map<String, Object> result = new java.util.LinkedHashMap<String, Object>();
+                result.put("success", true);
+                result.put("message", hold ? "Hold saved for the selected days." : "Employee assigned for the selected days.");
+                result.put("from", from.toString());
+                result.put("to", to.toString());
+                return ResponseEntity.ok(result);
+            }
         } catch (BusinessException ex) {
             redirectAttributes.addFlashAttribute("error", ex.getMessage());
+            boolean ajax = "XMLHttpRequest".equalsIgnoreCase(request.getHeader("X-Requested-With"))
+                    || (request.getHeader("Accept") != null && request.getHeader("Accept").contains("application/json"));
+            if (ajax) {
+                return ResponseEntity.badRequest().body(java.util.Map.of("success", false, "message", ex.getMessage()));
+            }
         }
         String month = from == null ? "" : from.getYear() + "-" + String.format("%02d", from.getMonthValue());
         StringBuilder redirect = new StringBuilder("redirect:/customers/").append(id);
@@ -783,9 +837,11 @@ public class CustomerController {
 
     @PreAuthorize("hasAuthority('customers:write') or hasRole('ADMIN')")
     @PostMapping("/{id:\\d+}/close")
-    public String close(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String close(@PathVariable Long id,
+                        @RequestParam("closeDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate closeDate,
+                        RedirectAttributes redirectAttributes) {
         try {
-            Customer closed = customerService.closeService(id, dutyService);
+            Customer closed = customerService.closeService(id, closeDate, dutyService);
             redirectAttributes.addFlashAttribute("success",
                     "Service closed. Billed amount for " + closed.getServiceClosedDate().withDayOfMonth(1)
                             + " to " + closed.getServiceClosedDate() + ": " + closed.getBilledAmount());
