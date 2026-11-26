@@ -32,6 +32,9 @@
         #patient-attendance-table th:last-child,
         #patient-attendance-table td:last-child { border-right:0; }
         #patient-attendance-table thead th {
+            position:sticky;
+            top:0;
+            z-index:6;
             background:#e5e7eb;
             color:#1f2937;
             font-weight:700;
@@ -46,14 +49,14 @@
         #patient-attendance-table td:nth-child(1) {
             position:sticky;
             left:0;
-            z-index:4;
+            z-index:8;
             background:#e5e7eb;
         }
         #patient-attendance-table th:nth-child(2),
         #patient-attendance-table td:nth-child(2) {
             position:sticky;
             left:110px;
-            z-index:4;
+            z-index:8;
             background:#e5e7eb;
         }
         #patient-attendance-table tbody td:nth-child(1),
@@ -65,7 +68,7 @@
             background:#f5f7fa;
         }
     </style>
-    <div class="panel" style="overflow:auto;">
+    <div class="panel" style="overflow:auto; max-height:calc(100vh - 240px);">
         <table id="patient-attendance-table" th:if="${!customers.isEmpty()}" style="min-width:max-content;">
             <thead>
             <tr>
