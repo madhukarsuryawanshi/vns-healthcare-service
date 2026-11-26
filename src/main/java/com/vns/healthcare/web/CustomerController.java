@@ -232,8 +232,8 @@ public class CustomerController {
             case "fullName":
             case "patientName":
                 return "patientName";
-            case "serviceType":
-                return "serviceType";
+            case "serviceStartDate":
+                return "serviceStartDate";
             case "charges":
                 return "charges";
             case "status":
@@ -277,8 +277,8 @@ public class CustomerController {
             case "fullName":
             case "patientName":
                 return Comparator.comparing(c -> c.getPatientName() == null ? "" : c.getPatientName(), Comparator.nullsLast(String::compareToIgnoreCase));
-            case "serviceType":
-                return Comparator.comparing(c -> c.getServiceType() == null ? "" : c.getServiceType().name(), Comparator.nullsLast(String::compareToIgnoreCase));
+            case "serviceStartDate":
+                return Comparator.comparing(Customer::getServiceStartDate, Comparator.nullsLast(java.time.LocalDate::compareTo));
             case "charges":
                 return Comparator.comparing(Customer::getCharges, Comparator.nullsLast(BigDecimal::compareTo));
             case "status":
